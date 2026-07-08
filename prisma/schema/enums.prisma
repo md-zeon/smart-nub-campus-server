@@ -3,3 +3,10 @@ enum VerificationStatus {
     APPROVED
     REJECTED
 }
+
+enum OnboardingStepValue {
+    VERIFICATION_FORM
+    ADMIN_REVIEW
+    ACCOUNT_CREATION
+    COMPLETED
+}

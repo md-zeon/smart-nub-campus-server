@@ -1,0 +1,38 @@
+model VerificationRequest {
+    id String @id @default(uuid())
+
+    // Personal Information
+    name        String
+    email       String   @unique
+    dateOfBirth DateTime
+    studentId   String   @unique
+    idCardImage String // Cloudinary URL
+
+    // Verification
+    status VerificationStatus @default(PENDING)
+    note   String?
+
+    // Relation
+    onboardingStep OnboardingStep?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("verification_requests")
+}
+
+model OnboardingStep {
+    id String @id @default(uuid())
+
+    verificationRequestId String @unique
+
+    verificationRequest VerificationRequest @relation(fields: [verificationRequestId], references: [id], onDelete: Cascade)
+    step                OnboardingStepValue @default(VERIFICATION_FORM)
+
+    completedAt DateTime?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("onboarding_steps")
+}
