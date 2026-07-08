@@ -1,0 +1,20 @@
+model VerificationRequest {
+    id          String   @id @default(cuid())
+    name        String
+    email       String
+    dateOfBirth DateTime
+    studentId   String // Foreign key to Student model
+    idCardImage String // Cloudinary URL
+
+    status VerificationStatus @default(PENDING)
+    note   String?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // onboardingStep OnboardingStep?
+    // student        Student?
+
+    @@index([studentId])
+    @@map("verification_requests")
+}
