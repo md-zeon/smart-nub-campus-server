@@ -3,11 +3,18 @@ model Student {
     userId String @unique
     user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    studentId   String   @unique
-    dateOfBirth DateTime
+    studentId         String           @unique
+    department        Department
+    admissionYear     Int
+    admissionSemester AdmissionSemester
+    dateOfBirth       DateTime
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
+
+    @@index([department])
+    @@index([admissionYear])
+    @@index([admissionSemester])
 
     @@map("student")
 }

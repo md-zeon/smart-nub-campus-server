@@ -21,3 +21,36 @@ enum UserStatus {
     SUSPENDED
     BANNED
 }
+
+enum AdmissionSemester {
+    SPRING
+    SUMMER
+    FALL
+}
+
+enum Department {
+    CSE
+    ECSE
+    EEE
+    EEEE
+    BBA
+    MBA
+    ENGLISH
+    MAE
+    BANGLA
+    MAB
+    LLB
+    MPH
+    BPH
+    ME
+    CIVIL
+    BTX
+    EBTX
+}
+
+enum Gender {
+    MALE
+    FEMALE
+    OTHER
+    PREFER_NOT_TO_SAY
+}
