@@ -10,3 +10,14 @@ enum OnboardingStepValue {
     ACCOUNT_CREATION
     COMPLETED
 }
+
+enum UserRole {
+    STUDENT
+    ADMIN
+}
+
+enum UserStatus {
+    ACTIVE
+    SUSPENDED
+    BANNED
+}
