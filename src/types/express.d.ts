@@ -1,11 +1,10 @@
-import { Session, User, Student, Admin } from "../generated/prisma";
-import { UserRole, UserStatus } from "../generated/prisma/enums";
+import { Admin, Session, Student, User } from "../generated/prisma/client";
 
 declare global {
   namespace Express {
     interface Request {
-      user?: User & { role: UserRole; status: UserStatus; isDeleted: boolean };
-      session?: Session;
+      user: User;
+      session: Session;
       student?: Student;
       admin?: Admin;
     }

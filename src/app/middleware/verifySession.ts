@@ -1,9 +1,10 @@
 import { NextFunction, Request, Response } from "express";
 import status from "http-status";
-import { UserRole, UserStatus } from "../../generated/prisma/enums";
+import { UserStatus } from "../../generated/prisma/enums";
 import { prisma } from "../lib/prisma";
 import AppError from "../errorHelpers/AppError";
 import { auth } from "../lib/auth";
+import { fromNodeHeaders } from "better-auth/node";
 
 const verifySession = async (
   req: Request,
@@ -11,11 +12,13 @@ const verifySession = async (
   next: NextFunction,
 ) => {
   try {
+    // get the session from the request headers using better-auth
     const session = await auth.api.getSession({
-      headers: req.headers as Record<string, string>,
+      headers: fromNodeHeaders(req.headers),
     });
 
-    if (!session?.user) {
+    // check if the session is valid
+    if (!session?.user || !session.session) {
       throw new AppError(status.UNAUTHORIZED, "Invalid or expired session.");
     }
 
@@ -32,23 +35,35 @@ const verifySession = async (
     }
 
     if (user.isDeleted) {
-      throw new AppError(status.FORBIDDEN, "Account has been deleted.");
+      throw new AppError(
+        status.FORBIDDEN,
+        "Your account has been deleted. Please contact support.",
+      );
     }
 
     if (user.status === UserStatus.BANNED) {
-      throw new AppError(status.FORBIDDEN, "Account has been banned.");
+      throw new AppError(
+        status.FORBIDDEN,
+        "Your account has been banned. Please contact support.",
+      );
     }
 
     if (user.status === UserStatus.SUSPENDED) {
-      throw new AppError(status.FORBIDDEN, "Account is suspended.");
+      throw new AppError(
+        status.FORBIDDEN,
+        "Your account is suspended. Please contact support.",
+      );
     }
 
-    req.user = user as typeof user & {
-      role: UserRole;
-      status: UserStatus;
-      isDeleted: boolean;
+    // Attach the user and session to the request object for further use in the application
+    req.user = user;
+    req.session = {
+      ...session.session,
+      ipAddress: session.session.ipAddress ?? null,
+      userAgent: session.session.userAgent ?? null,
     };
-    req.session = session.session as typeof session.session;
+
+    // Attach student and admin to the request object if they exist
     req.student = user.student ?? undefined;
     req.admin = user.admin ?? undefined;
 

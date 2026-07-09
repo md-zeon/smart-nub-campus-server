@@ -7,18 +7,34 @@ import { authService } from "./auth.service";
 const login = catchAsync(async (req: Request, res: Response) => {
   const { identifier, password } = req.body;
 
-  const result = await authService.login(identifier, password);
+  const { data, headers } = await authService.login(identifier, password);
+
+  const cookies = headers.getSetCookie(); // Get the Set-Cookie headers from the response
+
+  if (cookies.length > 0) {
+    // Set the cookies in the response headers
+    res.setHeader("Set-Cookie", cookies);
+  }
 
   sendResponse(res, {
     httpStatusCode: status.OK,
     success: true,
     message: "Login successful.",
-    data: result,
+    data: data,
   });
 });
 
 const logout = catchAsync(async (req: Request, res: Response) => {
-  await authService.logout(req.headers as Record<string, string>);
+  const { headers } = await authService.logout(
+    req.headers as Record<string, string>,
+  );
+
+  const cookies = headers.getSetCookie(); // Get the Set-Cookie headers from the response
+
+  // Clear the cookies in the response headers
+  if (cookies.length > 0) {
+    res.setHeader("Set-Cookie", cookies);
+  }
 
   sendResponse(res, {
     httpStatusCode: status.OK,

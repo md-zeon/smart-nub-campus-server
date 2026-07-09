@@ -32,14 +32,20 @@ interface AuthResponse {
   } | null;
 }
 
+interface AuthResult {
+  data: AuthResponse;
+  headers: Headers;
+}
+
 const login = async (
   identifier: string,
   password: string,
-): Promise<AuthResponse> => {
+): Promise<AuthResult> => {
   const email = await getEmailForIdentifier(identifier);
 
-  const signInResult = await auth.api.signInEmail({
+  const { response: signInResult, headers } = await auth.api.signInEmail({
     body: { email, password },
+    returnHeaders: true, // Return headers for session management
   });
 
   // Better Auth returns user on success, or error on failure
@@ -80,27 +86,30 @@ const login = async (
       : null;
 
   return {
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role as UserRole,
-      status: user.status as string,
-      isDeleted: user.isDeleted as boolean,
+    data: {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role as UserRole,
+        status: user.status as string,
+        isDeleted: user.isDeleted as boolean,
+      },
+      student: student
+        ? {
+            ...student,
+            department: student.department as unknown as string,
+            admissionSemester: student.admissionSemester as unknown as string,
+          }
+        : null,
+      admin: admin
+        ? {
+            ...admin,
+            department: admin.department as unknown as string | null,
+          }
+        : null,
     },
-    student: student
-      ? {
-          ...student,
-          department: student.department as unknown as string,
-          admissionSemester: student.admissionSemester as unknown as string,
-        }
-      : null,
-    admin: admin
-      ? {
-          ...admin,
-          department: admin.department as unknown as string | null,
-        }
-      : null,
+    headers,
   };
 };
 
@@ -127,7 +136,10 @@ const getEmailForIdentifier = async (identifier: string): Promise<string> => {
 };
 
 const logout = async (headers: Record<string, string>) => {
-  await auth.api.signOut({ headers });
+  return await auth.api.signOut({
+    headers,
+    returnHeaders: true, // Return headers for session management
+  });
 };
 
 const me = (req: {
