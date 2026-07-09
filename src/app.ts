@@ -3,6 +3,7 @@ import cookieParser from "cookie-parser";
 import { IndexRoutes } from "./app/routes";
 import globalErrorHandler from "./app/middleware/globalErrorHandler";
 import notFound from "./app/middleware/notFound";
+import cors from "cors";
 
 const app: Application = express();
 
@@ -14,6 +15,14 @@ app.use(express.json());
 
 // Middleware to parse cookies
 app.use(cookieParser());
+
+// Enable CORS
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  }),
+);
 
 // routes
 app.use("/api/v1", IndexRoutes);
