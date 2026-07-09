@@ -5,7 +5,10 @@ import {
 } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
-import { CreateVerificationRequestPayload } from "./verification.interface";
+import {
+  CreateVerificationRequestPayload,
+  ListVerificationParams,
+} from "./verification.interface";
 
 const createVerificationRequest = async (
   payload: CreateVerificationRequestPayload,
@@ -117,15 +120,6 @@ const createVerificationRequest = async (
 };
 
 // Admin methods
-interface ListVerificationParams {
-  page: number;
-  limit: number;
-  status?: VerificationStatus;
-  search?: string;
-  sortBy: string;
-  sortOrder: "asc" | "desc";
-}
-
 const listVerificationRequests = async (params: ListVerificationParams) => {
   const { page, limit, status, search, sortBy, sortOrder } = params;
   const skip = (page - 1) * limit;
