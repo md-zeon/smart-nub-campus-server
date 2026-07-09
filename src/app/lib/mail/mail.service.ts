@@ -1,8 +1,15 @@
 import ENVVARS from "../../../config/env";
-import { SendMailOptions, VerificationRejectedData, VerificationUser } from "./mail.types";
+import {
+  SendMailOptions,
+  VerificationRejectedData,
+  VerificationUser,
+  EmailOTPData,
+} from "./mail.types";
 import { resend } from "./transporter";
 import { getVerificationApprovedTemplate } from "./templates/verificationApproved";
 import { getVerificationRejectedTemplate } from "./templates/verificationRejected";
+import { getVerificationOTPTemplate } from "./templates/emailVerificationOtp";
+import { getPasswordResetOTPTemplate } from "./templates/passwordResetOtp";
 
 /**
  * Mail Service
@@ -24,7 +31,9 @@ const send = async (options: SendMailOptions): Promise<void> => {
   }
 };
 
-const sendVerificationApproved = async (user: VerificationUser): Promise<void> => {
+const sendVerificationApproved = async (
+  user: VerificationUser,
+): Promise<void> => {
   const html = getVerificationApprovedTemplate(user);
 
   await send({
@@ -46,8 +55,30 @@ const sendVerificationRejected = async (
   });
 };
 
+const sendEmailVerificationOTP = async (data: EmailOTPData): Promise<void> => {
+  const html = getVerificationOTPTemplate(data);
+
+  await send({
+    to: data.email,
+    subject: "Email Verification - Smart NUB Campus",
+    html,
+  });
+};
+
+const sendPasswordResetOTP = async (data: EmailOTPData): Promise<void> => {
+  const html = getPasswordResetOTPTemplate(data);
+
+  await send({
+    to: data.email,
+    subject: "Password Reset - Smart NUB Campus",
+    html,
+  });
+};
+
 export const mailService = {
   send,
   sendVerificationApproved,
   sendVerificationRejected,
+  sendEmailVerificationOTP,
+  sendPasswordResetOTP,
 };

@@ -13,6 +13,18 @@ const login = async (
 ): Promise<AuthResult> => {
   const email = await getEmailForIdentifier(identifier);
 
+  // Check if user exists and if email is verified before attempting sign-in
+  const existingUser = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (existingUser && !existingUser.emailVerified) {
+    throw new AppError(
+      status.FORBIDDEN,
+      "Please verify your email before logging in.",
+    );
+  }
+
   const { response: signInResult, headers } = await auth.api.signInEmail({
     body: { email, password },
     returnHeaders: true, // Return headers for session management

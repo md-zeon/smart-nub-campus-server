@@ -17,3 +17,8 @@ export interface VerificationUser {
 export interface VerificationRejectedData extends VerificationUser {
   note?: string | null;
 }
+
+export interface EmailOTPData {
+  email: string;
+  otp: string;
+}

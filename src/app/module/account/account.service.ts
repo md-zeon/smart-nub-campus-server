@@ -71,7 +71,6 @@ const createAccount = async (onboardingStepId: string, password: string) => {
   });
 
   if (!signUpResult || !("user" in signUpResult) || !signUpResult.user) {
-    // signUpResult might be an error response without a user
     throw new AppError(
       status.INTERNAL_SERVER_ERROR,
       "Failed to create account.",
@@ -119,6 +118,15 @@ const createAccount = async (onboardingStepId: string, password: string) => {
       "Failed to complete account creation.",
     );
   }
+
+  // 6. Send verification OTP to the user's email
+  // Using auth.api.sendVerificationOTP to trigger the OTP flow
+  await auth.api.sendVerificationOTP({
+    body: {
+      email: authUser.email,
+      type: "email-verification",
+    },
+  });
 
   return {
     userId: authUser.id,
