@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { VerificationStatus } from "../../../generated/prisma/enums";
 
 const createVerificationRequestSchema = z.object({
   name: z
@@ -22,6 +23,22 @@ const createVerificationRequestSchema = z.object({
   idCardImage: z.url("Invalid ID card image URL"),
 });
 
+// Admin schemas
+const listVerificationRequestsSchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+  status: z.enum(VerificationStatus).optional(),
+  search: z.string().optional(),
+  sortBy: z.string().default("createdAt"),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+});
+
+const rejectVerificationRequestSchema = z.object({
+  note: z.string().trim().min(1, "Rejection note is required"),
+});
+
 export const verificationValidation = {
   createVerificationRequestSchema,
+  listVerificationRequestsSchema,
+  rejectVerificationRequestSchema,
 };

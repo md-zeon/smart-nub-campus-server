@@ -16,12 +16,33 @@ const ADMISSION_SEMESTER_CODES: Record<number, AdmissionSemester> = {
   30: AdmissionSemester.FALL,
 };
 
+/**
+ * Checks if the identifier is a valid student ID format.
+ * Does not throw - returns boolean only.
+ */
+const isStudentId = (identifier: string): boolean => {
+  // Must be exactly 11 digits
+  if (!/^\d{11}$/.test(identifier)) {
+    return false;
+  }
+
+  const departmentCode = identifier.substring(0, 2);
+  const intakeSegment = identifier.substring(4, 7);
+
+  // Check valid department code
+  if (!getDepartmentByCode(departmentCode)) {
+    return false;
+  }
+
+  // Check valid intake code (last 2 digits of 3-digit segment)
+  const semesterCode = parseInt(intakeSegment.substring(1), 10);
+  return !!ADMISSION_SEMESTER_CODES[semesterCode];
+};
+
 const parseStudentId = (studentId: string): ParsedStudentId => {
-  if (!/^\d{11}$/.test(studentId)) {
-    throw new AppError(
-      status.BAD_REQUEST,
-      "Invalid student ID format. Must be exactly 11 digits.",
-    );
+  // Validate first using isStudentId
+  if (!isStudentId(studentId)) {
+    throw new AppError(status.BAD_REQUEST, "Invalid student ID format.");
   }
 
   const departmentCode = studentId.substring(0, 2);
@@ -29,26 +50,10 @@ const parseStudentId = (studentId: string): ParsedStudentId => {
   const intakeSegment = studentId.substring(4, 7);
   const serialNumber = parseInt(studentId.substring(7, 11), 10);
 
-  const department = getDepartmentByCode(departmentCode);
-  if (!department) {
-    throw new AppError(
-      status.BAD_REQUEST,
-      `Unknown department code: ${departmentCode}`,
-    );
-  }
-
+  const department = getDepartmentByCode(departmentCode)!; // Safe due to validation
   const admissionYear = 2000 + parseInt(yearPart, 10);
-
-  // Intake segment is 3 digits like "030", we take last 2 digits
   const semesterCode = parseInt(intakeSegment.substring(1), 10);
-  const admissionSemester = ADMISSION_SEMESTER_CODES[semesterCode];
-
-  if (!admissionSemester) {
-    throw new AppError(
-      status.BAD_REQUEST,
-      `Unknown intake code: ${intakeSegment}`,
-    );
-  }
+  const admissionSemester = ADMISSION_SEMESTER_CODES[semesterCode]; // Safe due to validation
 
   return {
     department,
@@ -58,4 +63,4 @@ const parseStudentId = (studentId: string): ParsedStudentId => {
   };
 };
 
-export { parseStudentId };
+export { parseStudentId, isStudentId };
