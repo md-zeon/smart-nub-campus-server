@@ -8,7 +8,7 @@ const createVerificationRequestSchema = z.object({
     .min(2, "Name must be at least 2 characters long")
     .max(100, "Name is too long"),
 
-  email: z.email("Invalid email address").toLowerCase().trim(),
+  email: z.string().toLowerCase().trim().email("Invalid email address"),
 
   dateOfBirth: z.coerce
     .date()
