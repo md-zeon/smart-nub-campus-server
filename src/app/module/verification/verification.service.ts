@@ -4,6 +4,7 @@ import {
   VerificationStatus,
 } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
+import { mailService } from "../../lib/mail";
 import { prisma } from "../../lib/prisma";
 import {
   CreateVerificationRequestPayload,
@@ -204,8 +205,8 @@ const approveVerificationRequest = async (id: string, adminId: string) => {
     );
   }
 
-  return await prisma.$transaction(async (tx) => {
-    await tx.verificationRequest.update({
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedRequest = await tx.verificationRequest.update({
       where: { id },
       data: {
         status: VerificationStatus.APPROVED,
@@ -213,6 +214,7 @@ const approveVerificationRequest = async (id: string, adminId: string) => {
         reviewedById: adminId,
         reviewedAt: new Date(),
       },
+      include: { onboardingStep: true },
     });
 
     if (request.onboardingStep) {
@@ -224,11 +226,27 @@ const approveVerificationRequest = async (id: string, adminId: string) => {
       });
     }
 
-    return tx.verificationRequest.findUnique({
-      where: { id },
-      include: { onboardingStep: true },
+    // Fetch the updated onboarding step to return with the result
+    const updatedOnboardingStep = await tx.onboardingStep.findUnique({
+      where: { verificationRequestId: id },
     });
+
+    return {
+      verificationRequest: updatedRequest,
+      onboardingStep: updatedOnboardingStep,
+    };
   });
+
+  // Send email after transaction commits successfully
+  // Use the result entity (committed state) for email data
+  if (result.verificationRequest?.email) {
+    await mailService.sendVerificationApproved({
+      name: result.verificationRequest.name,
+      email: result.verificationRequest.email,
+    });
+  }
+
+  return result;
 };
 
 const rejectVerificationRequest = async (
@@ -252,8 +270,8 @@ const rejectVerificationRequest = async (
     );
   }
 
-  return await prisma.$transaction(async (tx) => {
-    await tx.verificationRequest.update({
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedRequest = await tx.verificationRequest.update({
       where: { id },
       data: {
         status: VerificationStatus.REJECTED,
@@ -261,14 +279,24 @@ const rejectVerificationRequest = async (
         reviewedById: adminId,
         reviewedAt: new Date(),
       },
+      include: { onboardingStep: true },
     });
 
     // Keep onboarding step at ADMIN_REVIEW for rejected requests
-    return tx.verificationRequest.findUnique({
-      where: { id },
-      include: { onboardingStep: true },
-    });
+    return updatedRequest;
   });
+
+  // Send email after transaction commits successfully
+  // Use the result entity (committed state) for email data
+  if (result.email) {
+    await mailService.sendVerificationRejected({
+      name: result.name,
+      email: result.email,
+      note,
+    });
+  }
+
+  return { verificationRequest: result, onboardingStep: request.onboardingStep };
 };
 
 export const verificationService = {
