@@ -12,12 +12,18 @@ model VerificationRequest {
     status VerificationStatus @default(PENDING)
     note   String?
 
+    // Review audit
+    reviewedById String?
+    reviewedBy   User?     @relation("VerificationReviewedBy", fields: [reviewedById], references: [id])
+    reviewedAt   DateTime?
+
     // Relation
     onboardingStep OnboardingStep?
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
+    @@index([reviewedById])
     @@map("verification_requests")
 }
 

@@ -10,13 +10,15 @@ model User {
     isDeleted Boolean    @default(false)
     gender    Gender?
 
-    deletedAt DateTime?
-    createdAt DateTime  @default(now())
-    updatedAt DateTime  @updatedAt
-    sessions  Session[]
-    accounts  Account[]
-    student   Student?
-    admin     Admin?
+    deletedAt                    DateTime?
+    createdAt                    DateTime              @default(now())
+    updatedAt                    DateTime              @updatedAt
+    sessions                     Session[]
+    accounts                     Account[]
+    student                      Student?
+    admin                        Admin?
+    profile                      UserProfile?
+    reviewedVerificationRequests VerificationRequest[] @relation("VerificationReviewedBy")
 
     @@unique([email])
     @@map("user")

@@ -4,6 +4,9 @@ model Admin {
     user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     designation String?
+    employeeId  String?
+    department  Department?
+    joinedAt    DateTime    @default(now())
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
