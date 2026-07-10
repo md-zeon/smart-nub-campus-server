@@ -24,14 +24,33 @@ const createVerificationRequest = catchAsync(async (req, res) => {
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   });
 
+  // Return the full onboarding state so the frontend can render immediately
+  const verificationRequest = result.verificationRequest;
+  const responseData: Record<string, unknown> = {
+    currentStep: result.onboardingStep.step,
+    verificationStatus: verificationRequest?.status ?? null,
+    note: verificationRequest?.note ?? null,
+  };
+
+  if (verificationRequest) {
+    responseData.verificationRequest = {
+      id: verificationRequest.id,
+      name: verificationRequest.name,
+      email: verificationRequest.email,
+      dateOfBirth: verificationRequest.dateOfBirth,
+      studentId: verificationRequest.studentId,
+      status: verificationRequest.status,
+      note: verificationRequest.note,
+    };
+  } else {
+    responseData.verificationRequest = null;
+  }
+
   sendResponse(res, {
     httpStatusCode: httpStatus.CREATED,
     success: true,
     message: "Verification request submitted successfully.",
-    data: {
-      currentStep: result.onboardingStep.step,
-      verificationStatus: result.verificationRequest?.status ?? null,
-    },
+    data: responseData,
   });
 });
 
@@ -78,7 +97,10 @@ const approveVerificationRequest = catchAsync(async (req, res) => {
   const id = req.params.id as string;
   const adminId = req.user!.id;
 
-  const result = await verificationService.approveVerificationRequest(id, adminId);
+  const result = await verificationService.approveVerificationRequest(
+    id,
+    adminId,
+  );
 
   sendResponse(res, {
     httpStatusCode: httpStatus.OK,
@@ -93,7 +115,11 @@ const rejectVerificationRequest = catchAsync(async (req, res) => {
   const { note } = req.body;
   const adminId = req.user!.id;
 
-  const result = await verificationService.rejectVerificationRequest(id, note, adminId);
+  const result = await verificationService.rejectVerificationRequest(
+    id,
+    note,
+    adminId,
+  );
 
   sendResponse(res, {
     httpStatusCode: httpStatus.OK,

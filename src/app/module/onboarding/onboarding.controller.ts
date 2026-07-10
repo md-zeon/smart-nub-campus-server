@@ -1,8 +1,5 @@
 import status from "http-status";
-import {
-  OnboardingStepValue,
-  VerificationStatus,
-} from "../../../generated/prisma/enums";
+import { OnboardingStepValue } from "../../../generated/prisma/enums";
 import catchAsync from "../../shared/catchAsync";
 import sendResponse from "../../shared/sendResponse";
 import { onboardingService } from "./onboarding.service";
@@ -48,24 +45,24 @@ const getCurrentStep = catchAsync(async (req: Request, res: Response) => {
   const { step } = result.onboardingStep;
   const verificationRequest = result.verificationRequest;
 
-  // Build response — only include verificationRequest when request was rejected (for prefilling the form)
+  // Build response — always include verificationRequest when it exists
+  // Exclude idCardImage to avoid leaking sensitive data to the client
   const responseData: Record<string, unknown> = {
     currentStep: step,
     verificationStatus: verificationRequest?.status ?? null,
     note: verificationRequest?.note ?? null,
   };
 
-  // If the request was rejected (for prefilling the form)
-  if (verificationRequest?.status === VerificationStatus.REJECTED) {
+  if (verificationRequest) {
     responseData.verificationRequest = {
       id: verificationRequest.id,
       name: verificationRequest.name,
       email: verificationRequest.email,
       dateOfBirth: verificationRequest.dateOfBirth,
       studentId: verificationRequest.studentId,
-      idCardImage: verificationRequest.idCardImage,
+      status: verificationRequest.status,
+      note: verificationRequest.note,
     };
-    // If the request was not rejected, we don't include the verificationRequest in the response
   } else {
     responseData.verificationRequest = null;
   }

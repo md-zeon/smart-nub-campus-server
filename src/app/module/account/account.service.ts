@@ -130,6 +130,8 @@ const createAccount = async (onboardingStepId: string, password: string) => {
 
   return {
     userId: authUser.id,
+    name: authUser.name,
+    email: authUser.email,
     role: UserRole.STUDENT,
   };
 };

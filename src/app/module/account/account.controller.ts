@@ -29,6 +29,8 @@ const createAccount = catchAsync(async (req, res) => {
       currentStep: "COMPLETED",
       user: {
         id: result.userId,
+        name: result.name,
+        email: result.email,
         role: result.role,
       },
     },
