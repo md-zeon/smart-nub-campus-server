@@ -5,17 +5,61 @@ import { prisma } from "./prisma";
 import { UserStatus } from "../../generated/prisma/enums";
 import { mailService } from "./mail";
 import { EMAIL_OTP_EXPIRES_IN } from "../constants/auth";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  basePath: "/api/v1/auth",
+  trustedOrigins: ["http://localhost:3000", "http://localhost:5000"],
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
   },
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === "/api/v1/auth/sign-in/email") {
+        const user = await prisma.user.findUnique({
+          where: {
+            email: ctx.body.email,
+          },
+        });
+
+        if (user && !user.emailVerified) {
+          throw new APIError("FORBIDDEN", {
+            message: "Please verify your email.",
+          });
+        }
+
+        if (user?.status === UserStatus.SUSPENDED) {
+          throw new APIError("FORBIDDEN", {
+            message: "Account suspended.",
+          });
+        }
+
+        return ctx;
+      } else if (ctx.path === "/api/v1/auth/sign-up/email") {
+        const user = await prisma.user.findUnique({
+          where: {
+            email: ctx.body.email,
+          },
+        });
+
+        if (user) {
+          throw new APIError("CONFLICT", {
+            message: "User with this email already exists.",
+          });
+        }
+
+        return ctx;
+      }
+    }),
+  },
   plugins: [
+    // Email OTP plugin configuration
     emailOTP({
+      // Function to send the verification OTP email when requested
       sendVerificationOTP: async ({ email, otp, type }) => {
         if (type === "email-verification") {
           await mailService.sendEmailVerificationOTP({ email, otp });
