@@ -37,6 +37,19 @@ const createAccount = catchAsync(async (req, res) => {
   });
 });
 
+const getEmailByStudentId = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await accountService.getEmailByStudentId(id as string);
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Email retrieved successfully.",
+    data: result,
+  });
+});
+
 export const accountController = {
   createAccount,
+  getEmailByStudentId,
 };

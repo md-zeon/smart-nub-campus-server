@@ -136,6 +136,22 @@ const createAccount = async (onboardingStepId: string, password: string) => {
   };
 };
 
+const getEmailByStudentId = async (id: string) => {
+  const student = await prisma.student.findUnique({
+    where: { studentId: id },
+    select: { user: { select: { email: true } } },
+  });
+
+  if (!student || !student.user) {
+    throw new AppError(
+      status.NOT_FOUND,
+      "Student with this ID does not exist.",
+    );
+  }
+  return { email: student.user.email };
+};
+
 export const accountService = {
   createAccount,
+  getEmailByStudentId,
 };
