@@ -3,6 +3,7 @@ import catchAsync from "../../shared/catchAsync";
 import sendResponse from "../../shared/sendResponse";
 import { VerificationStatus } from "../../../generated/prisma/enums";
 import { verificationService } from "./verification.service";
+import { CreateVerificationRequestResponse } from "./verification.interface";
 
 const createVerificationRequest = catchAsync(async (req, res) => {
   const result = await verificationService.createVerificationRequest(req.body);
@@ -26,10 +27,11 @@ const createVerificationRequest = catchAsync(async (req, res) => {
 
   // Return the full onboarding state so the frontend can render immediately
   const verificationRequest = result.verificationRequest;
-  const responseData: Record<string, unknown> = {
+  const responseData: CreateVerificationRequestResponse = {
     currentStep: result.onboardingStep.step,
     verificationStatus: verificationRequest?.status ?? null,
     note: verificationRequest?.note ?? null,
+    verificationRequest: null,
   };
 
   if (verificationRequest) {

@@ -1,4 +1,7 @@
-import { VerificationStatus } from "../../../generated/prisma/enums";
+import {
+  OnboardingStepValue,
+  VerificationStatus,
+} from "../../../generated/prisma/enums";
 
 export interface CreateVerificationRequestPayload {
   name: string;
@@ -15,4 +18,19 @@ export interface ListVerificationParams {
   search?: string;
   sortBy: string;
   sortOrder: "asc" | "desc";
+}
+
+export interface CreateVerificationRequestResponse {
+  currentStep: OnboardingStepValue;
+  verificationStatus: VerificationStatus | null;
+  note: string | null;
+  verificationRequest: {
+    id: string;
+    name: string;
+    email: string;
+    dateOfBirth: Date;
+    studentId: string;
+    status: VerificationStatus;
+    note: string | null;
+  } | null;
 }
