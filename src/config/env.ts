@@ -5,7 +5,7 @@ import status from "http-status";
 dotenv.config();
 
 interface EnvConfig {
-  NODE_ENV: string;
+  NODE_ENV: "development" | "production";
   PORT: string;
   DATABASE_URL: string;
   BETTER_AUTH_SECRET: string;
@@ -45,7 +45,7 @@ const loadEnvVariables = (): EnvConfig => {
     }
   }
   return {
-    NODE_ENV: process.env.NODE_ENV as string,
+    NODE_ENV: process.env.NODE_ENV as "development" | "production",
     PORT: process.env.PORT as string,
     DATABASE_URL: process.env.DATABASE_URL as string,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET as string,

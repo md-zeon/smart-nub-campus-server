@@ -4,6 +4,7 @@ import sendResponse from "../../shared/sendResponse";
 import { VerificationStatus } from "../../../generated/prisma/enums";
 import { verificationService } from "./verification.service";
 import { CreateVerificationRequestResponse } from "./verification.interface";
+import ENVVARS from "../../../config/env";
 
 const createVerificationRequest = catchAsync(async (req, res) => {
   const result = await verificationService.createVerificationRequest(req.body);
@@ -20,7 +21,7 @@ const createVerificationRequest = catchAsync(async (req, res) => {
   // Set onboarding cookie with the onboarding step ID
   res.cookie("onboarding_step", result.onboardingStep.id, {
     httpOnly: true,
-    secure: process.env.NODE_ENV !== "development",
+    secure: ENVVARS.NODE_ENV === "production", // Use secure cookies in production
     sameSite: "lax",
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   });
