@@ -3,14 +3,9 @@
  * Generates HTML content for password reset OTP
  */
 
-interface PasswordResetOTPData {
-  email: string;
-  otp: string;
-}
+import { EmailOTPData } from "../mail.types";
 
-export const getPasswordResetOTPTemplate = (
-  data: PasswordResetOTPData,
-): string => {
+export const getPasswordResetOTPTemplate = (data: EmailOTPData): string => {
   const { otp } = data;
   const appName = "Smart NUB Campus";
   const expiresInMinutes = 5;

@@ -16,8 +16,14 @@ interface EnvConfig {
   //   ACCESS_TOKEN_EXPIRES_IN: string;
   //   REFRESH_TOKEN_SECRET: string;
   //   REFRESH_TOKEN_EXPIRES_IN: string;
-  RESEND_API_KEY: string;
-  MAIL_FROM: string;
+  // Resend provider credentials (optional - validated in ResendProvider)
+  RESEND_API_KEY?: string;
+  MAIL_FROM?: string;
+  // Mail provider selection
+  MAIL_PROVIDER: "gmail" | "resend";
+  // Gmail provider credentials (optional - validated in GmailProvider)
+  GMAIL_USER?: string;
+  GMAIL_APP_PASSWORD?: string;
 }
 
 const loadEnvVariables = (): EnvConfig => {
@@ -33,8 +39,8 @@ const loadEnvVariables = (): EnvConfig => {
     // "ACCESS_TOKEN_EXPIRES_IN",
     // "REFRESH_TOKEN_SECRET",
     // "REFRESH_TOKEN_EXPIRES_IN",
-    "RESEND_API_KEY",
-    "MAIL_FROM",
+    // RESEND_API_KEY and MAIL_FROM are validated in ResendProvider constructor
+    // GMAIL_USER and GMAIL_APP_PASSWORD are validated in GmailProvider constructor
   ];
   for (const variable of requiredEnvVariables) {
     if (!process.env[variable]) {
@@ -58,8 +64,13 @@ const loadEnvVariables = (): EnvConfig => {
     // ACCESS_TOKEN_EXPIRES_IN: process.env.ACCESS_TOKEN_EXPIRES_IN as string,
     // REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET as string,
     // REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN as string,
-    RESEND_API_KEY: process.env.RESEND_API_KEY as string,
-    MAIL_FROM: process.env.MAIL_FROM as string,
+    // Mail provider credentials - optional, validated in provider constructors
+    RESEND_API_KEY: process.env.RESEND_API_KEY as string | undefined,
+    MAIL_FROM: process.env.MAIL_FROM as string | undefined,
+    MAIL_PROVIDER:
+      (process.env.MAIL_PROVIDER as "gmail" | "resend") || "resend",
+    GMAIL_USER: process.env.GMAIL_USER as string | undefined,
+    GMAIL_APP_PASSWORD: process.env.GMAIL_APP_PASSWORD as string | undefined,
   };
 };
 

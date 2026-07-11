@@ -3,14 +3,9 @@
  * Generates HTML content for email verification OTP
  */
 
-interface EmailVerificationOTPData {
-  email: string;
-  otp: string;
-}
+import { EmailOTPData } from "../mail.types";
 
-export const getVerificationOTPTemplate = (
-  data: EmailVerificationOTPData,
-): string => {
+export const getVerificationOTPTemplate = (data: EmailOTPData): string => {
   const { otp } = data;
   const appName = "Smart NUB Campus";
   const expiresInMinutes = 5;
