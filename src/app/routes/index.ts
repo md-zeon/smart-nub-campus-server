@@ -4,6 +4,7 @@ import { accountRoutes } from "../module/account/account.routes";
 import { identityRoutes } from "../module/identity/identity.routes";
 import { onboardingRoutes } from "../module/onboarding/onboarding.routes";
 import { verificationRoutes } from "../module/verification/verification.routes";
+import { uploadRoutes } from "../module/upload/upload.routes";
 import { auth } from "../lib/auth";
 
 const router: Router = Router();
@@ -17,5 +18,6 @@ router.use("/onboarding", onboardingRoutes);
 router.use("/verification", verificationRoutes);
 router.use("/account", accountRoutes);
 router.use("/identity", identityRoutes);
+router.use("/upload", uploadRoutes);
 
 export const IndexRoutes = router;

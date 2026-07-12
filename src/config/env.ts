@@ -10,12 +10,12 @@ interface EnvConfig {
   DATABASE_URL: string;
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL: string;
-  //   BETTER_AUTH_SESSION_TOKEN_EXPIRES_IN: string;
-  //   BETTER_AUTH_SESSION_TOKEN_UPDATE_AGE: string;
-  //   ACCESS_TOKEN_SECRET: string;
-  //   ACCESS_TOKEN_EXPIRES_IN: string;
-  //   REFRESH_TOKEN_SECRET: string;
-  //   REFRESH_TOKEN_EXPIRES_IN: string;
+  // Cloudinary credentials
+  CLOUDINARY_CLOUD_NAME: string;
+  CLOUDINARY_API_KEY: string;
+  CLOUDINARY_API_SECRET: string;
+  CLOUDINARY_FOLDER?: string;
+  MAX_UPLOAD_SIZE_MB?: string;
   // Resend provider credentials (optional - validated in ResendProvider)
   RESEND_API_KEY?: string;
   MAIL_FROM?: string;
@@ -33,12 +33,9 @@ const loadEnvVariables = (): EnvConfig => {
     "DATABASE_URL",
     "BETTER_AUTH_SECRET",
     "BETTER_AUTH_URL",
-    // "BETTER_AUTH_SESSION_TOKEN_EXPIRES_IN",
-    // "BETTER_AUTH_SESSION_TOKEN_UPDATE_AGE",
-    // "ACCESS_TOKEN_SECRET",
-    // "ACCESS_TOKEN_EXPIRES_IN",
-    // "REFRESH_TOKEN_SECRET",
-    // "REFRESH_TOKEN_EXPIRES_IN",
+    "CLOUDINARY_CLOUD_NAME",
+    "CLOUDINARY_API_KEY",
+    "CLOUDINARY_API_SECRET",
     // RESEND_API_KEY and MAIL_FROM are validated in ResendProvider constructor
     // GMAIL_USER and GMAIL_APP_PASSWORD are validated in GmailProvider constructor
   ];
@@ -56,14 +53,11 @@ const loadEnvVariables = (): EnvConfig => {
     DATABASE_URL: process.env.DATABASE_URL as string,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET as string,
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL as string,
-    // BETTER_AUTH_SESSION_TOKEN_EXPIRES_IN: process.env
-    //   .BETTER_AUTH_SESSION_TOKEN_EXPIRES_IN as string,
-    // BETTER_AUTH_SESSION_TOKEN_UPDATE_AGE: process.env
-    //   .BETTER_AUTH_SESSION_TOKEN_UPDATE_AGE as string,
-    // ACCESS_TOKEN_SECRET: process.env.ACCESS_TOKEN_SECRET as string,
-    // ACCESS_TOKEN_EXPIRES_IN: process.env.ACCESS_TOKEN_EXPIRES_IN as string,
-    // REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET as string,
-    // REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN as string,
+    CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME as string,
+    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY as string,
+    CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET as string,
+    CLOUDINARY_FOLDER: process.env.CLOUDINARY_FOLDER as string | undefined,
+    MAX_UPLOAD_SIZE_MB: process.env.MAX_UPLOAD_SIZE_MB as string | undefined,
     // Mail provider credentials - optional, validated in provider constructors
     RESEND_API_KEY: process.env.RESEND_API_KEY as string | undefined,
     MAIL_FROM: process.env.MAIL_FROM as string | undefined,
