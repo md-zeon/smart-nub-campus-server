@@ -48,6 +48,15 @@ export class UploadService {
       throw new AppError(status.INTERNAL_SERVER_ERROR, "Failed to upload file");
     }
   }
+
+  async delete(publicId: string): Promise<boolean> {
+    try {
+      return await this.provider.delete(publicId);
+    } catch (error) {
+      console.error("Delete failed:", error);
+      throw new AppError(status.INTERNAL_SERVER_ERROR, "Failed to delete file");
+    }
+  }
 }
 
 export const uploadService = new UploadService();

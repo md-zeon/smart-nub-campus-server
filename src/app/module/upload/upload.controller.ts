@@ -33,6 +33,39 @@ export class UploadController {
       next(error);
     }
   }
+
+  async delete(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void | Response> {
+    try {
+      const { publicId } = req.body;
+
+      if (!publicId) {
+        return res.status(400).json({
+          success: false,
+          error: "publicId is required",
+        });
+      }
+
+      const deleted = await uploadService.delete(publicId);
+
+      if (!deleted) {
+        return res.status(404).json({
+          success: false,
+          error: "File not found or could not be deleted",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "File deleted successfully",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const uploadController = new UploadController();

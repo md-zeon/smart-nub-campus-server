@@ -49,6 +49,16 @@ export const cloudinaryProvider: UploadProvider = {
       originalFilename: file.originalname,
     };
   },
+
+  async delete(publicId: string): Promise<boolean> {
+    try {
+      const result = await cloudinary.uploader.destroy(publicId);
+      return result.result === "ok";
+    } catch (error) {
+      console.error("Cloudinary delete failed:", error);
+      return false;
+    }
+  },
 };
 
 export default cloudinaryProvider;

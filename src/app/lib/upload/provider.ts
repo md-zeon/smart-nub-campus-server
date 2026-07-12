@@ -20,6 +20,8 @@ interface UploadProvider {
       type?: "image" | "video" | "raw";
     },
   ): Promise<UploadResult>;
+
+  delete(publicId: string): Promise<boolean>;
 }
 
 export { type UploadResult, type UploadProvider };
