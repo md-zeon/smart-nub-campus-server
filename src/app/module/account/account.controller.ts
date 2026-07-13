@@ -2,6 +2,7 @@ import status from "http-status";
 import catchAsync from "../../shared/catchAsync";
 import sendResponse from "../../shared/sendResponse";
 import { accountService } from "./account.service";
+import { OnboardingStepValue } from "../../../generated/prisma/enums";
 
 const createAccount = catchAsync(async (req, res) => {
   const onboardingStepId = req.cookies?.onboarding_step;
@@ -23,12 +24,13 @@ const createAccount = catchAsync(async (req, res) => {
     success: true,
     message: "Account created successfully.",
     data: {
-      currentStep: "VERIFY_EMAIL",
+      currentStep: result.currentStep,
+      verificationRequest: result.verificationRequest,
       user: {
-        id: result.userId,
-        name: result.name,
-        email: result.email,
-        role: result.role,
+        id: result.user.userId,
+        name: result.user.name,
+        email: result.user.email,
+        role: result.user.role,
       },
     },
   });

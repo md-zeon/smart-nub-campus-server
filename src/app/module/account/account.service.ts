@@ -118,11 +118,29 @@ const createAccount = async (onboardingStepId: string, password: string) => {
     );
   }
 
+  // fetch Verification Request Data for response
+  const verificationRequestData = await prisma.verificationRequest.findUnique({
+    where: { email: verificationRequest.email },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      studentId: true,
+      dateOfBirth: true,
+      status: true,
+      note: true,
+    },
+  });
+
   return {
-    userId: authUser.id,
-    name: authUser.name,
-    email: authUser.email,
-    role: UserRole.STUDENT,
+    user: {
+      userId: authUser.id,
+      name: authUser.name,
+      email: authUser.email,
+      role: UserRole.STUDENT,
+    },
+    verificationRequest: verificationRequestData,
+    currentStep: OnboardingStepValue.VERIFY_EMAIL,
   };
 };
 
