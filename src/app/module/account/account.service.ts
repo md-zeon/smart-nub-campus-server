@@ -79,7 +79,7 @@ const createAccount = async (onboardingStepId: string, password: string) => {
 
   const authUser = signUpResult.user;
 
-  // 5. Create Student and mark onboarding as COMPLETED in a transaction
+  // 5. Create Student and mark onboarding to verify email in a transaction
   try {
     await prisma.$transaction(async (tx) => {
       await tx.student.create({
@@ -96,8 +96,7 @@ const createAccount = async (onboardingStepId: string, password: string) => {
       await tx.onboardingStep.update({
         where: { id: onboardingStepId },
         data: {
-          step: OnboardingStepValue.COMPLETED,
-          completedAt: new Date(),
+          step: OnboardingStepValue.VERIFY_EMAIL,
         },
       });
     });
@@ -118,15 +117,6 @@ const createAccount = async (onboardingStepId: string, password: string) => {
       "Failed to complete account creation.",
     );
   }
-
-  // 6. Send verification OTP to the user's email
-  // Using auth.api.sendVerificationOTP to trigger the OTP flow
-  await auth.api.sendVerificationOTP({
-    body: {
-      email: authUser.email,
-      type: "email-verification",
-    },
-  });
 
   return {
     userId: authUser.id,

@@ -8,6 +8,7 @@ enum OnboardingStepValue {
     VERIFICATION_FORM
     ADMIN_REVIEW
     ACCOUNT_CREATION
+    VERIFY_EMAIL
     COMPLETED
 }
 

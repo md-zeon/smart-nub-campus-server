@@ -75,6 +75,31 @@ const getCurrentStep = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const completeOnboarding = catchAsync(async (req: Request, res: Response) => {
+  const onboardingStepId = req.cookies?.onboarding_step;
+  const { email } = req.body;
+
+  if (!onboardingStepId) {
+    return sendResponse(res, {
+      httpStatusCode: status.UNAUTHORIZED,
+      success: false,
+      message: "No onboarding session found.",
+    });
+  }
+
+  await onboardingService.completeOnboarding(onboardingStepId, email);
+
+  res.clearCookie("onboarding_step");
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Onboarding completed successfully.",
+    data: { currentStep: OnboardingStepValue.COMPLETED },
+  });
+});
+
 export const onboardingController = {
   getCurrentStep,
+  completeOnboarding,
 };

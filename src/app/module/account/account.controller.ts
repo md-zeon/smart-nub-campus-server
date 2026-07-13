@@ -18,15 +18,12 @@ const createAccount = catchAsync(async (req, res) => {
   const { password } = req.body;
   const result = await accountService.createAccount(onboardingStepId, password);
 
-  // Clear the onboarding cookie — account creation is complete
-  res.clearCookie("onboarding_step");
-
   sendResponse(res, {
     httpStatusCode: status.CREATED,
     success: true,
     message: "Account created successfully.",
     data: {
-      currentStep: "COMPLETED",
+      currentStep: "VERIFY_EMAIL",
       user: {
         id: result.userId,
         name: result.name,
