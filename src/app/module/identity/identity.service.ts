@@ -19,6 +19,6 @@ const me = (user: RequestUser) => {
   };
 };
 
-export const authService = {
+export const identityService = {
   me,
 };

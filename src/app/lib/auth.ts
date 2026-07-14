@@ -6,13 +6,14 @@ import { UserStatus } from "../../generated/prisma/enums";
 import { mailService } from "./mail";
 import { EMAIL_OTP_EXPIRES_IN } from "../constants/auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
+import ENVVARS from "../../config/env";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
   basePath: "/api/v1/auth",
-  trustedOrigins: ["http://localhost:3000", "http://localhost:5000"],
+  trustedOrigins: ENVVARS.CORS_ORIGINS,
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
