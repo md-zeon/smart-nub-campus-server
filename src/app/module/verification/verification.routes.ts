@@ -2,6 +2,7 @@ import { Router } from "express";
 import validateRequest from "../../middleware/validateRequest";
 import verifySession from "../../middleware/verifySession";
 import requireRole from "../../middleware/requireRole";
+import { verificationRateLimiter } from "../../middleware/rateLimit";
 import { UserRole } from "../../../generated/prisma/enums";
 import { verificationController } from "./verification.controller";
 import { verificationValidation } from "./verification.validation";
@@ -11,6 +12,7 @@ const router: Router = Router();
 // Public endpoint
 router.post(
   "/request",
+  verificationRateLimiter,
   validateRequest(verificationValidation.createVerificationRequestSchema),
   verificationController.createVerificationRequest,
 );

@@ -12,6 +12,13 @@ interface EnvConfig {
   BETTER_AUTH_URL: string;
   // CORS
   CORS_ORIGINS: string[];
+  // Rate limiting
+  RATE_LIMIT_LOGIN_WINDOW_MS: number;
+  RATE_LIMIT_LOGIN_MAX: number;
+  RATE_LIMIT_OTP_WINDOW_MS: number;
+  RATE_LIMIT_OTP_MAX: number;
+  RATE_LIMIT_VERIFICATION_WINDOW_MS: number;
+  RATE_LIMIT_VERIFICATION_MAX: number;
   // Cloudinary credentials
   CLOUDINARY_CLOUD_NAME: string;
   CLOUDINARY_API_KEY: string;
@@ -58,6 +65,13 @@ const loadEnvVariables = (): EnvConfig => {
     CORS_ORIGINS: process.env.CORS_ORIGINS
       ? process.env.CORS_ORIGINS.split(",").map((s) => s.trim())
       : ["http://localhost:3000"],
+    // Rate limiting defaults
+    RATE_LIMIT_LOGIN_WINDOW_MS: Number(process.env.RATE_LIMIT_LOGIN_WINDOW_MS) || 900_000,
+    RATE_LIMIT_LOGIN_MAX: Number(process.env.RATE_LIMIT_LOGIN_MAX) || 5,
+    RATE_LIMIT_OTP_WINDOW_MS: Number(process.env.RATE_LIMIT_OTP_WINDOW_MS) || 600_000,
+    RATE_LIMIT_OTP_MAX: Number(process.env.RATE_LIMIT_OTP_MAX) || 3,
+    RATE_LIMIT_VERIFICATION_WINDOW_MS: Number(process.env.RATE_LIMIT_VERIFICATION_WINDOW_MS) || 86_400_000,
+    RATE_LIMIT_VERIFICATION_MAX: Number(process.env.RATE_LIMIT_VERIFICATION_MAX) || 5,
     CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME as string,
     CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY as string,
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET as string,
