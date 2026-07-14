@@ -62,6 +62,17 @@ export const auth = betterAuth({
     emailOTP({
       // Function to send the verification OTP email when requested
       sendVerificationOTP: async ({ email, otp, type }) => {
+        // Check if a user with this email exists before sending
+        const user = await prisma.user.findUnique({
+          where: { email },
+          select: { id: true },
+        });
+
+        if (!user) {
+          // Silently return to prevent email enumeration
+          return;
+        }
+
         if (type === "email-verification") {
           await mailService.sendEmailVerificationOTP({ email, otp });
         } else if (type === "forget-password") {

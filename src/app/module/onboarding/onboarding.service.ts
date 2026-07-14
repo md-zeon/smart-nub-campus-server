@@ -21,6 +21,34 @@ const getCurrentOnboardingState = async (onboardingStepId: string) => {
     };
   }
 
+  // Auto-complete if the step is VERIFY_EMAIL and the user's email is already verified
+  // This handles the case where the user verified their email on a different page
+  // (e.g., /auth/verify-email) and then navigated back to onboarding
+  if (
+    onboardingStep.step === OnboardingStepValue.VERIFY_EMAIL &&
+    onboardingStep.verificationRequest?.email
+  ) {
+    const user = await prisma.user.findUnique({
+      where: { email: onboardingStep.verificationRequest.email },
+      select: { emailVerified: true },
+    });
+
+    if (user?.emailVerified) {
+      const updatedStep = await prisma.onboardingStep.update({
+        where: { id: onboardingStepId },
+        data: {
+          step: OnboardingStepValue.COMPLETED,
+          completedAt: new Date(),
+        },
+      });
+
+      return {
+        onboardingStep: { ...onboardingStep, ...updatedStep },
+        verificationRequest: onboardingStep.verificationRequest,
+      };
+    }
+  }
+
   return {
     onboardingStep,
     verificationRequest: onboardingStep.verificationRequest,
