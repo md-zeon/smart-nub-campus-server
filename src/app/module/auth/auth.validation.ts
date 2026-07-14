@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+const forgotPasswordSchema = z
+  .object({
+    identifier: z
+      .string()
+      .min(1, "Email or Student ID is required")
+      .max(100, "Identifier is too long"),
+  })
+  .strict();
+
 const resetPasswordSchema = z
   .object({
     identifier: z
@@ -19,6 +28,7 @@ const resetPasswordSchema = z
   })
   .strict();
 
-export const resetPasswordValidation = {
+export const authValidation = {
+  forgotPasswordSchema,
   resetPasswordSchema,
 };

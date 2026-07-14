@@ -5,8 +5,7 @@ import { identityRoutes } from "../module/identity/identity.routes";
 import { onboardingRoutes } from "../module/onboarding/onboarding.routes";
 import { verificationRoutes } from "../module/verification/verification.routes";
 import { uploadRoutes } from "../module/upload/upload.routes";
-import { forgotPasswordRoutes } from "../module/forgot-password/forgot-password.routes";
-import { resetPasswordRoutes } from "../module/reset-password/reset-password.routes";
+import { authRoutes } from "../module/auth/auth.routes";
 import { auth } from "../lib/auth";
 import {
   passwordResetRateLimiter,
@@ -14,10 +13,9 @@ import {
 
 const router: Router = Router();
 
-// Custom endpoints mounted BEFORE Better Auth handler
+// Custom auth endpoints mounted BEFORE Better Auth handler
 // so they don't get intercepted by the catch-all /auth handler
-router.use("/auth/forgot-password", passwordResetRateLimiter, forgotPasswordRoutes);
-router.use("/auth/reset-password", passwordResetRateLimiter, resetPasswordRoutes);
+router.use("/auth", passwordResetRateLimiter, authRoutes);
 
 // Mount Better Auth handler after custom routes to expose OTP endpoints
 // This enables: /email-otp/send-verification-otp, /email-otp/verify-email, etc.
