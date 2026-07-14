@@ -33,6 +33,43 @@ const createVerificationRequest = async (
 
   // Check if the email is already associated with another verification request
   if (existingEmail && existingEmail.studentId !== payload.studentId) {
+    // Allow re-submission if the existing request was rejected
+    if (existingEmail.status === VerificationStatus.REJECTED) {
+      const updatedRequest = await prisma.$transaction(async (tx) => {
+        const verificationRequest = await tx.verificationRequest.update({
+          where: {
+            id: existingEmail.id,
+          },
+          data: {
+            name: payload.name,
+            email: payload.email,
+            dateOfBirth: payload.dateOfBirth,
+            studentId: payload.studentId,
+            idCardImage: payload.idCardImage,
+            status: VerificationStatus.PENDING,
+            note: null,
+          },
+        });
+
+        const onboardingStep = await tx.onboardingStep.update({
+          where: {
+            verificationRequestId: existingEmail.id,
+          },
+          data: {
+            step: OnboardingStepValue.ADMIN_REVIEW,
+            completedAt: null,
+          },
+        });
+
+        return {
+          verificationRequest,
+          onboardingStep,
+        };
+      });
+
+      return updatedRequest;
+    }
+
     throw new AppError(
       status.CONFLICT,
       "This email is already associated with another verification request.",
