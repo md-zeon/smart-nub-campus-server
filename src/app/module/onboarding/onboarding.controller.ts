@@ -47,6 +47,7 @@ const getCurrentStep = catchAsync(async (req: Request, res: Response) => {
 
   // Build response — always include verificationRequest when it exists
   // Exclude idCardImage to avoid leaking sensitive data to the client
+  // Include it only for REJECTED status so the user can preview their previous upload
   const responseData: Record<string, unknown> = {
     currentStep: step,
     verificationStatus: verificationRequest?.status ?? null,
@@ -54,7 +55,7 @@ const getCurrentStep = catchAsync(async (req: Request, res: Response) => {
   };
 
   if (verificationRequest) {
-    responseData.verificationRequest = {
+    const vrData: Record<string, unknown> = {
       id: verificationRequest.id,
       name: verificationRequest.name,
       email: verificationRequest.email,
@@ -63,6 +64,13 @@ const getCurrentStep = catchAsync(async (req: Request, res: Response) => {
       status: verificationRequest.status,
       note: verificationRequest.note,
     };
+
+    if (verificationRequest.status === "REJECTED") {
+      vrData.idCardImage = verificationRequest.idCardImage;
+      vrData.idCardImagePublicId = verificationRequest.idCardImagePublicId;
+    }
+
+    responseData.verificationRequest = vrData;
   } else {
     responseData.verificationRequest = null;
   }

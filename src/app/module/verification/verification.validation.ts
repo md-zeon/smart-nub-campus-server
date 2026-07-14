@@ -21,6 +21,8 @@ const createVerificationRequestSchema = z.object({
     .regex(/^\d{11}$/, "Student ID must be exactly 11 digits"),
 
   idCardImage: z.url("Invalid ID card image URL"),
+
+  idCardImagePublicId: z.string().optional(),
 });
 
 // Admin schemas

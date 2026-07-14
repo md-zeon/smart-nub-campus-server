@@ -6,7 +6,8 @@ model VerificationRequest {
     email       String   @unique
     dateOfBirth DateTime
     studentId   String   @unique
-    idCardImage String // Cloudinary URL
+    idCardImage        String  // Cloudinary URL
+    idCardImagePublicId String? // Cloudinary public ID for cleanup
 
     // Verification
     status VerificationStatus @default(PENDING)

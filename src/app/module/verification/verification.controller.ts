@@ -36,7 +36,7 @@ const createVerificationRequest = catchAsync(async (req, res) => {
   };
 
   if (verificationRequest) {
-    responseData.verificationRequest = {
+    const vrData: CreateVerificationRequestResponse["verificationRequest"] = {
       id: verificationRequest.id,
       name: verificationRequest.name,
       email: verificationRequest.email,
@@ -45,6 +45,13 @@ const createVerificationRequest = catchAsync(async (req, res) => {
       status: verificationRequest.status,
       note: verificationRequest.note,
     };
+
+    if (verificationRequest.status === "REJECTED") {
+      vrData.idCardImage = verificationRequest.idCardImage;
+      vrData.idCardImagePublicId = verificationRequest.idCardImagePublicId;
+    }
+
+    responseData.verificationRequest = vrData;
   } else {
     responseData.verificationRequest = null;
   }

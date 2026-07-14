@@ -6,10 +6,26 @@ import {
 import AppError from "../../errorHelpers/AppError";
 import { mailService } from "../../lib/mail";
 import { prisma } from "../../lib/prisma";
+import { uploadService } from "../upload/upload.service";
 import {
   CreateVerificationRequestPayload,
   ListVerificationParams,
 } from "./verification.interface";
+
+// Helper: delete old Cloudinary image if the image changed
+const deleteOldImageIfChanged = async (
+  oldPublicId: string | null | undefined,
+  newImageUrl: string,
+  oldImageUrl: string | null | undefined,
+) => {
+  if (oldPublicId && oldImageUrl && newImageUrl !== oldImageUrl) {
+    try {
+      await uploadService.delete(oldPublicId);
+    } catch (err) {
+      console.error("Failed to delete old verification image:", err);
+    }
+  }
+};
 
 const createVerificationRequest = async (
   payload: CreateVerificationRequestPayload,
@@ -35,6 +51,12 @@ const createVerificationRequest = async (
   if (existingEmail && existingEmail.studentId !== payload.studentId) {
     // Allow re-submission if the existing request was rejected
     if (existingEmail.status === VerificationStatus.REJECTED) {
+      await deleteOldImageIfChanged(
+        existingEmail.idCardImagePublicId,
+        payload.idCardImage,
+        existingEmail.idCardImage,
+      );
+
       const updatedRequest = await prisma.$transaction(async (tx) => {
         const verificationRequest = await tx.verificationRequest.update({
           where: {
@@ -46,6 +68,7 @@ const createVerificationRequest = async (
             dateOfBirth: payload.dateOfBirth,
             studentId: payload.studentId,
             idCardImage: payload.idCardImage,
+            idCardImagePublicId: payload.idCardImagePublicId ?? null,
             status: VerificationStatus.PENDING,
             note: null,
           },
@@ -88,6 +111,12 @@ const createVerificationRequest = async (
         };
       // REJECTED: update the existing request and reset the onboarding step
       case VerificationStatus.REJECTED: {
+        await deleteOldImageIfChanged(
+          existingRequest.idCardImagePublicId,
+          payload.idCardImage,
+          existingRequest.idCardImage,
+        );
+
         const updatedRequest = await prisma.$transaction(async (tx) => {
           const verificationRequest = await tx.verificationRequest.update({
             where: {
@@ -99,6 +128,7 @@ const createVerificationRequest = async (
               dateOfBirth: payload.dateOfBirth,
               studentId: payload.studentId,
               idCardImage: payload.idCardImage,
+              idCardImagePublicId: payload.idCardImagePublicId ?? null,
               status: VerificationStatus.PENDING,
               note: null,
             },
@@ -138,6 +168,7 @@ const createVerificationRequest = async (
         dateOfBirth: payload.dateOfBirth,
         studentId: payload.studentId,
         idCardImage: payload.idCardImage,
+        idCardImagePublicId: payload.idCardImagePublicId ?? null,
       },
     });
 

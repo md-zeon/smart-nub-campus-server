@@ -9,6 +9,7 @@ export interface CreateVerificationRequestPayload {
   dateOfBirth: Date;
   studentId: string;
   idCardImage: string;
+  idCardImagePublicId?: string;
 }
 
 export interface ListVerificationParams {
@@ -32,5 +33,7 @@ export interface CreateVerificationRequestResponse {
     studentId: string;
     status: VerificationStatus;
     note: string | null;
+    idCardImage?: string;
+    idCardImagePublicId?: string | null;
   } | null;
 }
