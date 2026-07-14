@@ -4,6 +4,7 @@ import { IndexRoutes } from "./app/routes";
 import globalErrorHandler from "./app/middleware/globalErrorHandler";
 import notFound from "./app/middleware/notFound";
 import cors from "cors";
+import ENVVARS from "./config/env";
 
 const app: Application = express();
 
@@ -19,7 +20,7 @@ app.use(cookieParser());
 // Enable CORS
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: ENVVARS.CORS_ORIGINS,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   }),
