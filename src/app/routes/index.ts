@@ -5,10 +5,17 @@ import { identityRoutes } from "../module/identity/identity.routes";
 import { onboardingRoutes } from "../module/onboarding/onboarding.routes";
 import { verificationRoutes } from "../module/verification/verification.routes";
 import { uploadRoutes } from "../module/upload/upload.routes";
+import { forgotPasswordRoutes } from "../module/forgot-password/forgot-password.routes";
 import { auth } from "../lib/auth";
+import {
+  passwordResetRateLimiter,
+} from "../middleware/rateLimit";
 
 const router: Router = Router();
 
+// Custom forgot-password endpoint mounted BEFORE Better Auth handler
+// so it doesn't get intercepted by the catch-all /auth handler
+router.use("/auth/forgot-password", passwordResetRateLimiter, forgotPasswordRoutes);
 
 // Mount Better Auth handler after custom routes to expose OTP endpoints
 // This enables: /email-otp/send-verification-otp, /email-otp/verify-email, etc.
