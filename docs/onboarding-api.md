@@ -51,7 +51,7 @@ POST /account/create
 
 COMPLETED
     ↓
-POST /auth/login
+    POST /auth/sign-in/email
 
 Authenticated
 ```
@@ -653,38 +653,31 @@ After a successful `POST /account/create`:
 **Request Name in Postman:** `Auth - Login [STUDENT] - Success`
 
 - **Method:** `POST`
-- **URL:** `{{base_url}}/auth/login`
+- **URL:** `{{base_url}}/auth/sign-in/email`
 - **Headers:**
   ```
   Content-Type: application/json
   ```
-- **Body (raw JSON) - Email Login:**
+- **Body (raw JSON):**
   ```json
   {
-    "identifier": "john.doe@example.com",
-    "password": "SecurePass123"
-  }
-  ```
-- **Body (raw JSON) - Student ID Login:**
-  ```json
-  {
-    "identifier": "41213012345",
+    "email": "john.doe@example.com",
     "password": "SecurePass123"
   }
   ```
 
-**Description:** Login with email or student ID. Sets Better Auth session cookies for authentication. Note: Login does not require or use the `onboarding_step` cookie.
+**Description:** Login with email and password. Sets Better Auth session cookies for authentication.
 
 #### Test Cases:
 
-| #   | Scenario                     | Request Body               | Expected Status  | Notes                       |
-| --- | ---------------------------- | -------------------------- | ---------------- | --------------------------- |
-| 1   | Successful login (email)     | Valid email + password     | 200 OK           | Returns user data + cookies |
-| 2   | Successful login (studentId) | Valid studentId + password | 200 OK           | Returns user data + cookies |
-| 3   | Missing identifier           | `{"password": "..."}`      | 400 Bad Request  | "Identifier is required"    |
-| 4   | Missing password             | `{"identifier": "..."}`    | 400 Bad Request  | "Password is required"      |
-| 5   | Invalid credentials          | Wrong credentials          | 401 Unauthorized | "Invalid credentials"       |
-| 6   | Unverified student           | Student not found          | 401 Unauthorized | "Student not found"         |
+| #   | Scenario                | Request Body               | Expected Status  | Notes                       |
+| --- | ----------------------- | -------------------------- | ---------------- | --------------------------- |
+| 1   | Successful login (email) | Valid email + password     | 200 OK           | Returns user data + cookies |
+| 2   | Missing email           | `{"password": "..."}`      | 400 Bad Request  | "Email is required"         |
+| 3   | Missing password        | `{"email": "..."}`         | 400 Bad Request  | "Password is required"      |
+| 4   | Invalid credentials     | Wrong credentials          | 401 Unauthorized | "Invalid credentials"       |
+| 5   | Unverified email        | Unverified user            | 403 Forbidden    | "Please verify your email"  |
+| 6   | Suspended account       | Suspended user             | 403 Forbidden    | "Account suspended"         |
 
 #### Sample Success Response (200):
 
@@ -721,7 +714,7 @@ After a successful `POST /account/create`:
 **Request Name in Postman:** `Auth - Get Me [STUDENT]`
 
 - **Method:** `GET`
-- **URL:** `{{base_url}}/auth/me`
+- **URL:** `{{base_url}}/identity/me`
 - **Headers:**
   ```
   Cookie: better-auth.session_token={{session_token}}
@@ -899,9 +892,9 @@ if (jsonData.data && jsonData.data.verificationRequest) {
 2. **POST** `/verification/request` → Submit verification, save `onboarding_step_id` cookie
 3. **Admin** approves request via `/verification/{{verification_request_id}}/approve`
 4. **POST** `/account/create` with saved cookie → Create account, cookie removed
-5. **POST** `/auth/login` → Login and save `session_token`
-6. **GET** `/auth/me` → Verify session
-7. **POST** `/auth/logout` → End session
+5. **POST** `/auth/sign-in/email` → Login and save `session_token`
+6. **GET** `/identity/me` → Verify session
+7. **POST** `/auth/sign-out` → End session
 
 ### Flow 2: Duplicate Email/Student ID
 
@@ -918,7 +911,7 @@ if (jsonData.data && jsonData.data.verificationRequest) {
 
 ### Flow 4: Admin Verification Management
 
-1. **POST** `/auth/login` as admin → Get `admin_session_token`
+1. **POST** `/auth/sign-in/email` as admin → Get `admin_session_token`
 2. **GET** `/verification` → List all requests
 3. **PATCH** `/verification/{{verification_request_id}}/approve` → Approve request
 4. **GET** `/verification/{{verification_request_id}}` → Verify approval status

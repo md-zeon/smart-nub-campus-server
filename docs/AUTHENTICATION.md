@@ -171,26 +171,28 @@ See **Onboarding Flow** above. The account is created via `/api/v1/account/creat
 ### Login
 
 ```txt
-POST /api/v1/auth/login
+POST /api/v1/auth/sign-in/email
 Content-Type: application/json
 
-// Identifier can be email OR student ID
 {
-  "identifier": "user@example.com",  // or "2021CSE001234"
+  "email": "user@example.com",
   "password": "password123"
 }
 ```
 
 **Flow:**
 
-1. Identifier resolved to email (student ID lookup if needed)
-2. Email verification checked - unverified users rejected with FORBIDDEN
+1. Email verified check - unverified users rejected with FORBIDDEN
+2. Account status checked - suspended users rejected with FORBIDDEN
 3. Password verified via Better Auth
 4. Session created and returned in Set-Cookie header
 
+> **Note:** Login currently requires email. Student ID login is not yet implemented.
+> For forgot-password flows, student ID is supported as an identifier (resolved to email internally).
+
 ### Session Management
 
-- **Get current session**: `GET /api/v1/auth/get-session`
+- **Get current user**: `GET /api/v1/identity/me` (requires session cookie)
 - **Logout**: `POST /api/v1/auth/sign-out`
 
 ### Protected Routes
