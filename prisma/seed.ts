@@ -4,6 +4,7 @@ import { seedAcademic } from "./seed/academic.seed";
 import { seedNetwork } from "./seed/network.seed";
 import { seedResources } from "./seed/resource.seed";
 import { seedDiscussions } from "./seed/discussion.seed";
+import { seedQA } from "./seed/qa.seed";
 
 async function main() {
   await seedCore();
@@ -11,6 +12,7 @@ async function main() {
   await seedNetwork();
   await seedResources();
   await seedDiscussions();
+  await seedQA();
 }
 
 main()

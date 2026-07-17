@@ -8,6 +8,7 @@ import { uploadRoutes } from "../module/upload/upload.routes";
 import { resourceRoutes } from "../module/resource/resource.routes";
 import { teamRoutes } from "../module/team/team.routes";
 import { discussionRoutes } from "../module/discussion/discussion.routes";
+import { questionRoutes } from "../module/qa/qa.routes";
 import { authRoutes } from "../module/auth/auth.routes";
 import { auth } from "../lib/auth";
 import {
@@ -32,5 +33,6 @@ router.use("/upload", uploadRoutes);
 router.use("/resources", resourceRoutes);
 router.use("/teams", teamRoutes);
 router.use("/discussions", discussionRoutes);
+router.use("/qa", questionRoutes);
 
 export const IndexRoutes = router;
