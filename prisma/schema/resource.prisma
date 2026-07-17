@@ -1,45 +1,47 @@
 model ResourceCategory {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  slug        String   @unique
+  id          String     @id @default(uuid())
+  name        String     @unique
+  slug        String     @unique
   icon        String?
   description String?
   resources   Resource[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
   @@map("resource_categories")
 }
 
 model Resource {
-  id             String           @id @default(uuid())
-  title          String           @db.VarChar(200)
-  description    String?
-  fileUrl        String
-  filePublicId   String?
-  fileType       String
-  fileSize       Int
-  courseId        String
-  course          Course           @relation(fields: [courseId], references: [id], onDelete: Restrict)
-  categoryId     String
-  category       ResourceCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  uploaderId     String
-  uploader       User             @relation(fields: [uploaderId], references: [id], onDelete: Restrict)
-  upvoteCount    Int              @default(0)
-  downvoteCount  Int              @default(0)
-  downloadCount  Int              @default(0)
-  viewCount      Int              @default(0)
-  reportCount    Int              @default(0)
-  isVerified     Boolean          @default(false)
-  isDeleted      Boolean          @default(false)
-  deletedAt      DateTime?
-  resourceTags       ResourceTag[]
-  resourceVotes      ResourceVote[]
-  resourceReports    ResourceReport[]
-  resourceBookmarks  ResourceBookmark[]
-  resourceDownloads  ResourceDownload[]
-  comments           Comment[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                String             @id @default(uuid())
+  title             String             @db.VarChar(200)
+  description       String?
+  fileUrl           String
+  filePublicId      String?
+  fileType          String
+  fileSize          Int
+  courseId          String
+  course            Course             @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  categoryId        String
+  category          ResourceCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  uploaderId        String
+  uploader          User               @relation(fields: [uploaderId], references: [id], onDelete: Restrict)
+  upvoteCount       Int                @default(0)
+  downvoteCount     Int                @default(0)
+  downloadCount     Int                @default(0)
+  viewCount         Int                @default(0)
+  reportCount       Int                @default(0)
+  isVerified        Boolean            @default(false)
+  isDeleted         Boolean            @default(false)
+  deletedAt         DateTime?
+  resourceTags      ResourceTag[]
+  resourceVotes     ResourceVote[]
+  resourceReports   ResourceReport[]
+  resourceBookmarks ResourceBookmark[]
+  resourceDownloads ResourceDownload[]
+  comments          Comment[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
   @@index([courseId])
   @@index([categoryId])
   @@index([uploaderId])
@@ -55,6 +57,7 @@ model ResourceTag {
   tagId      String
   tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
+
   @@unique([resourceId, tagId])
   @@index([resourceId])
   @@index([tagId])
@@ -62,12 +65,14 @@ model ResourceTag {
 }
 
 model Tag {
-  id               String              @id @default(uuid())
-  name             String              @unique
-  slug             String              @unique
-  resourceTags     ResourceTag[]
+  id                String             @id @default(uuid())
+  name              String             @unique
+  slug              String             @unique
+  resourceTags      ResourceTag[]
   teamRequestSkills TeamRequestSkill[]
-  createdAt        DateTime            @default(now())
+  createdAt         DateTime           @default(now())
+  discussionTags    DiscussionTag[]
+
   @@map("tag")
 }
 
@@ -79,6 +84,7 @@ model ResourceVote {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   type       VoteType
   createdAt  DateTime @default(now())
+
   @@unique([resourceId, userId])
   @@index([resourceId])
   @@index([userId])
@@ -97,6 +103,7 @@ model ResourceReport {
   reviewedById String?
   reviewedAt   DateTime?
   createdAt    DateTime     @default(now())
+
   @@unique([resourceId, userId])
   @@index([resourceId])
   @@index([userId])
@@ -111,6 +118,7 @@ model ResourceBookmark {
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
+
   @@unique([resourceId, userId])
   @@index([userId])
   @@map("resource_bookmarks")
@@ -123,6 +131,7 @@ model ResourceDownload {
   userId       String
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   downloadedAt DateTime @default(now())
+
   @@index([resourceId])
   @@index([userId])
   @@index([downloadedAt(sort: Desc)])
@@ -142,6 +151,7 @@ model Comment {
   isDeleted  Boolean   @default(false)
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+
   @@index([resourceId])
   @@index([userId])
   @@index([parentId])

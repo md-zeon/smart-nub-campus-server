@@ -1,86 +1,91 @@
 model User {
-    id            String  @id
-    name          String
-    email         String
-    emailVerified Boolean @default(false)
-    image         String?
+  id            String  @id
+  name          String
+  email         String
+  emailVerified Boolean @default(false)
+  image         String?
 
-    role      UserRole
-    status    UserStatus @default(ACTIVE)
-    isDeleted Boolean    @default(false)
-    gender    Gender?
+  role      UserRole
+  status    UserStatus @default(ACTIVE)
+  isDeleted Boolean    @default(false)
+  gender    Gender?
 
-    deletedAt                    DateTime?
-    hasCompletedOnboarding       Boolean                 @default(false)
-    isDeactivated                Boolean                 @default(false)
-    deactivationRequestedAt      DateTime?
-    scheduledDeletionAt          DateTime?
-    createdAt                    DateTime              @default(now())
-    updatedAt                    DateTime              @updatedAt
-    sessions                     Session[]
-    accounts                     Account[]
-    student                      Student?
-    admin                        Admin?
-    profile                      UserProfile?
-    reviewedVerificationRequests VerificationRequest[] @relation("VerificationReviewedBy")
-    resources               Resource[]
-    resourceVotes           ResourceVote[]
-    resourceBookmarks       ResourceBookmark[]
-    resourceDownloads       ResourceDownload[]
-    resourceReports         ResourceReport[]
-    comments                Comment[]
-    teamRequests            TeamRequest[]
-    teamApplications        TeamApplication[]
-    teamMembers             TeamMember[]
+  deletedAt                    DateTime?
+  hasCompletedOnboarding       Boolean               @default(false)
+  isDeactivated                Boolean               @default(false)
+  deactivationRequestedAt      DateTime?
+  scheduledDeletionAt          DateTime?
+  createdAt                    DateTime              @default(now())
+  updatedAt                    DateTime              @updatedAt
+  sessions                     Session[]
+  accounts                     Account[]
+  student                      Student?
+  admin                        Admin?
+  profile                      UserProfile?
+  reviewedVerificationRequests VerificationRequest[] @relation("VerificationReviewedBy")
+  resources                    Resource[]
+  resourceVotes                ResourceVote[]
+  resourceBookmarks            ResourceBookmark[]
+  resourceDownloads            ResourceDownload[]
+  resourceReports              ResourceReport[]
+  comments                     Comment[]
+  teamRequests                 TeamRequest[]
+  teamApplications             TeamApplication[]
+  teamMembers                  TeamMember[]
+  discussions                  Discussion[]
+  discussionReplies            DiscussionReply[]
+  discussionVotes              DiscussionVote[]
+  discussionReplyVotes         DiscussionReplyVote[]
+  discussionBookmarks          DiscussionBookmark[]
 
-    @@unique([email])
-    @@map("user")
+  @@unique([email])
+  @@map("user")
 }
 
 model Session {
-    id        String   @id
-    expiresAt DateTime
-    token     String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-    ipAddress String?
-    userAgent String?
-    userId    String
-    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([token])
-    @@index([userId])
-    @@map("session")
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
 }
 
 model Account {
-    id                    String    @id
-    accountId             String
-    providerId            String
-    userId                String
-    user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-    accessToken           String?
-    refreshToken          String?
-    idToken               String?
-    accessTokenExpiresAt  DateTime?
-    refreshTokenExpiresAt DateTime?
-    scope                 String?
-    password              String?
-    createdAt             DateTime  @default(now())
-    updatedAt             DateTime  @updatedAt
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-    @@index([userId])
-    @@map("account")
+  @@index([userId])
+  @@map("account")
 }
 
 model Verification {
-    id         String   @id
-    identifier String
-    value      String
-    expiresAt  DateTime
-    createdAt  DateTime @default(now())
-    updatedAt  DateTime @updatedAt
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-    @@index([identifier])
-    @@map("verification")
+  @@index([identifier])
+  @@map("verification")
 }
