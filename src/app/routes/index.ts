@@ -6,6 +6,7 @@ import { onboardingRoutes } from "../module/onboarding/onboarding.routes";
 import { verificationRoutes } from "../module/verification/verification.routes";
 import { uploadRoutes } from "../module/upload/upload.routes";
 import { resourceRoutes } from "../module/resource/resource.routes";
+import { teamRoutes } from "../module/team/team.routes";
 import { authRoutes } from "../module/auth/auth.routes";
 import { auth } from "../lib/auth";
 import {
@@ -28,5 +29,6 @@ router.use("/account", accountRoutes);
 router.use("/identity", identityRoutes);
 router.use("/upload", uploadRoutes);
 router.use("/resources", resourceRoutes);
+router.use("/teams", teamRoutes);
 
 export const IndexRoutes = router;

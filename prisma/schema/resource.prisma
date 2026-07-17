@@ -62,11 +62,12 @@ model ResourceTag {
 }
 
 model Tag {
-  id            String        @id @default(uuid())
-  name          String        @unique
-  slug          String        @unique
-  resourceTags  ResourceTag[]
-  createdAt     DateTime      @default(now())
+  id               String              @id @default(uuid())
+  name             String              @unique
+  slug             String              @unique
+  resourceTags     ResourceTag[]
+  teamRequestSkills TeamRequestSkill[]
+  createdAt        DateTime            @default(now())
   @@map("tag")
 }
 

@@ -29,6 +29,9 @@ model User {
     resourceDownloads       ResourceDownload[]
     resourceReports         ResourceReport[]
     comments                Comment[]
+    teamRequests            TeamRequest[]
+    teamApplications        TeamApplication[]
+    teamMembers             TeamMember[]
 
     @@unique([email])
     @@map("user")

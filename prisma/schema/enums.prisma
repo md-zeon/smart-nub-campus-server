@@ -66,6 +66,7 @@ enum ApplicationStatus {
     PENDING
     ACCEPTED
     REJECTED
+    WITHDRAWN
 }
 
 enum TeamMemberRole {
