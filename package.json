@@ -31,6 +31,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@socket.io/redis-adapter": "^8.3.0",
     "better-auth": "^1.6.23",
     "cloudinary": "^2.10.0",
     "cookie-parser": "^1.4.7",
@@ -42,7 +43,8 @@
     "multer": "^2.2.0",
     "nodemailer": "^9.0.3",
     "pg": "^8.22.0",
-    "resend": "^6.17.2"
+    "resend": "^6.17.2",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -54,6 +56,7 @@
     "@types/node": "^26.1.0",
     "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.20.0",
+    "@types/socket.io": "^3.0.1",
     "eslint": "^10.6.0",
     "prisma": "^7.8.0",
     "tsx": "^4.23.0",

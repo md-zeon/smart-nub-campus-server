@@ -1,10 +1,27 @@
+import { createServer } from "node:http";
 import app from "./app";
 import ENVVARS from "./config/env";
+import { initSocketServer, eventRegistry } from "./app/lib/socket";
 
 const bootstrap = () => {
   try {
-    app.listen(ENVVARS.PORT, () => {
-      console.log(`Server is running on http://localhost:${ENVVARS.PORT}`);
+    const httpServer = createServer(app);
+
+    // Initialize Socket.IO
+    const io = initSocketServer(httpServer);
+
+    // Attach event handlers to new connections
+    io.on("connection", (socket) => {
+      eventRegistry.attachHandlers(io, socket);
+    });
+
+    httpServer.listen(ENVVARS.PORT, () => {
+      console.log(
+        `Server is running on http://localhost:${ENVVARS.PORT}`,
+      );
+      console.log(
+        `[Socket.IO] Listening on path /socket.io/`,
+      );
     });
   } catch (error) {
     console.error("Error starting the server:", error);
