@@ -101,7 +101,8 @@ const deleteResource = catchAsync(async (req, res) => {
 const toggleVote = catchAsync(async (req, res) => {
   const id = req.params.id as string;
   const { type } = req.body;
-  const result = await resourceService.toggleVote(id, req.user.id, type);
+  const voteType = type === "DOWN" ? "DOWN" : "UP";
+  const result = await resourceService.toggleVote(id, req.user.id, voteType as never);
   sendResponse(res, {
     httpStatusCode: status.OK,
     success: true,
