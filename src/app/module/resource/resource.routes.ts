@@ -21,6 +21,8 @@ router.get("/categories", verifySession, resourceController.listCategories);
 
 router.get("/courses", verifySession, resourceController.listCourses);
 
+router.get("/tags", verifySession, resourceController.listTags);
+
 router.get(
   "/admin/reports",
   verifySession,

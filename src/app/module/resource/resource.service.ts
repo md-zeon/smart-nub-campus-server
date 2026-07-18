@@ -110,7 +110,7 @@ const listResources = async (query: ListResourcesQuery, userId?: string) => {
   const {
     courseId,
     categoryId,
-    tag,
+    tags,
     search,
     sort = "newest",
     page = 1,
@@ -125,10 +125,10 @@ const listResources = async (query: ListResourcesQuery, userId?: string) => {
   if (courseId) where.courseId = courseId;
   if (categoryId) where.categoryId = categoryId;
 
-  if (tag) {
+  if (tags && tags.length > 0) {
     where.resourceTags = {
       some: {
-        tag: { slug: tag },
+        tag: { slug: { in: tags } },
       },
     };
   }
@@ -651,12 +651,21 @@ const listCourses = async () => {
   return courses;
 };
 
+const listTags = async () => {
+  const tags = await prisma.tag.findMany({
+    orderBy: { name: "asc" },
+    include: { _count: { select: { resourceTags: true } } },
+  });
+  return tags;
+};
+
 export const resourceService = {
   createResource,
   getResourceById,
   listResources,
   listCategories,
   listCourses,
+  listTags,
   updateResource,
   deleteResource,
   toggleVote,
