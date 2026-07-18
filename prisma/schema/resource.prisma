@@ -70,6 +70,7 @@ model Tag {
   slug              String             @unique
   resourceTags      ResourceTag[]
   teamRequestSkills TeamRequestSkill[]
+  userSkills        UserSkill[]
   createdAt         DateTime           @default(now())
   discussionTags    DiscussionTag[]
   questionTags      QuestionTag[]
