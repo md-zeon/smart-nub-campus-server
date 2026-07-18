@@ -225,18 +225,20 @@ export async function seedResources() {
         downloadCount: Math.floor(Math.random() * 50),
         viewCount: Math.floor(Math.random() * 200),
         resourceTags: {
-          create: await Promise.all(
-            resource.tagSlugs.map(async (tagSlug) => {
-              const tag = await prisma.tag.findUnique({
-                where: { slug: tagSlug },
-              });
-              if (!tag) {
-                console.warn(`Tag ${tagSlug} not found.`);
-                return null;
-              }
-              return { tagId: tag.id };
-            }).then((results) => results.filter(Boolean)),
-          ),
+          create: (
+            await Promise.all(
+              resource.tagSlugs.map(async (tagSlug) => {
+                const tag = await prisma.tag.findUnique({
+                  where: { slug: tagSlug },
+                });
+                if (!tag) {
+                  console.warn(`Tag ${tagSlug} not found.`);
+                  return null;
+                }
+                return { tagId: tag.id };
+              }),
+            )
+          ).filter(Boolean),
         },
       },
     });
