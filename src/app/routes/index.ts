@@ -15,6 +15,7 @@ import aiRoutes from "../module/ai/ai.routes";
 import { eventRoutes } from "../module/event/event.routes";
 import { gamificationRoutes } from "../module/gamification/gamification.routes";
 import { notificationRoutes } from "../module/notification/notification.routes";
+import { adminRoutes } from "../module/admin/admin.routes";
 import { authRoutes } from "../module/auth/auth.routes";
 import { auth } from "../lib/auth";
 import {
@@ -46,5 +47,6 @@ router.use("/ai", aiRoutes);
 router.use("/events", eventRoutes);
 router.use("/gamification", gamificationRoutes);
 router.use("/notifications", notificationRoutes);
+router.use("/admin", adminRoutes);
 
 export const IndexRoutes = router;
