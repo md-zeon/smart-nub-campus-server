@@ -1,6 +1,3 @@
--- CreateEnum
-CREATE TYPE "EventStatus" AS ENUM ('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED');
-
 -- CreateTable
 CREATE TABLE "events" (
     "id" TEXT NOT NULL,
