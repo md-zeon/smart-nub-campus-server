@@ -50,6 +50,11 @@ model User {
    blockedUsers          BlockedUser[] @relation("Blocked")
    userSkills            UserSkill[]
 
+   // Messaging relations (Phase 6)
+   createdConversations          Conversation[]
+   conversationParticipants      ConversationParticipant[]
+   sentMessages                  Message[]
+
    @@unique([email])
   @@map("user")
 }

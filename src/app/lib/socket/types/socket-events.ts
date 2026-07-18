@@ -97,6 +97,12 @@ export interface SocketEvents {
   /** User stopped typing in a conversation. */
   "typing:stop": { conversationId: string };
 
+  /** Join a conversation room for realtime updates. */
+  "conversation:join": { conversationId: string };
+
+  /** Leave a conversation room. */
+  "conversation:leave": { conversationId: string };
+
   /** Heartbeat to keep presence alive. */
   "presence:heartbeat": Record<string, never>;
 
@@ -174,6 +180,8 @@ export type ClientEvents = keyof Pick<
   | "messaging:read"
   | "typing:start"
   | "typing:stop"
+  | "conversation:join"
+  | "conversation:leave"
   | "presence:heartbeat"
 >;
 
