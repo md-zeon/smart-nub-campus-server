@@ -45,6 +45,26 @@ const listResources = catchAsync(async (req, res) => {
   });
 });
 
+const listCategories = catchAsync(async (_req, res) => {
+  const result = await resourceService.listCategories();
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Categories retrieved successfully.",
+    data: result,
+  });
+});
+
+const listCourses = catchAsync(async (_req, res) => {
+  const result = await resourceService.listCourses();
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Courses retrieved successfully.",
+    data: result,
+  });
+});
+
 const updateResource = catchAsync(async (req, res) => {
   const id = req.params.id as string;
   const result = await resourceService.updateResource(id, req.body, req.user.id);
@@ -182,6 +202,8 @@ export const resourceController = {
   createResource,
   getResourceById,
   listResources,
+  listCategories,
+  listCourses,
   updateResource,
   deleteResource,
   toggleVote,

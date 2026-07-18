@@ -635,10 +635,28 @@ const reviewReport = async (
   return updated;
 };
 
+const listCategories = async () => {
+  const categories = await prisma.resourceCategory.findMany({
+    orderBy: { name: "asc" },
+    include: { _count: { select: { resources: true } } },
+  });
+  return categories;
+};
+
+const listCourses = async () => {
+  const courses = await prisma.course.findMany({
+    orderBy: { code: "asc" },
+    include: { _count: { select: { resources: true } } },
+  });
+  return courses;
+};
+
 export const resourceService = {
   createResource,
   getResourceById,
   listResources,
+  listCategories,
+  listCourses,
   updateResource,
   deleteResource,
   toggleVote,
