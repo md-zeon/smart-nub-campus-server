@@ -214,3 +214,10 @@ enum MessagingPolicy {
   DEPARTMENT
   NOBODY
 }
+
+enum EventStatus {
+    UPCOMING
+    ONGOING
+    COMPLETED
+    CANCELLED
+}

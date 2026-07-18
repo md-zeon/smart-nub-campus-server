@@ -12,6 +12,7 @@ import { questionRoutes } from "../module/qa/qa.routes";
 import { connectionRoutes } from "../module/connection/connection.routes";
 import { messageRoutes } from "../module/message/message.routes";
 import aiRoutes from "../module/ai/ai.routes";
+import { eventRoutes } from "../module/event/event.routes";
 import { authRoutes } from "../module/auth/auth.routes";
 import { auth } from "../lib/auth";
 import {
@@ -40,5 +41,6 @@ router.use("/qa", questionRoutes);
 router.use("/connections", connectionRoutes);
 router.use("/messages", messageRoutes);
 router.use("/ai", aiRoutes);
+router.use("/events", eventRoutes);
 
 export const IndexRoutes = router;
