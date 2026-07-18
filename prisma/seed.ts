@@ -6,6 +6,7 @@ import { seedResources } from "./seed/resource.seed";
 import { seedDiscussions } from "./seed/discussion.seed";
 import { seedQA } from "./seed/qa.seed";
 import { seedEvents } from "./seed/event.seed";
+import { seedBadges } from "./seed/badge.seed";
 
 async function main() {
   await seedCore();
@@ -15,6 +16,7 @@ async function main() {
   await seedDiscussions();
   await seedQA();
   await seedEvents();
+  await seedBadges();
 }
 
 main()

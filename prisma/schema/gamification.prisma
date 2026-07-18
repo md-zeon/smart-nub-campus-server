@@ -1,0 +1,40 @@
+model ReputationPoint {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  points    Int
+  reason    String
+  source    String?
+  event     ReputationEvent
+  createdAt DateTime         @default(now())
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+  @@map("reputation_points")
+}
+
+model Badge {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  description String
+  icon        String?
+  category    BadgeCategory
+  tier        BadgeTier
+  points      Int         @default(0)
+  condition   String
+  userBadges  UserBadge[]
+  createdAt   DateTime    @default(now())
+  @@map("badges")
+}
+
+model UserBadge {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId    String
+  badge      Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  unlockedAt DateTime @default(now())
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@index([badgeId])
+  @@map("user_badges")
+}

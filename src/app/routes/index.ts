@@ -13,6 +13,8 @@ import { connectionRoutes } from "../module/connection/connection.routes";
 import { messageRoutes } from "../module/message/message.routes";
 import aiRoutes from "../module/ai/ai.routes";
 import { eventRoutes } from "../module/event/event.routes";
+import { gamificationRoutes } from "../module/gamification/gamification.routes";
+import { notificationRoutes } from "../module/notification/notification.routes";
 import { authRoutes } from "../module/auth/auth.routes";
 import { auth } from "../lib/auth";
 import {
@@ -42,5 +44,7 @@ router.use("/connections", connectionRoutes);
 router.use("/messages", messageRoutes);
 router.use("/ai", aiRoutes);
 router.use("/events", eventRoutes);
+router.use("/gamification", gamificationRoutes);
+router.use("/notifications", notificationRoutes);
 
 export const IndexRoutes = router;

@@ -63,6 +63,13 @@ model User {
     organizedEvents               Event[]
     eventRSVPs                    EventRSVP[]
 
+    // Gamification relations (Phase 9)
+    reputationPoints              ReputationPoint[]
+    userBadges                    UserBadge[]
+
+    // Notification relations (Phase 9)
+    notifications                 Notification[]
+
     @@unique([email])
   @@map("user")
 }
