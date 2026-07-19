@@ -106,12 +106,21 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
         const { messageService } = await import("../../module/message/message.service");
         await messageService.markAsRead(data.conversationId, userId);
 
-        // Broadcast read receipt to the conversation room (io is guaranteed non-null inside connection handler)
-        roomManager.broadcastToRoom(io!, `conversation:${data.conversationId}`, "messaging:read-receipt", {
-          messageId: data.messageId,
-          readBy: userId,
-          readAt: new Date().toISOString(),
-        });
+        // Persist per-message read receipts and broadcast one receipt per
+        // affected message so the sender's UI shows ✓✓ (and survives reload
+        // because isRead/readAt are now stored on the message row).
+        const { messageIds, readAt } = await messageService.markMessagesRead(
+          data.conversationId,
+          userId,
+        );
+
+        for (const messageId of messageIds) {
+          roomManager.broadcastToRoom(io!, `conversation:${data.conversationId}`, "messaging:read-receipt", {
+            messageId,
+            readBy: userId,
+            readAt: readAt.toISOString(),
+          });
+        }
       } catch {
         socket.emit("error:message", { message: "Failed to mark as read." });
       }

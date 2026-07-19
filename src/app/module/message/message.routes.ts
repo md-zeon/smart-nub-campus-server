@@ -46,7 +46,7 @@ router.get(
 );
 
 // Mark all messages in a conversation as read
-router.put(
+router.post(
   "/conversations/:id/read",
   messageController.markAsRead,
 );

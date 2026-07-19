@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import app from "./app";
 import ENVVARS from "./config/env";
-import { initSocketServer, eventRegistry } from "./app/lib/socket";
+import { initSocketServer } from "./app/lib/socket";
 
 const bootstrap = () => {
   try {
@@ -9,11 +9,6 @@ const bootstrap = () => {
 
     // Initialize Socket.IO
     const io = initSocketServer(httpServer);
-
-    // Attach event handlers to new connections
-    io.on("connection", (socket) => {
-      eventRegistry.attachHandlers(io, socket);
-    });
 
     httpServer.listen(ENVVARS.PORT, () => {
       console.log(
