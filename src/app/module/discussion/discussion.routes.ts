@@ -20,6 +20,24 @@ router.get("/", verifySession, discussionController.listDiscussions);
 // Get bookmarked discussions (must be before :id routes)
 router.get("/bookmarks", verifySession, discussionController.getBookmarkedDiscussions);
 
+// Get the current user's discussions (must be before :id routes)
+router.get("/me", verifySession, discussionController.getMyDiscussions);
+
+// Get discussions the current user replied to (must be before :id routes)
+router.get("/replies/mine", verifySession, discussionController.getMyReplies);
+
+// List discussion categories
+router.get("/categories", verifySession, discussionController.listCategories);
+
+// List discussion tags
+router.get("/tags", verifySession, discussionController.listTags);
+
+// Trending discussions
+router.get("/trending", verifySession, discussionController.getTrending);
+
+// Top contributors
+router.get("/contributors", verifySession, discussionController.getTopContributors);
+
 // Vote on a reply (must be before :id routes)
 router.post(
   "/replies/:replyId/vote",

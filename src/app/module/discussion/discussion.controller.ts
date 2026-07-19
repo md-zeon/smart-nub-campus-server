@@ -167,6 +167,72 @@ const getBookmarkedDiscussions = catchAsync(async (req, res) => {
   });
 });
 
+const listCategories = catchAsync(async (_req, res) => {
+  const result = await discussionService.listCategories();
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Discussion categories retrieved successfully.",
+    data: result,
+  });
+});
+
+const listTags = catchAsync(async (_req, res) => {
+  const result = await discussionService.listTags();
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Discussion tags retrieved successfully.",
+    data: result,
+  });
+});
+
+const getTrending = catchAsync(async (req, res) => {
+  const limit = parseInt(req.query.limit as string) || 3;
+  const result = await discussionService.getTrending(limit);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Trending discussions retrieved successfully.",
+    data: result,
+  });
+});
+
+const getTopContributors = catchAsync(async (req, res) => {
+  const limit = parseInt(req.query.limit as string) || 5;
+  const result = await discussionService.getTopContributors(limit);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Top contributors retrieved successfully.",
+    data: result,
+  });
+});
+
+const getMyDiscussions = catchAsync(async (req, res) => {
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 12;
+  const result = await discussionService.getMyDiscussions(req.user.id, page, limit);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Your discussions retrieved successfully.",
+    data: result,
+  });
+});
+
+const getMyReplies = catchAsync(async (req, res) => {
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 12;
+  const result = await discussionService.getMyReplies(req.user.id, page, limit);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Discussions you replied to retrieved successfully.",
+    data: result,
+  });
+});
+
 export const discussionController = {
   createDiscussion,
   getDiscussion,
@@ -182,4 +248,10 @@ export const discussionController = {
   lockDiscussion,
   markSolved,
   getBookmarkedDiscussions,
+  listCategories,
+  listTags,
+  getTrending,
+  getTopContributors,
+  getMyDiscussions,
+  getMyReplies,
 };

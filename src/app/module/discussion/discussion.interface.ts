@@ -29,6 +29,7 @@ export interface VoteInput {
 
 export interface ListDiscussionsQuery {
   category?: string;
+  /** Comma-separated tag slugs (matches discussions having ANY of the tags). */
   tag?: string;
   visibility?: DiscussionVisibility;
   search?: string;
