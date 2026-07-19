@@ -94,7 +94,7 @@ const listUsers = async (query: ListUsersQuery) => {
         isDeleted: true,
         hasCompletedOnboarding: true,
         createdAt: true,
-        student: { select: { id: true, department: true, batch: true } },
+        student: { select: { id: true, department: true, admissionYear: true, admissionSemester: true } },
         admin: { select: { id: true, designation: true, department: true } },
       },
     }),
