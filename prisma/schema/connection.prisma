@@ -6,6 +6,7 @@ model Connection {
   receiver    User             @relation("ConnectionReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
   status      ConnectionStatus @default(PENDING)
   isFavorite  Boolean          @default(false)
+  note        String?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
