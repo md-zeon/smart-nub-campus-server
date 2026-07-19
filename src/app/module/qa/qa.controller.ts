@@ -25,6 +25,17 @@ const getQuestion = catchAsync(async (req, res) => {
   });
 });
 
+const listAnswers = catchAsync(async (req, res) => {
+  const questionId = req.params.id as string;
+  const result = await qaService.listAnswers(questionId, req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Answers retrieved successfully.",
+    data: result,
+  });
+});
+
 const listQuestions = catchAsync(async (req, res) => {
   const query: ListQuestionsQuery = {
     category: req.query.category as string | undefined,
@@ -41,6 +52,48 @@ const listQuestions = catchAsync(async (req, res) => {
     httpStatusCode: status.OK,
     success: true,
     message: "Questions retrieved successfully.",
+    data: result,
+  });
+});
+
+const listCategories = catchAsync(async (_req, res) => {
+  const result = await qaService.listCategories();
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Question categories retrieved successfully.",
+    data: result,
+  });
+});
+
+const listTags = catchAsync(async (_req, res) => {
+  const result = await qaService.listTags();
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Tags retrieved successfully.",
+    data: result,
+  });
+});
+
+const getTopContributors = catchAsync(async (req, res) => {
+  const limit = parseInt(req.query.limit as string) || 5;
+  const result = await qaService.getTopContributors(limit);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Top contributors retrieved successfully.",
+    data: result,
+  });
+});
+
+const getTrending = catchAsync(async (req, res) => {
+  const limit = parseInt(req.query.limit as string) || 5;
+  const result = await qaService.getTrending(limit);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Trending questions retrieved successfully.",
     data: result,
   });
 });
@@ -160,7 +213,12 @@ const getBookmarkedQuestions = catchAsync(async (req, res) => {
 export const qaController = {
   createQuestion,
   getQuestion,
+  listAnswers,
   listQuestions,
+  listCategories,
+  listTags,
+  getTopContributors,
+  getTrending,
   updateQuestion,
   deleteQuestion,
   createAnswer,
