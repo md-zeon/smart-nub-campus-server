@@ -2,7 +2,8 @@ import { z } from "zod";
 
 const createConversationSchema = z
   .object({
-    participantId: z.string().uuid("Invalid participant ID"),
+    // Better Auth user IDs are not UUIDs, so accept any non-empty string.
+    participantId: z.string().min(1, "Invalid participant ID"),
   })
   .strict();
 
