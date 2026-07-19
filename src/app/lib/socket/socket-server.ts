@@ -42,7 +42,18 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
     connectionManager.addConnection(userId, socket.id);
 
     // Set presence to online
-    presenceManager.setStatus(userId, "online");
+    presenceManager.setStatus(userId, "online", io!);
+
+    // Sync the current online state of OTHER users to this freshly connected
+    // socket, so it shows peers that were already online before it joined.
+    for (const otherId of presenceManager.getOnlineUsers()) {
+      if (otherId === userId) continue;
+      socket.emit("presence:update", {
+        userId: otherId,
+        status: "online",
+        lastSeen: new Date().toISOString(),
+      });
+    }
 
     // Auto-join the user's personal room
     roomManager.joinRoom(socket, `user:${userId}`);
@@ -137,7 +148,7 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
 
       // Only mark offline when all connections for this user are gone
       if (!connectionManager.isConnected(userId)) {
-        presenceManager.setStatus(userId, "offline");
+        presenceManager.setStatus(userId, "offline", io!);
         console.log(`[Socket] User offline: ${userId} (reason: ${reason})`);
       } else {
         console.log(
