@@ -12,10 +12,10 @@ import {
 const createAuditLog = async (data: CreateAuditLogInput) => {
   return prisma.auditLog.create({
     data: {
-      adminUserId: data.adminUserId,
+      userId: data.userId,
       action: data.action,
-      targetType: data.targetType,
-      targetId: data.targetId ?? null,
+      entityType: data.entityType,
+      entityId: data.entityId,
       details: (data.details as Record<string, string>) ?? undefined,
       ipAddress: data.ipAddress ?? null,
     },
@@ -802,9 +802,9 @@ const deleteEvent = async (id: string) => {
 // --- Audit Log ---
 const listAuditLogs = async (query: ListAuditLogsQuery) => {
   const {
-    adminUserId,
+    userId,
     action,
-    targetType,
+    entityType,
     startDate,
     endDate,
     page = 1,
@@ -814,9 +814,9 @@ const listAuditLogs = async (query: ListAuditLogsQuery) => {
 
   const where: Record<string, unknown> = {};
 
-  if (adminUserId) where.adminUserId = adminUserId;
+  if (userId) where.userId = userId;
   if (action) where.action = action;
-  if (targetType) where.targetType = targetType;
+  if (entityType) where.entityType = entityType;
 
   if (startDate || endDate) {
     const dateFilter: Record<string, Date> = {};
@@ -832,7 +832,7 @@ const listAuditLogs = async (query: ListAuditLogsQuery) => {
       take: limit,
       orderBy: { createdAt: "desc" },
       include: {
-        adminUser: {
+        user: {
           select: { id: true, name: true, email: true },
         },
       },
@@ -850,7 +850,7 @@ const getAuditLogById = async (id: string) => {
   const log = await prisma.auditLog.findUnique({
     where: { id },
     include: {
-      adminUser: {
+      user: {
         select: { id: true, name: true, email: true },
       },
     },

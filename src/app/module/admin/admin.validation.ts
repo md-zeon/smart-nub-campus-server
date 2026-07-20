@@ -172,9 +172,9 @@ const updateEventSchema = z
 
 const listAuditLogsSchema = z
   .object({
-    adminUserId: z.string().uuid().optional(),
+    userId: z.string().uuid().optional(),
     action: z.string().optional(),
-    targetType: z.string().optional(),
+    entityType: z.string().optional(),
     startDate: z.string().optional(),
     endDate: z.string().optional(),
     page: z.coerce.number().int().positive().optional(),

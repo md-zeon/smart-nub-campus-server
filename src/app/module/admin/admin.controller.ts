@@ -9,9 +9,10 @@ const getDashboardStats = catchAsync(async (req, res) => {
   const result = await adminService.getDashboardStats();
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "VIEW_DASHBOARD",
-    targetType: "SYSTEM",
+    entityType: "SYSTEM",
+    entityId: "dashboard",
     ipAddress: req.ip,
   });
 
@@ -62,10 +63,10 @@ const updateUserStatus = catchAsync(async (req, res) => {
   const result = await adminService.updateUserStatus(id, newStatus);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "UPDATE_USER_STATUS",
-    targetType: "USER",
-    targetId: id,
+    entityType: "USER",
+    entityId: id,
     details: { newStatus },
     ipAddress: req.ip,
   });
@@ -83,10 +84,10 @@ const deleteUser = catchAsync(async (req, res) => {
   const result = await adminService.deleteUser(id);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "DELETE_USER",
-    targetType: "USER",
-    targetId: id,
+    entityType: "USER",
+    entityId: id,
     ipAddress: req.ip,
   });
 
@@ -129,10 +130,10 @@ const verifyResource = catchAsync(async (req, res) => {
   const result = await adminService.verifyResource(id, isVerified);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: isVerified ? "VERIFY_RESOURCE" : "UNVERIFY_RESOURCE",
-    targetType: "RESOURCE",
-    targetId: id,
+    entityType: "RESOURCE",
+    entityId: id,
     details: { isVerified },
     ipAddress: req.ip,
   });
@@ -150,10 +151,10 @@ const deleteResource = catchAsync(async (req, res) => {
   const result = await adminService.deleteResource(id);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "DELETE_RESOURCE",
-    targetType: "RESOURCE",
-    targetId: id,
+    entityType: "RESOURCE",
+    entityId: id,
     ipAddress: req.ip,
   });
 
@@ -195,10 +196,10 @@ const createCourse = catchAsync(async (req, res) => {
   const result = await adminService.createCourse(req.body);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "CREATE_COURSE",
-    targetType: "COURSE",
-    targetId: result.id,
+    entityType: "COURSE",
+    entityId: result.id,
     details: { code: result.code, name: result.name },
     ipAddress: req.ip,
   });
@@ -216,10 +217,10 @@ const updateCourse = catchAsync(async (req, res) => {
   const result = await adminService.updateCourse(id, req.body);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "UPDATE_COURSE",
-    targetType: "COURSE",
-    targetId: id,
+    entityType: "COURSE",
+    entityId: id,
     details: req.body,
     ipAddress: req.ip,
   });
@@ -237,10 +238,10 @@ const deleteCourse = catchAsync(async (req, res) => {
   const result = await adminService.deleteCourse(id);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "DELETE_COURSE",
-    targetType: "COURSE",
-    targetId: id,
+    entityType: "COURSE",
+    entityId: id,
     ipAddress: req.ip,
   });
 
@@ -282,10 +283,10 @@ const createResourceCategory = catchAsync(async (req, res) => {
   const result = await adminService.createResourceCategory(req.body);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "CREATE_RESOURCE_CATEGORY",
-    targetType: "RESOURCE_CATEGORY",
-    targetId: result.id,
+    entityType: "RESOURCE_CATEGORY",
+    entityId: result.id,
     details: { name: result.name },
     ipAddress: req.ip,
   });
@@ -303,10 +304,10 @@ const updateResourceCategory = catchAsync(async (req, res) => {
   const result = await adminService.updateResourceCategory(id, req.body);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "UPDATE_RESOURCE_CATEGORY",
-    targetType: "RESOURCE_CATEGORY",
-    targetId: id,
+    entityType: "RESOURCE_CATEGORY",
+    entityId: id,
     details: req.body,
     ipAddress: req.ip,
   });
@@ -324,10 +325,10 @@ const deleteResourceCategory = catchAsync(async (req, res) => {
   const result = await adminService.deleteResourceCategory(id);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "DELETE_RESOURCE_CATEGORY",
-    targetType: "RESOURCE_CATEGORY",
-    targetId: id,
+    entityType: "RESOURCE_CATEGORY",
+    entityId: id,
     ipAddress: req.ip,
   });
 
@@ -369,10 +370,10 @@ const createDiscussionCategory = catchAsync(async (req, res) => {
   const result = await adminService.createDiscussionCategory(req.body);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "CREATE_DISCUSSION_CATEGORY",
-    targetType: "DISCUSSION_CATEGORY",
-    targetId: result.id,
+    entityType: "DISCUSSION_CATEGORY",
+    entityId: result.id,
     details: { name: result.name },
     ipAddress: req.ip,
   });
@@ -390,10 +391,10 @@ const updateDiscussionCategory = catchAsync(async (req, res) => {
   const result = await adminService.updateDiscussionCategory(id, req.body);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "UPDATE_DISCUSSION_CATEGORY",
-    targetType: "DISCUSSION_CATEGORY",
-    targetId: id,
+    entityType: "DISCUSSION_CATEGORY",
+    entityId: id,
     details: req.body,
     ipAddress: req.ip,
   });
@@ -411,10 +412,10 @@ const deleteDiscussionCategory = catchAsync(async (req, res) => {
   const result = await adminService.deleteDiscussionCategory(id);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "DELETE_DISCUSSION_CATEGORY",
-    targetType: "DISCUSSION_CATEGORY",
-    targetId: id,
+    entityType: "DISCUSSION_CATEGORY",
+    entityId: id,
     ipAddress: req.ip,
   });
 
@@ -456,10 +457,10 @@ const createQuestionCategory = catchAsync(async (req, res) => {
   const result = await adminService.createQuestionCategory(req.body);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "CREATE_QUESTION_CATEGORY",
-    targetType: "QUESTION_CATEGORY",
-    targetId: result.id,
+    entityType: "QUESTION_CATEGORY",
+    entityId: result.id,
     details: { name: result.name },
     ipAddress: req.ip,
   });
@@ -477,10 +478,10 @@ const updateQuestionCategory = catchAsync(async (req, res) => {
   const result = await adminService.updateQuestionCategory(id, req.body);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "UPDATE_QUESTION_CATEGORY",
-    targetType: "QUESTION_CATEGORY",
-    targetId: id,
+    entityType: "QUESTION_CATEGORY",
+    entityId: id,
     details: req.body,
     ipAddress: req.ip,
   });
@@ -498,10 +499,10 @@ const deleteQuestionCategory = catchAsync(async (req, res) => {
   const result = await adminService.deleteQuestionCategory(id);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "DELETE_QUESTION_CATEGORY",
-    targetType: "QUESTION_CATEGORY",
-    targetId: id,
+    entityType: "QUESTION_CATEGORY",
+    entityId: id,
     ipAddress: req.ip,
   });
 
@@ -543,10 +544,10 @@ const createEvent = catchAsync(async (req, res) => {
   const result = await adminService.createEvent(req.body);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "CREATE_EVENT",
-    targetType: "EVENT",
-    targetId: result.id,
+    entityType: "EVENT",
+    entityId: result.id,
     details: { title: result.title },
     ipAddress: req.ip,
   });
@@ -564,10 +565,10 @@ const updateEvent = catchAsync(async (req, res) => {
   const result = await adminService.updateEvent(id, req.body);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "UPDATE_EVENT",
-    targetType: "EVENT",
-    targetId: id,
+    entityType: "EVENT",
+    entityId: id,
     details: req.body,
     ipAddress: req.ip,
   });
@@ -585,10 +586,10 @@ const deleteEvent = catchAsync(async (req, res) => {
   const result = await adminService.deleteEvent(id);
 
   await adminService.createAuditLog({
-    adminUserId: req.user.id,
+    userId: req.user.id,
     action: "DELETE_EVENT",
-    targetType: "EVENT",
-    targetId: id,
+    entityType: "EVENT",
+    entityId: id,
     ipAddress: req.ip,
   });
 
@@ -603,9 +604,9 @@ const deleteEvent = catchAsync(async (req, res) => {
 // --- Audit Log ---
 const listAuditLogs = catchAsync(async (req, res) => {
   const query: ListAuditLogsQuery = {
-    adminUserId: req.query.adminUserId as string | undefined,
+    userId: req.query.userId as string | undefined,
     action: req.query.action as string | undefined,
-    targetType: req.query.targetType as string | undefined,
+    entityType: req.query.entityType as string | undefined,
     startDate: req.query.startDate as string | undefined,
     endDate: req.query.endDate as string | undefined,
     page: parseInt(req.query.page as string) || 1,

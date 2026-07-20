@@ -18,9 +18,9 @@ export interface ListResourcesQuery {
 }
 
 export interface ListAuditLogsQuery {
-  adminUserId?: string;
+  userId?: string;
   action?: string;
-  targetType?: string;
+  entityType?: string;
   startDate?: string;
   endDate?: string;
   page?: number;
@@ -28,10 +28,10 @@ export interface ListAuditLogsQuery {
 }
 
 export interface CreateAuditLogInput {
-  adminUserId: string;
+  userId: string;
   action: string;
-  targetType: string;
-  targetId?: string;
+  entityType: string;
+  entityId: string;
   details?: Record<string, unknown>;
   ipAddress?: string;
 }

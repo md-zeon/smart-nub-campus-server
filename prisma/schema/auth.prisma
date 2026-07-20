@@ -70,10 +70,16 @@ model User {
     // Notification relations (Phase 9)
     notifications                 Notification[]
 
-    // Audit log relations (Phase 10)
-    auditLogs                     AuditLog[]
+     // Audit log relations (Phase 10)
+     auditLogs                     AuditLog[]
 
-    @@unique([email])
+     // Account settings relations (Phase 24)
+     settings                      UserSettings?
+     notificationSettings          UserNotificationSettings?
+     loginHistory                  LoginHistory[]
+     exportJobs                    ExportJob[]
+
+     @@unique([email])
   @@map("user")
 }
 
