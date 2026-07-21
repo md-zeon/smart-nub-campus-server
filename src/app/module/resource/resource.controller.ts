@@ -2,7 +2,7 @@ import status from "http-status";
 import catchAsync from "../../shared/catchAsync";
 import sendResponse from "../../shared/sendResponse";
 import { resourceService } from "./resource.service";
-import { ListResourcesQuery } from "./resource.interface";
+import { ListResourcesQuery, parseTags } from "./resource.interface";
 
 const createResource = catchAsync(async (req, res) => {
   const result = await resourceService.createResource(req.body, req.user.id);
@@ -30,6 +30,7 @@ const listResources = catchAsync(async (req, res) => {
     courseId: req.query.courseId as string | undefined,
     categoryId: req.query.categoryId as string | undefined,
     tag: req.query.tag as string | undefined,
+    tags: parseTags(req.query.tag as string | undefined),
     search: req.query.search as string | undefined,
     sort: (req.query.sort as ListResourcesQuery["sort"]) || "newest",
     page: parseInt(req.query.page as string) || 1,
@@ -41,6 +42,36 @@ const listResources = catchAsync(async (req, res) => {
     httpStatusCode: status.OK,
     success: true,
     message: "Resources retrieved successfully.",
+    data: result,
+  });
+});
+
+const listCategories = catchAsync(async (_req, res) => {
+  const result = await resourceService.listCategories();
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Categories retrieved successfully.",
+    data: result,
+  });
+});
+
+const listCourses = catchAsync(async (_req, res) => {
+  const result = await resourceService.listCourses();
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Courses retrieved successfully.",
+    data: result,
+  });
+});
+
+const listTags = catchAsync(async (_req, res) => {
+  const result = await resourceService.listTags();
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Tags retrieved successfully.",
     data: result,
   });
 });
@@ -70,7 +101,8 @@ const deleteResource = catchAsync(async (req, res) => {
 const toggleVote = catchAsync(async (req, res) => {
   const id = req.params.id as string;
   const { type } = req.body;
-  const result = await resourceService.toggleVote(id, req.user.id, type);
+  const voteType = type === "DOWN" ? "DOWN" : "UP";
+  const result = await resourceService.toggleVote(id, req.user.id, voteType as never);
   sendResponse(res, {
     httpStatusCode: status.OK,
     success: true,
@@ -182,6 +214,9 @@ export const resourceController = {
   createResource,
   getResourceById,
   listResources,
+  listCategories,
+  listCourses,
+  listTags,
   updateResource,
   deleteResource,
   toggleVote,

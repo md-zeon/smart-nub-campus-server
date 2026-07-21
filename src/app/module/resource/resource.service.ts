@@ -2,6 +2,7 @@ import status from "http-status";
 import { VoteType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { gamificationService } from "../gamification/gamification.service";
 import {
   CreateResourceInput,
   CreateCommentInput,
@@ -48,6 +49,18 @@ const createResource = async (data: CreateResourceInput, userId: string) => {
       resourceTags: { include: { tag: true } },
     },
   });
+
+  // Award reputation points for uploading a resource (non-blocking)
+  gamificationService
+    .awardPoints({
+      userId,
+      event: "RESOURCE_UPLOADED",
+      reason: `Uploaded resource: ${data.title}`,
+      source: `RESOURCE:${resource.id}`,
+    })
+    .catch(() => {
+      // Non-critical: ignore gamification failures
+    });
 
   return resource;
 };
@@ -110,7 +123,7 @@ const listResources = async (query: ListResourcesQuery, userId?: string) => {
   const {
     courseId,
     categoryId,
-    tag,
+    tags,
     search,
     sort = "newest",
     page = 1,
@@ -125,10 +138,10 @@ const listResources = async (query: ListResourcesQuery, userId?: string) => {
   if (courseId) where.courseId = courseId;
   if (categoryId) where.categoryId = categoryId;
 
-  if (tag) {
+  if (tags && tags.length > 0) {
     where.resourceTags = {
       some: {
-        tag: { slug: tag },
+        tag: { slug: { in: tags } },
       },
     };
   }
@@ -282,6 +295,13 @@ const deleteResource = async (id: string, userId: string) => {
     data: { isDeleted: true, deletedAt: new Date() },
   });
 
+  // Reverse reputation points awarded for this resource (non-blocking)
+  gamificationService
+    .handleContentDeleted("RESOURCE", id, existing.uploaderId)
+    .catch(() => {
+      // Non-critical: ignore gamification failures
+    });
+
   return { message: "Resource deleted successfully." };
 };
 
@@ -302,6 +322,26 @@ const toggleVote = async (
     where: { resourceId_userId: { resourceId, userId } },
   });
 
+  // Award/remove reputation points for the resource owner (skip self-votes).
+  // Non-blocking — gamification failures must not break voting.
+  const ownerId = resource.uploaderId;
+  const awardVote = (voteType: VoteType) => {
+    if (userId === ownerId) return Promise.resolve();
+    return voteType === VoteType.UP
+      ? gamificationService.handleUpvote(userId, ownerId, "RESOURCE", resourceId)
+      : gamificationService.handleDownvote(userId, ownerId, "RESOURCE", resourceId);
+  };
+  const reverseVote = (voteType: VoteType) => {
+    if (userId === ownerId) return Promise.resolve();
+    return gamificationService.handleVoteReversal(
+      userId,
+      ownerId,
+      "RESOURCE",
+      resourceId,
+      voteType === VoteType.UP ? "UP" : "DOWN",
+    );
+  };
+
   if (existingVote) {
     if (existingVote.type === type) {
       await prisma.$transaction(async (tx) => {
@@ -320,6 +360,8 @@ const toggleVote = async (
         where: { id: resourceId },
         select: { upvoteCount: true, downvoteCount: true },
       });
+
+      await reverseVote(existingVote.type).catch(() => {});
 
       return {
         action: "removed",
@@ -358,6 +400,9 @@ const toggleVote = async (
       select: { upvoteCount: true, downvoteCount: true },
     });
 
+    await reverseVote(existingVote.type).catch(() => {});
+    await awardVote(type).catch(() => {});
+
     return {
       action: "updated",
       upvoteCount: updated!.upvoteCount,
@@ -381,6 +426,8 @@ const toggleVote = async (
     where: { id: resourceId },
     select: { upvoteCount: true, downvoteCount: true },
   });
+
+  await awardVote(type).catch(() => {});
 
   return {
     action: "added",
@@ -635,10 +682,37 @@ const reviewReport = async (
   return updated;
 };
 
+const listCategories = async () => {
+  const categories = await prisma.resourceCategory.findMany({
+    orderBy: { name: "asc" },
+    include: { _count: { select: { resources: true } } },
+  });
+  return categories;
+};
+
+const listCourses = async () => {
+  const courses = await prisma.course.findMany({
+    orderBy: { code: "asc" },
+    include: { _count: { select: { resources: true } } },
+  });
+  return courses;
+};
+
+const listTags = async () => {
+  const tags = await prisma.tag.findMany({
+    orderBy: { name: "asc" },
+    include: { _count: { select: { resourceTags: true } } },
+  });
+  return tags;
+};
+
 export const resourceService = {
   createResource,
   getResourceById,
   listResources,
+  listCategories,
+  listCourses,
+  listTags,
   updateResource,
   deleteResource,
   toggleVote,
