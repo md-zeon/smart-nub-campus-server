@@ -39,11 +39,18 @@ model User {
   discussionBookmarks          DiscussionBookmark[]
   questions                    Question[]
   answers                      Answer[]
-  questionVotes                QuestionVote[]
-  answerVotes                  AnswerVote[]
-  questionBookmarks            QuestionBookmark[]
+   questionVotes                QuestionVote[]
+   answerVotes                  AnswerVote[]
+   questionBookmarks            QuestionBookmark[]
 
-  @@unique([email])
+   // Connection relations (Phase 5)
+   connectionsAsRequester Connection[] @relation("ConnectionRequester")
+   connectionsAsReceiver  Connection[] @relation("ConnectionReceiver")
+   blockedBy             BlockedUser[] @relation("Blocker")
+   blockedUsers          BlockedUser[] @relation("Blocked")
+   userSkills            UserSkill[]
+
+   @@unique([email])
   @@map("user")
 }
 

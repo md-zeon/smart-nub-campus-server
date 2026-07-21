@@ -9,6 +9,7 @@ import { resourceRoutes } from "../module/resource/resource.routes";
 import { teamRoutes } from "../module/team/team.routes";
 import { discussionRoutes } from "../module/discussion/discussion.routes";
 import { questionRoutes } from "../module/qa/qa.routes";
+import { connectionRoutes } from "../module/connection/connection.routes";
 import { authRoutes } from "../module/auth/auth.routes";
 import { auth } from "../lib/auth";
 import {
@@ -34,5 +35,6 @@ router.use("/resources", resourceRoutes);
 router.use("/teams", teamRoutes);
 router.use("/discussions", discussionRoutes);
 router.use("/qa", questionRoutes);
+router.use("/connections", connectionRoutes);
 
 export const IndexRoutes = router;
