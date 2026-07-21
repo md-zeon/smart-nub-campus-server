@@ -11,6 +11,10 @@ model User {
     gender    Gender?
 
     deletedAt                    DateTime?
+    hasCompletedOnboarding       Boolean                 @default(false)
+    isDeactivated                Boolean                 @default(false)
+    deactivationRequestedAt      DateTime?
+    scheduledDeletionAt          DateTime?
     createdAt                    DateTime              @default(now())
     updatedAt                    DateTime              @updatedAt
     sessions                     Session[]
