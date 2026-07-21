@@ -1,0 +1,68 @@
+model TeamRequest {
+  id                 String              @id @default(uuid())
+  title              String              @db.VarChar(200)
+  description        String              @db.Text
+  lookingForCount    Int
+  currentMemberCount Int                 @default(1)
+  projectName        String?
+  deadline           DateTime?
+  status             TeamRequestStatus   @default(OPEN)
+  creatorId          String
+  creator            User                @relation(fields: [creatorId], references: [id], onDelete: Restrict)
+  category           String?
+  teamRequestSkills  TeamRequestSkill[]
+  teamApplications   TeamApplication[]
+  teamMembers        TeamMember[]
+  isDeleted          Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  @@index([creatorId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("team_requests")
+}
+
+model TeamRequestSkill {
+  id            String      @id @default(uuid())
+  teamRequestId String
+  teamRequest   TeamRequest @relation(fields: [teamRequestId], references: [id], onDelete: Cascade)
+  tagId         String
+  tag           Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+  @@unique([teamRequestId, tagId])
+  @@index([teamRequestId])
+  @@index([tagId])
+  @@map("team_request_skills")
+}
+
+model TeamApplication {
+  id            String            @id @default(uuid())
+  teamRequestId String
+  teamRequest   TeamRequest       @relation(fields: [teamRequestId], references: [id], onDelete: Cascade)
+  applicantId   String
+  applicant     User              @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  message       String?           @db.Text
+  status        ApplicationStatus @default(PENDING)
+  reviewedAt    DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  @@unique([teamRequestId, applicantId])
+  @@index([teamRequestId])
+  @@index([applicantId])
+  @@index([status])
+  @@map("team_applications")
+}
+
+model TeamMember {
+  id            String         @id @default(uuid())
+  teamRequestId String
+  teamRequest   TeamRequest    @relation(fields: [teamRequestId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role          TeamMemberRole @default(MEMBER)
+  joinedAt      DateTime       @default(now())
+  @@unique([teamRequestId, userId])
+  @@index([teamRequestId])
+  @@index([userId])
+  @@map("team_members")
+}
