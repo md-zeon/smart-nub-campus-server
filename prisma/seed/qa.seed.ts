@@ -3,12 +3,12 @@ import { prisma } from "../../src/app/lib/prisma";
 const categories = [
   { name: "Academics", slug: "academics", icon: "graduation-cap" },
   { name: "Programming", slug: "programming", icon: "code" },
-  { name: "Database", slug: "database", icon: "database" },
-  { name: "Web Development", slug: "web-development", icon: "globe" },
-  { name: "AI/ML", slug: "ai-ml", icon: "brain" },
   { name: "Projects", slug: "projects", icon: "folder" },
   { name: "Career", slug: "career", icon: "briefcase" },
-  { name: "Others", slug: "others", icon: "more-horizontal" },
+  { name: "Events", slug: "events", icon: "calendar" },
+  { name: "General", slug: "general", icon: "message-circle" },
+  { name: "Internships", slug: "internships", icon: "briefcase" },
+  { name: "Research", slug: "research", icon: "flask" },
 ];
 
 export async function seedQA() {

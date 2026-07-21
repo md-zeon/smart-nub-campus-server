@@ -2,7 +2,8 @@ import { z } from "zod";
 
 const createConversationSchema = z
   .object({
-    participantId: z.string().uuid("Invalid participant ID"),
+    // Better Auth user IDs are not UUIDs, so accept any non-empty string.
+    participantId: z.string().min(1, "Invalid participant ID"),
   })
   .strict();
 
@@ -23,7 +24,8 @@ const createGroupSchema = z
     name: z.string().min(1, "Group name is required").max(100, "Group name too long"),
     description: z.string().max(500, "Description too long").optional(),
     participantIds: z
-      .array(z.string().uuid("Invalid participant ID"))
+      // Better Auth user IDs are not UUIDs, so accept any non-empty string.
+      .array(z.string().min(1, "Invalid participant ID"))
       .min(1, "At least one participant is required"),
   })
   .strict();

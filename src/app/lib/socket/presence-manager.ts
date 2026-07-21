@@ -140,6 +140,15 @@ class PresenceManager {
     }
     return count;
   }
+
+  /** Get the list of currently online user IDs (for syncing new connections). */
+  getOnlineUsers(): string[] {
+    const online: string[] = [];
+    for (const [userId, entry] of this.presence) {
+      if (entry.status === "online") online.push(userId);
+    }
+    return online;
+  }
 }
 
 /** Singleton instance. */

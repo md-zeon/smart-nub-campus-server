@@ -1,5 +1,6 @@
 export interface SendConnectionRequestInput {
   receiverId: string;
+  note?: string;
 }
 
 export interface ReviewConnectionInput {
@@ -36,6 +37,7 @@ export interface ConnectionWithUser {
   receiverId: string;
   status: "PENDING" | "ACCEPTED" | "REJECTED" | "BLOCKED";
   isFavorite: boolean;
+  note?: string | null;
   createdAt: Date;
   updatedAt: Date;
   otherUser: {

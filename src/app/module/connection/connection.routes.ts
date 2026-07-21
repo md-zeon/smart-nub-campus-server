@@ -15,6 +15,9 @@ router.get("/search", connectionController.searchPeople);
 // Get suggested people (People You May Know)
 router.get("/suggestions", connectionController.getSuggestedPeople);
 
+// Get blocked users
+router.get("/blocked", connectionController.getBlockedUsers);
+
 // Get pending incoming requests
 router.get("/pending", connectionController.getPendingRequests);
 

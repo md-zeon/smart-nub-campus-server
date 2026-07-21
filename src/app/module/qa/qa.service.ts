@@ -117,6 +117,37 @@ const getQuestion = async (id: string, userId?: string) => {
 };
 
 /**
+ * Lists answers for a question, sorted accepted-first then by votes/recency.
+ * Includes author and the current user's vote state.
+ */
+const listAnswers = async (questionId: string, userId?: string) => {
+  const question = await prisma.question.findUnique({
+    where: { id: questionId, isDeleted: false },
+    select: { id: true },
+  });
+
+  if (!question) {
+    throw new AppError(status.NOT_FOUND, "Question not found.");
+  }
+
+  const answers = await prisma.answer.findMany({
+    where: { questionId, isDeleted: false },
+    orderBy: [{ isAccepted: "desc" }, { upvoteCount: "desc" }, { createdAt: "asc" }],
+    include: {
+      author: { select: { id: true, name: true, email: true, image: true, reputation: true } },
+      answerVotes: { where: userId ? { userId } : undefined, select: { type: true } },
+      _count: { select: { answerVotes: true } },
+    },
+  });
+
+  return answers.map((a) => ({
+    ...a,
+    userVote: a.answerVotes?.[0]?.type ?? null,
+    answerVotes: undefined,
+  }));
+};
+
+/**
  * Lists questions with pagination, filters, and search.
  * Supports category, tag, answered/unanswered filters and sort options.
  */
@@ -788,9 +819,78 @@ const getBookmarkedQuestions = async (userId: string, page = 1, limit = 12) => {
   };
 };
 
+/**
+ * Lists all question categories with their question counts.
+ */
+const listCategories = async () => {
+  const categories = await prisma.questionCategory.findMany({
+    orderBy: { name: "asc" },
+    include: { _count: { select: { questions: true } } },
+  });
+  return categories;
+};
+
+/**
+ * Lists all shared tags with their question usage counts.
+ * Tags are shared across Resources, Discussions, Questions, and Teams.
+ */
+const listTags = async () => {
+  const tags = await prisma.tag.findMany({
+    orderBy: { name: "asc" },
+    include: { _count: { select: { questionTags: true } } },
+  });
+  return tags;
+};
+
+/**
+ * Returns top contributors ranked by number of questions authored.
+ */
+const getTopContributors = async (limit = 5) => {
+  const authors = await prisma.question.groupBy({
+    by: ["authorId"],
+    _count: { _all: true },
+    orderBy: { _count: { authorId: "desc" } },
+    take: limit,
+  });
+
+  const userIds = authors.map((a) => a.authorId);
+  const users = await prisma.user.findMany({
+    where: { id: { in: userIds }, isDeleted: false },
+    select: { id: true, name: true, image: true },
+  });
+  const userMap = new Map(users.map((u) => [u.id, u]));
+
+  return authors
+    .map((entry, index) => ({
+      rank: index + 1,
+      name: userMap.get(entry.authorId)?.name ?? "Unknown",
+      image: userMap.get(entry.authorId)?.image ?? null,
+      questionCount: entry._count._all,
+    }))
+    .filter((entry) => entry.name !== "Unknown");
+};
+
+/**
+ * Returns trending questions (top by views) for the sidebar.
+ */
+const getTrending = async (limit = 5) => {
+  const questions = await prisma.question.findMany({
+    where: { isDeleted: false },
+    orderBy: [{ viewCount: "desc" }, { answerCount: "desc" }],
+    take: limit,
+    include: {
+      category: { select: { id: true, name: true, slug: true } },
+      author: { select: { id: true, name: true, image: true } },
+      _count: { select: { answers: true } },
+    },
+  });
+  return questions;
+};
+
 export const qaService = {
   createQuestion,
   getQuestion,
+  listAnswers,
   listQuestions,
   updateQuestion,
   deleteQuestion,
@@ -802,4 +902,8 @@ export const qaService = {
   voteAnswer,
   bookmarkQuestion,
   getBookmarkedQuestions,
+  listCategories,
+  listTags,
+  getTopContributors,
+  getTrending,
 };

@@ -15,6 +15,14 @@ router.post(
 
 router.get("/", verifySession, qaController.listQuestions);
 
+router.get("/categories", verifySession, qaController.listCategories);
+
+router.get("/tags", verifySession, qaController.listTags);
+
+router.get("/contributors", verifySession, qaController.getTopContributors);
+
+router.get("/trending", verifySession, qaController.getTrending);
+
 router.get("/bookmarks", verifySession, qaController.getBookmarkedQuestions);
 
 router.post(
@@ -23,6 +31,8 @@ router.post(
   validateRequest(qaValidation.voteSchema),
   qaController.voteAnswer,
 );
+
+router.get("/:id/answers", verifySession, qaController.listAnswers);
 
 router.get("/:id", verifySession, qaController.getQuestion);
 

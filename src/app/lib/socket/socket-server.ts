@@ -42,7 +42,18 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
     connectionManager.addConnection(userId, socket.id);
 
     // Set presence to online
-    presenceManager.setStatus(userId, "online");
+    presenceManager.setStatus(userId, "online", io!);
+
+    // Sync the current online state of OTHER users to this freshly connected
+    // socket, so it shows peers that were already online before it joined.
+    for (const otherId of presenceManager.getOnlineUsers()) {
+      if (otherId === userId) continue;
+      socket.emit("presence:update", {
+        userId: otherId,
+        status: "online",
+        lastSeen: new Date().toISOString(),
+      });
+    }
 
     // Auto-join the user's personal room
     roomManager.joinRoom(socket, `user:${userId}`);
@@ -95,12 +106,21 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
         const { messageService } = await import("../../module/message/message.service");
         await messageService.markAsRead(data.conversationId, userId);
 
-        // Broadcast read receipt to the conversation room (io is guaranteed non-null inside connection handler)
-        roomManager.broadcastToRoom(io!, `conversation:${data.conversationId}`, "messaging:read-receipt", {
-          messageId: data.messageId,
-          readBy: userId,
-          readAt: new Date().toISOString(),
-        });
+        // Persist per-message read receipts and broadcast one receipt per
+        // affected message so the sender's UI shows ✓✓ (and survives reload
+        // because isRead/readAt are now stored on the message row).
+        const { messageIds, readAt } = await messageService.markMessagesRead(
+          data.conversationId,
+          userId,
+        );
+
+        for (const messageId of messageIds) {
+          roomManager.broadcastToRoom(io!, `conversation:${data.conversationId}`, "messaging:read-receipt", {
+            messageId,
+            readBy: userId,
+            readAt: readAt.toISOString(),
+          });
+        }
       } catch {
         socket.emit("error:message", { message: "Failed to mark as read." });
       }
@@ -137,7 +157,7 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
 
       // Only mark offline when all connections for this user are gone
       if (!connectionManager.isConnected(userId)) {
-        presenceManager.setStatus(userId, "offline");
+        presenceManager.setStatus(userId, "offline", io!);
         console.log(`[Socket] User offline: ${userId} (reason: ${reason})`);
       } else {
         console.log(

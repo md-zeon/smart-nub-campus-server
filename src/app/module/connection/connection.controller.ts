@@ -143,6 +143,16 @@ const getSuggestedPeople = catchAsync(async (req, res) => {
   });
 });
 
+const getBlockedUsers = catchAsync(async (req, res) => {
+  const result = await connectionService.getBlockedUsers(req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Blocked users retrieved successfully.",
+    data: result,
+  });
+});
+
 const addSkill = catchAsync(async (req, res) => {
   const result = await connectionService.addSkill(req.body, req.user.id);
   sendResponse(res, {
@@ -207,6 +217,7 @@ export const connectionController = {
   getSentRequests,
   toggleFavorite,
   getSuggestedPeople,
+  getBlockedUsers,
   addSkill,
   removeSkill,
   getUserSkills,

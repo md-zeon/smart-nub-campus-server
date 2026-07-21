@@ -226,9 +226,16 @@ const listDiscussions = async (query: ListDiscussionsQuery, userId?: string) => 
     where.category = { slug: category };
   }
 
-  // Filter by tag slug
+  // Filter by tag slug(s) — comma-separated, matches discussions having
+  // ALL of the selected tags (AND semantics)
   if (tag) {
-    where.discussionTags = { some: { tag: { slug: tag } } };
+    const tagSlugs = tag
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    for (const slug of tagSlugs) {
+      where.discussionTags = { some: { tag: { slug } } };
+    }
   }
 
   // Filter by specific visibility
@@ -809,6 +816,132 @@ const getBookmarkedDiscussions = async (userId: string, page = 1, limit = 12) =>
   };
 };
 
+/**
+ * Lists all discussion categories with their discussion counts.
+ */
+const listCategories = async () => {
+  const categories = await prisma.discussionCategory.findMany({
+    orderBy: { name: "asc" },
+    include: { _count: { select: { discussions: true } } },
+  });
+  return categories;
+};
+
+/**
+ * Lists all tags with their discussion usage counts.
+ * Discussion tags reuse the shared Tag model.
+ */
+const listTags = async () => {
+  const tags = await prisma.tag.findMany({
+    orderBy: { name: "asc" },
+    include: { _count: { select: { discussionTags: true } } },
+  });
+  return tags;
+};
+
+/**
+ * Returns the top trending discussions by recent activity (latest replies / views).
+ */
+const getTrending = async (limit = 3) => {
+  const discussions = await prisma.discussion.findMany({
+    where: { isDeleted: false, visibility: "PUBLIC" },
+    orderBy: [{ viewCount: "desc" }, { replyCount: "desc" }],
+    take: limit,
+    include: {
+      category: { select: { id: true, name: true, slug: true } },
+      author: { select: { id: true, name: true, image: true } },
+      _count: { select: { discussionReplies: true } },
+    },
+  });
+  return discussions;
+};
+
+/**
+ * Returns top contributors ranked by number of discussions authored.
+ */
+const getTopContributors = async (limit = 5) => {
+  const authors = await prisma.discussion.groupBy({
+    by: ["authorId"],
+    _count: { _all: true },
+    orderBy: { _count: { authorId: "desc" } },
+    take: limit,
+  });
+
+  const userIds = authors.map((a) => a.authorId);
+  const users = await prisma.user.findMany({
+    where: { id: { in: userIds }, isDeleted: false },
+    select: { id: true, name: true, image: true },
+  });
+  const userMap = new Map(users.map((u) => [u.id, u]));
+
+  return authors
+    .map((entry, index) => ({
+      rank: index + 1,
+      name: userMap.get(entry.authorId)?.name ?? "Unknown",
+      image: userMap.get(entry.authorId)?.image ?? null,
+      discussionCount: entry._count._all,
+    }))
+    .filter((entry) => entry.name !== "Unknown");
+};
+
+/**
+ * Returns discussions authored by the current user.
+ */
+const getMyDiscussions = async (userId: string, page = 1, limit = 12) => {
+  const skip = (page - 1) * limit;
+  const [discussions, total] = await prisma.$transaction([
+    prisma.discussion.findMany({
+      where: { authorId: userId, isDeleted: false },
+      skip,
+      take: limit,
+      orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
+      include: {
+        category: { select: { id: true, name: true, slug: true } },
+        author: { select: { id: true, name: true, image: true } },
+        _count: { select: { discussionReplies: true } },
+      },
+    }),
+    prisma.discussion.count({ where: { authorId: userId, isDeleted: false } }),
+  ]);
+  return {
+    data: discussions,
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  };
+};
+
+/**
+ * Returns discussions the current user has replied to.
+ */
+const getMyReplies = async (userId: string, page = 1, limit = 12) => {
+  const skip = (page - 1) * limit;
+
+  const replyDiscussionIds = await prisma.discussionReply.findMany({
+    where: { authorId: userId, isDeleted: false },
+    select: { discussionId: true },
+    distinct: ["discussionId"],
+  });
+  const ids = replyDiscussionIds.map((r) => r.discussionId);
+
+  const [discussions, total] = await prisma.$transaction([
+    prisma.discussion.findMany({
+      where: { id: { in: ids }, isDeleted: false },
+      skip,
+      take: limit,
+      orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
+      include: {
+        category: { select: { id: true, name: true, slug: true } },
+        author: { select: { id: true, name: true, image: true } },
+        _count: { select: { discussionReplies: true } },
+      },
+    }),
+    prisma.discussion.count({ where: { id: { in: ids }, isDeleted: false } }),
+  ]);
+  return {
+    data: discussions,
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  };
+};
+
 export const discussionService = {
   createDiscussion,
   getDiscussion,
@@ -824,4 +957,10 @@ export const discussionService = {
   lockDiscussion,
   markSolved,
   getBookmarkedDiscussions,
+  listCategories,
+  listTags,
+  getTrending,
+  getTopContributors,
+  getMyDiscussions,
+  getMyReplies,
 };

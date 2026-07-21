@@ -102,6 +102,7 @@ const formatConnection = (connection: Record<string, unknown>, userId: string): 
     receiverId: conn.receiverId,
     status: conn.status as ConnectionWithUser["status"],
     isFavorite: conn.isFavorite,
+    note: (conn as Record<string, unknown>).note as string | null | undefined ?? null,
     createdAt: conn.createdAt,
     updatedAt: conn.updatedAt,
     otherUser: otherUser as ConnectionWithUser["otherUser"],
@@ -168,6 +169,7 @@ const sendConnectionRequest = async (
         receiverId: data.receiverId,
         status: "PENDING",
         isFavorite: false,
+        note: data.note ?? null,
       },
     });
     return updated;
@@ -178,6 +180,7 @@ const sendConnectionRequest = async (
       requesterId: userId,
       receiverId: data.receiverId,
       status: "PENDING",
+      note: data.note ?? null,
     },
   });
 
@@ -330,6 +333,51 @@ const unblockUser = async (blockedId: string, userId: string) => {
 };
 
 /**
+ * Get the list of users the current user has blocked, with their profile info
+ * resolved into an `otherUser` shape for the client.
+ */
+const getBlockedUsers = async (userId: string) => {
+  const blocks = await prisma.blockedUser.findMany({
+    where: { blockerId: userId },
+    orderBy: { createdAt: "desc" },
+    select: { blockedId: true },
+  });
+
+  if (blocks.length === 0) return [];
+
+  const blockedIds = blocks.map((b) => b.blockedId);
+
+  const users = await prisma.user.findMany({
+    where: { id: { in: blockedIds }, isDeleted: false },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      image: true,
+      student: {
+        select: {
+          department: true,
+          admissionYear: true,
+          admissionSemester: true,
+        },
+      },
+      profile: {
+        select: { currentSemester: true },
+      },
+    },
+  });
+
+  return users.map((u) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    image: u.image,
+    student: u.student,
+    profile: u.profile,
+  }));
+};
+
+/**
  * Remove an accepted connection. Either party can remove it.
  */
 const removeConnection = async (connectionId: string, userId: string) => {
@@ -403,7 +451,7 @@ const getMyConnections = async (userId: string, query: GetMyConnectionsQuery) =>
     where.isFavorite = true;
   }
 
-  const [connections, total] = await prisma.$transaction([
+  const [connections, total] = await Promise.all([
     prisma.connection.findMany({
       where,
       skip,
@@ -426,7 +474,7 @@ const getMyConnections = async (userId: string, query: GetMyConnectionsQuery) =>
   // Apply semester-based filters
   if (
     (filter === "SENIORS" || filter === "JUNIORS" || filter === "SAME_SEMESTER") &&
-    currentUser?.student
+    currentUser?.profile?.currentSemester
   ) {
     filteredConnections = connections.filter((conn) => {
       const otherUserId = getOtherUserId(conn, userId);
@@ -455,9 +503,24 @@ const getMyConnections = async (userId: string, query: GetMyConnectionsQuery) =>
     })
     .map((conn) => formatConnection(conn, userId));
 
+  // When an in-memory filter was applied, the DB count no longer matches the
+  // returned set — derive the total (and pages) from the filtered result so
+  // pagination stays accurate.
+  const isInMemoryFiltered =
+    filter === "FAVORITES" ||
+    filter === "SENIORS" ||
+    filter === "JUNIORS" ||
+    filter === "SAME_SEMESTER";
+  const effectiveTotal = isInMemoryFiltered ? result.length : total;
+
   return {
     data: result,
-    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    meta: {
+      page,
+      limit,
+      total: effectiveTotal,
+      totalPages: Math.ceil(effectiveTotal / limit),
+    },
   };
 };
 
@@ -491,6 +554,7 @@ const getPendingRequests = async (userId: string) => {
     receiverId: req.receiverId,
     status: req.status,
     isFavorite: req.isFavorite,
+    note: req.note ?? null,
     createdAt: req.createdAt,
     updatedAt: req.updatedAt,
     otherUser: req.requester,
@@ -527,6 +591,7 @@ const getSentRequests = async (userId: string) => {
     receiverId: req.receiverId,
     status: req.status,
     isFavorite: req.isFavorite,
+    note: req.note ?? null,
     createdAt: req.createdAt,
     updatedAt: req.updatedAt,
     otherUser: req.receiver,
@@ -856,7 +921,7 @@ const searchPeople = async (query: SearchPeopleQuery, userId: string) => {
     };
   }
 
-  const [users, total] = await prisma.$transaction([
+  const [users, total] = await Promise.all([
     prisma.user.findMany({
       where,
       skip,
@@ -893,8 +958,59 @@ const searchPeople = async (query: SearchPeopleQuery, userId: string) => {
     prisma.user.count({ where }),
   ]);
 
+  // Resolve the current user's existing connection (if any) to each result so the
+  // client can show the correct relationship (connected / pending / etc.) instead
+  // of always rendering a "Connect" button.
+  const userIds = users.map((u) => u.id);
+  const existing = await prisma.connection.findMany({
+    where: {
+      OR: [
+        { requesterId: userId, receiverId: { in: userIds } },
+        { receiverId: userId, requesterId: { in: userIds } },
+      ],
+    },
+    select: {
+      id: true,
+      requesterId: true,
+      receiverId: true,
+      status: true,
+    },
+  });
+
+  const connectionByUserId = new Map<
+    string,
+    { id: string; status: string; requesterId: string }
+  >();
+  for (const conn of existing) {
+    const otherId =
+      conn.requesterId === userId ? conn.receiverId : conn.requesterId;
+    connectionByUserId.set(otherId, {
+      id: conn.id,
+      status: conn.status,
+      requesterId: conn.requesterId,
+    });
+  }
+
+  const data = users.map((u) => {
+    const conn = connectionByUserId.get(u.id);
+    let connectionStatus: "NONE" | "CONNECTED" | "PENDING_INCOMING" | "PENDING_OUTGOING" =
+      "NONE";
+    if (conn) {
+      if (conn.status === "ACCEPTED") connectionStatus = "CONNECTED";
+      else if (conn.status === "PENDING") {
+        connectionStatus =
+          conn.requesterId === userId ? "PENDING_OUTGOING" : "PENDING_INCOMING";
+      }
+    }
+    return {
+      ...u,
+      connectionStatus,
+      connectionId: conn?.id ?? null,
+    };
+  });
+
   return {
-    data: users,
+    data,
     meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
   };
 };
@@ -915,4 +1031,5 @@ export const connectionService = {
   removeSkill,
   getUserSkills,
   searchPeople,
+  getBlockedUsers,
 };

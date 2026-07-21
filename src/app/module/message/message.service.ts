@@ -511,6 +511,58 @@ const markAsRead = async (conversationId: string, userId: string) => {
 };
 
 /**
+ * Persist per-message read receipts for a conversation. Marks every message
+ * sent by another participant (not the reader) that is still unread as read.
+ * Returns the IDs of the messages that were actually updated so the caller
+ * can broadcast read receipts to the sender(s).
+ */
+const markMessagesRead = async (
+  conversationId: string,
+  userId: string,
+): Promise<{ messageIds: string[]; readAt: Date }> => {
+  const participant = await prisma.conversationParticipant.findUnique({
+    where: {
+      conversationId_userId: {
+        conversationId,
+        userId,
+      },
+    },
+  });
+
+  if (!participant) {
+    throw new AppError(status.FORBIDDEN, "You are not a participant in this conversation.");
+  }
+
+  const readAt = new Date();
+
+  const unread = await prisma.message.findMany({
+    where: {
+      conversationId,
+      senderId: { not: userId },
+      isRead: false,
+      isDeleted: false,
+    },
+    select: { id: true },
+  });
+
+  const messageIds = unread.map((m) => m.id);
+
+  if (messageIds.length > 0) {
+    await prisma.message.updateMany({
+      where: {
+        id: { in: messageIds },
+      },
+      data: {
+        isRead: true,
+        readAt,
+      },
+    });
+  }
+
+  return { messageIds, readAt };
+};
+
+/**
  * Create a group conversation with the creator as admin.
  */
 const createGroup = async (
@@ -900,6 +952,7 @@ export const messageService = {
   sendMessage,
   getMessages,
   markAsRead,
+  markMessagesRead,
   createGroup,
   updateGroup,
   addMember,
