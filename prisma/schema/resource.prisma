@@ -1,0 +1,148 @@
+model ResourceCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  icon        String?
+  description String?
+  resources   Resource[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@map("resource_categories")
+}
+
+model Resource {
+  id             String           @id @default(uuid())
+  title          String           @db.VarChar(200)
+  description    String?
+  fileUrl        String
+  filePublicId   String?
+  fileType       String
+  fileSize       Int
+  courseId        String
+  course          Course           @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  categoryId     String
+  category       ResourceCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  uploaderId     String
+  uploader       User             @relation(fields: [uploaderId], references: [id], onDelete: Restrict)
+  upvoteCount    Int              @default(0)
+  downvoteCount  Int              @default(0)
+  downloadCount  Int              @default(0)
+  viewCount      Int              @default(0)
+  reportCount    Int              @default(0)
+  isVerified     Boolean          @default(false)
+  isDeleted      Boolean          @default(false)
+  deletedAt      DateTime?
+  resourceTags       ResourceTag[]
+  resourceVotes      ResourceVote[]
+  resourceReports    ResourceReport[]
+  resourceBookmarks  ResourceBookmark[]
+  resourceDownloads  ResourceDownload[]
+  comments           Comment[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@index([courseId])
+  @@index([categoryId])
+  @@index([uploaderId])
+  @@index([createdAt(sort: Desc)])
+  @@index([upvoteCount(sort: Desc)])
+  @@map("resource")
+}
+
+model ResourceTag {
+  id         String   @id @default(uuid())
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  tagId      String
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  @@unique([resourceId, tagId])
+  @@index([resourceId])
+  @@index([tagId])
+  @@map("resource_tags")
+}
+
+model Tag {
+  id            String        @id @default(uuid())
+  name          String        @unique
+  slug          String        @unique
+  resourceTags  ResourceTag[]
+  createdAt     DateTime      @default(now())
+  @@map("tag")
+}
+
+model ResourceVote {
+  id         String   @id @default(uuid())
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       VoteType
+  createdAt  DateTime @default(now())
+  @@unique([resourceId, userId])
+  @@index([resourceId])
+  @@index([userId])
+  @@map("resource_votes")
+}
+
+model ResourceReport {
+  id           String       @id @default(uuid())
+  resourceId   String
+  resource     Resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason       ReportReason
+  description  String?      @db.Text
+  status       ReportStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  @@unique([resourceId, userId])
+  @@index([resourceId])
+  @@index([userId])
+  @@index([status])
+  @@map("resource_reports")
+}
+
+model ResourceBookmark {
+  id         String   @id @default(uuid())
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  @@unique([resourceId, userId])
+  @@index([userId])
+  @@map("resource_bookmarks")
+}
+
+model ResourceDownload {
+  id           String   @id @default(uuid())
+  resourceId   String
+  resource     Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  downloadedAt DateTime @default(now())
+  @@index([resourceId])
+  @@index([userId])
+  @@index([downloadedAt(sort: Desc)])
+  @@map("resource_downloads")
+}
+
+model Comment {
+  id         String    @id @default(uuid())
+  content    String    @db.Text
+  resourceId String
+  resource   Resource  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentId   String?
+  parent     Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies    Comment[] @relation("CommentReplies")
+  isDeleted  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  @@index([resourceId])
+  @@index([userId])
+  @@index([parentId])
+  @@map("comments")
+}

@@ -23,6 +23,12 @@ model User {
     admin                        Admin?
     profile                      UserProfile?
     reviewedVerificationRequests VerificationRequest[] @relation("VerificationReviewedBy")
+    resources               Resource[]
+    resourceVotes           ResourceVote[]
+    resourceBookmarks       ResourceBookmark[]
+    resourceDownloads       ResourceDownload[]
+    resourceReports         ResourceReport[]
+    comments                Comment[]
 
     @@unique([email])
     @@map("user")
