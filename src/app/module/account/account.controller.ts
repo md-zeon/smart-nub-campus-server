@@ -2,7 +2,6 @@ import status from "http-status";
 import catchAsync from "../../shared/catchAsync";
 import sendResponse from "../../shared/sendResponse";
 import { accountService } from "./account.service";
-import { OnboardingStepValue } from "../../../generated/prisma/enums";
 
 const createAccount = catchAsync(async (req, res) => {
   const onboardingStepId = req.cookies?.onboarding_step;

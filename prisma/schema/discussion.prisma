@@ -1,0 +1,122 @@
+model DiscussionCategory {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  slug        String       @unique
+  icon        String?
+  discussions Discussion[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("discussion_categories")
+}
+
+model Discussion {
+  id                  String               @id @default(uuid())
+  title               String               @db.VarChar(200)
+  content             String               @db.Text
+  categoryId          String
+  category            DiscussionCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  authorId            String
+  author              User                 @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  courseId            String?
+  course              Course?              @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  replyCount          Int                  @default(0)
+  viewCount           Int                  @default(0)
+  upvoteCount         Int                  @default(0)
+  visibility          DiscussionVisibility @default(PUBLIC)
+  isPinned            Boolean              @default(false)
+  isLocked            Boolean              @default(false)
+  isSolved            Boolean              @default(false)
+  discussionTags      DiscussionTag[]
+  discussionReplies   DiscussionReply[]
+  discussionVotes     DiscussionVote[]
+  discussionBookmarks DiscussionBookmark[]
+  isDeleted           Boolean              @default(false)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([createdAt(sort: Desc)])
+  @@index([upvoteCount(sort: Desc)])
+  @@map("discussion")
+}
+
+model DiscussionReply {
+  id                   String                @id @default(uuid())
+  content              String                @db.Text
+  discussionId         String
+  discussion           Discussion            @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  authorId             String
+  author               User                  @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parentId             String?
+  parent               DiscussionReply?      @relation("ReplyTree", fields: [parentId], references: [id], onDelete: Cascade)
+  replies              DiscussionReply[]     @relation("ReplyTree")
+  upvoteCount          Int                   @default(0)
+  discussionReplyVotes DiscussionReplyVote[]
+  isDeleted            Boolean               @default(false)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  @@index([discussionId])
+  @@index([authorId])
+  @@index([parentId])
+  @@map("discussion_replies")
+}
+
+model DiscussionVote {
+  id           String     @id @default(uuid())
+  discussionId String
+  discussion   Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         VoteType
+  createdAt    DateTime   @default(now())
+
+  @@unique([discussionId, userId])
+  @@index([discussionId])
+  @@index([userId])
+  @@map("discussion_votes")
+}
+
+model DiscussionReplyVote {
+  id        String          @id @default(uuid())
+  replyId   String
+  reply     DiscussionReply @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      VoteType
+  createdAt DateTime        @default(now())
+
+  @@unique([replyId, userId])
+  @@index([replyId])
+  @@index([userId])
+  @@map("discussion_reply_votes")
+}
+
+model DiscussionTag {
+  id           String     @id @default(uuid())
+  discussionId String
+  discussion   Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  tagId        String
+  tag          Tag        @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([discussionId, tagId])
+  @@index([discussionId])
+  @@index([tagId])
+  @@map("discussion_tags")
+}
+
+model DiscussionBookmark {
+  id           String     @id @default(uuid())
+  discussionId String
+  discussion   Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([discussionId, userId])
+  @@index([userId])
+  @@map("discussion_bookmarks")
+}
