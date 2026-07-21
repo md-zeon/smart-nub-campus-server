@@ -37,6 +37,11 @@ model User {
   discussionVotes              DiscussionVote[]
   discussionReplyVotes         DiscussionReplyVote[]
   discussionBookmarks          DiscussionBookmark[]
+  questions                    Question[]
+  answers                      Answer[]
+  questionVotes                QuestionVote[]
+  answerVotes                  AnswerVote[]
+  questionBookmarks            QuestionBookmark[]
 
   @@unique([email])
   @@map("user")

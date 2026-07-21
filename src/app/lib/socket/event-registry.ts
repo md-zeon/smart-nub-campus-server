@@ -17,20 +17,20 @@ import { presenceManager } from "./presence-manager";
 // Handler type
 // ---------------------------------------------------------------------------
 
-type EventHandler<T = unknown> = (
+type EventHandler = (
   io: SocketIOServer,
   socket: Socket,
-  data: T,
+  data: unknown,
 ) => void | Promise<void>;
 
 // ---------------------------------------------------------------------------
 // Registry
 // ---------------------------------------------------------------------------
 
-interface EventDefinition<T = unknown> {
-  name: string;
+interface EventDefinition<K extends string = string> {
+  name: K;
   direction: "client-to-server" | "server-to-client";
-  handler?: EventHandler<T>;
+  handler?: EventHandler;
   description: string;
 }
 
@@ -38,7 +38,7 @@ class EventRegistry {
   private events = new Map<string, EventDefinition>();
 
   /** Register an event with its handler. */
-  register<T>(definition: EventDefinition<T>): void {
+  register<K extends string>(definition: EventDefinition<K>): void {
     this.events.set(definition.name, definition as EventDefinition);
   }
 
@@ -107,14 +107,13 @@ eventRegistry.register({
   name: "messaging:send",
   direction: "client-to-server",
   description: "Send a message in a conversation",
-  handler: (_io, socket, data: { conversationId: string }) => {
-    // Phase 6 will implement the full handler.
-    // For now, broadcast to the conversation room.
+  handler: (_io, socket, data: unknown) => {
+    const d = data as { conversationId: string };
     roomManager.broadcastToRoom(
       _io,
-      `conversation:${data.conversationId}`,
+      `conversation:${d.conversationId}`,
       "messaging:new",
-      { senderId: socket.data.user.id, ...data },
+      { senderId: socket.data.user.id, ...d },
     );
   },
 });
@@ -135,13 +134,14 @@ eventRegistry.register({
   name: "typing:start",
   direction: "client-to-server",
   description: "User started typing",
-  handler: (_io, socket, data: { conversationId: string }) => {
+  handler: (_io, socket, data: unknown) => {
+    const d = data as { conversationId: string };
     roomManager.broadcastToRoom(
       _io,
-      `conversation:${data.conversationId}`,
+      `conversation:${d.conversationId}`,
       "typing:update",
       {
-        conversationId: data.conversationId,
+        conversationId: d.conversationId,
         userId: socket.data.user.id,
         isTyping: true,
       },
@@ -153,13 +153,14 @@ eventRegistry.register({
   name: "typing:stop",
   direction: "client-to-server",
   description: "User stopped typing",
-  handler: (_io, socket, data: { conversationId: string }) => {
+  handler: (_io, socket, data: unknown) => {
+    const d = data as { conversationId: string };
     roomManager.broadcastToRoom(
       _io,
-      `conversation:${data.conversationId}`,
+      `conversation:${d.conversationId}`,
       "typing:update",
       {
-        conversationId: data.conversationId,
+        conversationId: d.conversationId,
         userId: socket.data.user.id,
         isTyping: false,
       },
