@@ -59,6 +59,10 @@ model User {
     aiChatSessions                AIChatSession[]
     aiStudyStats                  AIStudyStats[]
 
+    // Event relations (Phase 8)
+    organizedEvents               Event[]
+    eventRSVPs                    EventRSVP[]
+
     @@unique([email])
   @@map("user")
 }
