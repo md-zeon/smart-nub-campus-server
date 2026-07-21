@@ -1,0 +1,62 @@
+model Conversation {
+  id                       String                     @id @default(uuid())
+  type                     ConversationType           @default(DIRECT)
+  name                     String?
+  description              String?
+  groupImage               String?
+  creatorId                String?
+  creator                  User?                      @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  lastMessageAt            DateTime?
+  conversationParticipants ConversationParticipant[]
+  messages                 Message[]
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime                   @updatedAt
+
+  @@index([type])
+  @@index([lastMessageAt(sort: Desc)])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime?
+  isAdmin        Boolean      @default(false)
+  isMuted        Boolean      @default(false)
+  joinedAt       DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  content        String       @db.Text
+  type           MessageType  @default(TEXT)
+  fileUrl        String?
+  filePublicId   String?
+  fileName       String?
+  fileSize       Int?
+  isRead         Boolean      @default(false)
+  readAt         DateTime?
+  replyToId      String?
+  replyTo        Message?     @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        Message[]    @relation("MessageReply")
+  isDeleted      Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt(sort: Desc)])
+  @@map("messages")
+}
