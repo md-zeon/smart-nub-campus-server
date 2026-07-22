@@ -18,15 +18,12 @@ import { notificationRoutes } from "../module/notification/notification.routes";
 import { adminRoutes } from "../module/admin/admin.routes";
 import { authRoutes } from "../module/auth/auth.routes";
 import { auth } from "../lib/auth";
-import {
-  passwordResetRateLimiter,
-} from "../middleware/rateLimit";
 
 const router: Router = Router();
 
 // Custom auth endpoints mounted BEFORE Better Auth handler
 // so they don't get intercepted by the catch-all /auth handler
-router.use("/auth", passwordResetRateLimiter, authRoutes);
+router.use("/auth", authRoutes);
 
 // Mount Better Auth handler after custom routes to expose OTP endpoints
 // This enables: /email-otp/send-verification-otp, /email-otp/verify-email, etc.

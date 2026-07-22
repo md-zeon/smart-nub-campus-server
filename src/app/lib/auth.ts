@@ -39,6 +39,18 @@ export const auth = betterAuth({
           });
         }
 
+        if (user?.status === UserStatus.BANNED) {
+          throw new APIError("FORBIDDEN", {
+            message: "Account banned.",
+          });
+        }
+
+        if (user?.isDeactivated) {
+          throw new APIError("FORBIDDEN", {
+            message: "Account deactivated.",
+          });
+        }
+
         return ctx;
       } else if (ctx.path === "/api/v1/auth/sign-up/email") {
         const user = await prisma.user.findUnique({

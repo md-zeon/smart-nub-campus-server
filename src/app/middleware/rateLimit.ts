@@ -60,3 +60,17 @@ export const verificationRateLimiter = rateLimit({
     );
   },
 });
+
+export const onboardingRateLimiter = rateLimit({
+  windowMs: ENVVARS.RATE_LIMIT_OTP_WINDOW_MS,
+  max: ENVVARS.RATE_LIMIT_OTP_MAX,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json(
+      rateLimitResponse(
+        "Too many onboarding requests. Please try again later.",
+      ),
+    );
+  },
+});
