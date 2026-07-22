@@ -146,7 +146,9 @@ const addComment = catchAsync(async (req, res) => {
 
 const getComments = catchAsync(async (req, res) => {
   const id = req.params.id as string;
-  const result = await resourceService.getComments(id);
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 20;
+  const result = await resourceService.getComments(id, page, limit);
   sendResponse(res, {
     httpStatusCode: status.OK,
     success: true,

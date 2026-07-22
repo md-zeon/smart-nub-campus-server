@@ -2,6 +2,7 @@ import status from "http-status";
 import { VoteType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { getSocketServer } from "../../lib/socket/socket-server";
 import { gamificationService } from "../gamification/gamification.service";
 import { notificationService } from "../notification/notification.service";
 import {
@@ -62,6 +63,25 @@ const createResource = async (data: CreateResourceInput, userId: string) => {
     .catch(() => {
       // Non-critical: ignore gamification failures
     });
+
+  // Broadcast new resource to all connected clients (non-blocking)
+  try {
+    const io = getSocketServer();
+    io.emit("resource:new", {
+      id: resource.id,
+      title: resource.title,
+      description: resource.description,
+      fileUrl: resource.fileUrl,
+      fileType: resource.fileType,
+      fileSize: resource.fileSize,
+      courseId: resource.courseId,
+      categoryId: resource.categoryId,
+      uploaderId: userId,
+      createdAt: resource.createdAt.toISOString(),
+    });
+  } catch {
+    // Socket.IO may not be initialized in test environments
+  }
 
   return resource;
 };
@@ -552,7 +572,7 @@ const addComment = async (
   return comment;
 };
 
-const getComments = async (resourceId: string) => {
+const getComments = async (resourceId: string, page = 1, limit = 20) => {
   const resource = await prisma.resource.findUnique({
     where: { id: resourceId, isDeleted: false },
   });
@@ -561,30 +581,41 @@ const getComments = async (resourceId: string) => {
     throw new AppError(status.NOT_FOUND, "Resource not found.");
   }
 
-  const comments = await prisma.comment.findMany({
-    where: {
-      resourceId,
-      isDeleted: false,
-      parentId: null,
-    },
-    include: {
-      user: {
-        select: { id: true, name: true, image: true },
-      },
-      replies: {
-        where: { isDeleted: false },
-        include: {
-          user: {
-            select: { id: true, name: true, image: true },
-          },
-        },
-        orderBy: { createdAt: "asc" },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const skip = (page - 1) * limit;
+  const where = {
+    resourceId,
+    isDeleted: false,
+    parentId: null as string | null,
+  };
 
-  return comments;
+  const [comments, total] = await prisma.$transaction([
+    prisma.comment.findMany({
+      where,
+      skip,
+      take: limit,
+      include: {
+        user: {
+          select: { id: true, name: true, image: true },
+        },
+        replies: {
+          where: { isDeleted: false },
+          include: {
+            user: {
+              select: { id: true, name: true, image: true },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.comment.count({ where }),
+  ]);
+
+  return {
+    comments,
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  };
 };
 
 const deleteComment = async (id: string, userId: string) => {
@@ -701,6 +732,17 @@ const reviewReport = async (
       reviewedAt: new Date(),
     },
   });
+
+  // Notify the reporter that their report was reviewed (non-blocking)
+  if (report.userId !== reviewedById) {
+    notificationService.createNotification({
+      userId: report.userId,
+      type: "RESOURCE_REPORT_REVIEWED",
+      title: "Report Reviewed",
+      message: `Your report has been ${reviewStatus.toLowerCase().replace(/_/g, " ")}.`,
+      link: `/resources/${report.resourceId}`,
+    }).catch(() => {});
+  }
 
   return updated;
 };
