@@ -94,21 +94,6 @@ router.patch(
 );
 router.delete("/question-categories/:id", adminController.deleteQuestionCategory);
 
-// --- Event Management ---
-router.get("/events", adminController.listEvents);
-router.get("/events/:id", adminController.getEventById);
-router.post(
-  "/events",
-  validateRequest(adminValidation.createEventSchema),
-  adminController.createEvent,
-);
-router.patch(
-  "/events/:id",
-  validateRequest(adminValidation.updateEventSchema),
-  adminController.updateEvent,
-);
-router.delete("/events/:id", adminController.deleteEvent);
-
 // --- Audit Log ---
 router.get("/audit-log", adminController.listAuditLogs);
 router.get("/audit-log/:id", adminController.getAuditLogById);

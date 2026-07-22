@@ -135,41 +135,6 @@ const updateQuestionCategorySchema = z
   })
   .strict();
 
-const createEventSchema = z
-  .object({
-    title: z
-      .string()
-      .trim()
-      .min(1, "Event title is required")
-      .max(200, "Title must be at most 200 characters"),
-    description: z.string().trim().optional(),
-    eventDate: z.coerce.date(),
-    location: z.string().trim().max(200).optional(),
-    imageUrl: z.string().url().optional(),
-    organizerId: z.string().uuid().optional(),
-    status: z.enum(["UPCOMING", "ONGOING", "COMPLETED", "CANCELLED"]).optional(),
-    isFeatured: z.boolean().optional(),
-  })
-  .strict();
-
-const updateEventSchema = z
-  .object({
-    title: z
-      .string()
-      .trim()
-      .min(1)
-      .max(200, "Title must be at most 200 characters")
-      .optional(),
-    description: z.string().trim().optional(),
-    eventDate: z.coerce.date().optional(),
-    location: z.string().trim().max(200).optional(),
-    imageUrl: z.string().url().optional(),
-    organizerId: z.string().uuid().optional(),
-    status: z.enum(["UPCOMING", "ONGOING", "COMPLETED", "CANCELLED"]).optional(),
-    isFeatured: z.boolean().optional(),
-  })
-  .strict();
-
 const listAuditLogsSchema = z
   .object({
     adminUserId: z.string().uuid().optional(),
@@ -195,7 +160,5 @@ export const adminValidation = {
   updateDiscussionCategorySchema,
   createQuestionCategorySchema,
   updateQuestionCategorySchema,
-  createEventSchema,
-  updateEventSchema,
   listAuditLogsSchema,
 };

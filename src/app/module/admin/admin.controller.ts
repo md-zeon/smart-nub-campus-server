@@ -513,93 +513,6 @@ const deleteQuestionCategory = catchAsync(async (req, res) => {
   });
 });
 
-// --- Event Management ---
-const listEvents = catchAsync(async (req, res) => {
-  const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 20;
-  const result = await adminService.listEvents(page, limit);
-
-  sendResponse(res, {
-    httpStatusCode: status.OK,
-    success: true,
-    message: "Events retrieved successfully.",
-    data: result,
-  });
-});
-
-const getEventById = catchAsync(async (req, res) => {
-  const id = req.params.id as string;
-  const result = await adminService.getEventById(id);
-
-  sendResponse(res, {
-    httpStatusCode: status.OK,
-    success: true,
-    message: "Event retrieved successfully.",
-    data: result,
-  });
-});
-
-const createEvent = catchAsync(async (req, res) => {
-  const result = await adminService.createEvent(req.body);
-
-  await adminService.createAuditLog({
-    adminUserId: req.user.id,
-    action: "CREATE_EVENT",
-    targetType: "EVENT",
-    targetId: result.id,
-    details: { title: result.title },
-    ipAddress: req.ip,
-  });
-
-  sendResponse(res, {
-    httpStatusCode: status.CREATED,
-    success: true,
-    message: "Event created successfully.",
-    data: result,
-  });
-});
-
-const updateEvent = catchAsync(async (req, res) => {
-  const id = req.params.id as string;
-  const result = await adminService.updateEvent(id, req.body);
-
-  await adminService.createAuditLog({
-    adminUserId: req.user.id,
-    action: "UPDATE_EVENT",
-    targetType: "EVENT",
-    targetId: id,
-    details: req.body,
-    ipAddress: req.ip,
-  });
-
-  sendResponse(res, {
-    httpStatusCode: status.OK,
-    success: true,
-    message: "Event updated successfully.",
-    data: result,
-  });
-});
-
-const deleteEvent = catchAsync(async (req, res) => {
-  const id = req.params.id as string;
-  const result = await adminService.deleteEvent(id);
-
-  await adminService.createAuditLog({
-    adminUserId: req.user.id,
-    action: "DELETE_EVENT",
-    targetType: "EVENT",
-    targetId: id,
-    ipAddress: req.ip,
-  });
-
-  sendResponse(res, {
-    httpStatusCode: status.OK,
-    success: true,
-    message: result.message,
-    data: null,
-  });
-});
-
 // --- Audit Log ---
 const listAuditLogs = catchAsync(async (req, res) => {
   const query: ListAuditLogsQuery = {
@@ -663,11 +576,6 @@ export const adminController = {
   createQuestionCategory,
   updateQuestionCategory,
   deleteQuestionCategory,
-  listEvents,
-  getEventById,
-  createEvent,
-  updateEvent,
-  deleteEvent,
   listAuditLogs,
   getAuditLogById,
 };

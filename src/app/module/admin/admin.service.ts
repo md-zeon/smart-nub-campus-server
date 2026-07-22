@@ -701,104 +701,6 @@ const deleteQuestionCategory = async (id: string) => {
   return { message: "Question category deleted successfully." };
 };
 
-// --- Event Management ---
-const listEvents = async (page = 1, limit = 20) => {
-  const skip = (page - 1) * limit;
-
-  const [events, total] = await prisma.$transaction([
-    prisma.event.findMany({
-      skip,
-      take: limit,
-      orderBy: { createdAt: "desc" },
-      include: {
-        organizer: { select: { id: true, name: true, email: true } },
-        _count: { select: { rsvps: true } },
-      },
-    }),
-    prisma.event.count(),
-  ]);
-
-  return {
-    data: events,
-    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-  };
-};
-
-const getEventById = async (id: string) => {
-  const event = await prisma.event.findUnique({
-    where: { id },
-    include: {
-      organizer: { select: { id: true, name: true, email: true } },
-      _count: { select: { rsvps: true } },
-    },
-  });
-
-  if (!event) {
-    throw new AppError(status.NOT_FOUND, "Event not found.");
-  }
-
-  return event;
-};
-
-const createEvent = async (data: {
-  title: string;
-  description?: string;
-  eventDate: Date;
-  location?: string;
-  imageUrl?: string;
-  organizerId?: string;
-  status?: string;
-  isFeatured?: boolean;
-}) => {
-  const event = await prisma.event.create({
-    data: {
-      title: data.title,
-      description: data.description ?? null,
-      eventDate: data.eventDate,
-      location: data.location ?? null,
-      imageUrl: data.imageUrl ?? null,
-      organizerId: data.organizerId ?? null,
-      status: (data.status as never) ?? "UPCOMING",
-      isFeatured: data.isFeatured ?? false,
-    },
-    include: {
-      organizer: { select: { id: true, name: true, email: true } },
-    },
-  });
-
-  return event;
-};
-
-const updateEvent = async (id: string, data: Record<string, unknown>) => {
-  const event = await prisma.event.findUnique({ where: { id } });
-
-  if (!event) {
-    throw new AppError(status.NOT_FOUND, "Event not found.");
-  }
-
-  const updated = await prisma.event.update({
-    where: { id },
-    data,
-    include: {
-      organizer: { select: { id: true, name: true, email: true } },
-    },
-  });
-
-  return updated;
-};
-
-const deleteEvent = async (id: string) => {
-  const event = await prisma.event.findUnique({ where: { id } });
-
-  if (!event) {
-    throw new AppError(status.NOT_FOUND, "Event not found.");
-  }
-
-  await prisma.event.delete({ where: { id } });
-
-  return { message: "Event deleted successfully." };
-};
-
 // --- Audit Log ---
 const listAuditLogs = async (query: ListAuditLogsQuery) => {
   const {
@@ -893,11 +795,6 @@ export const adminService = {
   createQuestionCategory,
   updateQuestionCategory,
   deleteQuestionCategory,
-  listEvents,
-  getEventById,
-  createEvent,
-  updateEvent,
-  deleteEvent,
   listAuditLogs,
   getAuditLogById,
 };

@@ -1,6 +1,8 @@
 import status from "http-status";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { getSocketServer } from "../../lib/socket/socket-server";
+import { notificationService } from "../notification/notification.service";
 import {
   CreateEventInput,
   UpdateEventInput,
@@ -29,6 +31,22 @@ const createEvent = async (data: CreateEventInput, userId: string) => {
       _count: { select: { rsvps: true } },
     },
   });
+
+  try {
+    const io = getSocketServer();
+    io.emit("event:new", {
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      eventDate: event.eventDate.toISOString(),
+      location: event.location,
+      imageUrl: event.imageUrl,
+      status: event.status,
+      isFeatured: event.isFeatured,
+    });
+  } catch {
+    // Socket.IO may not be initialized in test environments
+  }
 
   return event;
 };
@@ -266,12 +284,42 @@ const toggleRsvp = async (eventId: string, userId: string) => {
 
   if (existingRsvp) {
     await prisma.eventRSVP.delete({ where: { id: existingRsvp.id } });
+
+    try {
+      const io = getSocketServer();
+      io.emit("event:rsvpUpdate", { eventId, action: "removed" as const });
+    } catch {
+      // Socket.IO may not be initialized in test environments
+    }
+
     return { action: "removed" as const };
   }
 
   await prisma.eventRSVP.create({
     data: { eventId, userId },
   });
+
+  try {
+    const io = getSocketServer();
+    io.emit("event:rsvpUpdate", { eventId, action: "added" as const });
+  } catch {
+    // Socket.IO may not be initialized in test environments
+  }
+
+  // Notify event organizer (skip self-RSVP)
+  if (event.organizerId && event.organizerId !== userId) {
+    try {
+      await notificationService.createNotification({
+        userId: event.organizerId,
+        type: "EVENT_REMINDER",
+        title: "New RSVP",
+        message: `Someone RSVP'd to your event "${event.title}".`,
+        link: `/events/${eventId}`,
+      });
+    } catch {
+      // Notification failure is non-critical
+    }
+  }
 
   return { action: "added" as const };
 };

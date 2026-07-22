@@ -233,6 +233,18 @@ eventRegistry.register({
 });
 
 eventRegistry.register({
+  name: "event:new",
+  direction: "server-to-client",
+  description: "New event created",
+});
+
+eventRegistry.register({
+  name: "event:rsvpUpdate",
+  direction: "server-to-client",
+  description: "RSVP status changed for an event",
+});
+
+eventRegistry.register({
   name: "admin:review-update",
   direction: "server-to-client",
   description: "Admin review status updated",
