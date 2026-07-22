@@ -1,6 +1,7 @@
 import status from "http-status";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { getSocketServer } from "../../lib/socket/socket-server";
 import { notificationService } from "../notification/notification.service";
 import {
   ApplyToTeamInput,
@@ -190,6 +191,7 @@ const updateTeamRequest = async (
   if (data.title !== undefined) updateData.title = data.title;
   if (data.description !== undefined) updateData.description = data.description;
   if (data.lookingForCount !== undefined) updateData.lookingForCount = data.lookingForCount;
+  if (data.status !== undefined) updateData.status = data.status;
   if (data.projectName !== undefined) updateData.projectName = data.projectName;
   if (data.deadline !== undefined) updateData.deadline = data.deadline ? new Date(data.deadline) : null;
   if (data.category !== undefined) updateData.category = data.category;
@@ -303,6 +305,23 @@ const applyToTeam = async (
     link: `/teams/${teamRequestId}`,
   }).catch(() => {});
 
+  // Broadcast new application to connected clients (non-blocking)
+  try {
+    const io = getSocketServer();
+    io.emit("team:application", {
+      teamRequestId,
+      application: {
+        id: application.id,
+        teamId: teamRequestId,
+        applicantId: userId,
+        status: application.status,
+        createdAt: application.createdAt.toISOString(),
+      },
+    });
+  } catch {
+    // Socket.IO may not be initialized in test environments
+  }
+
   return application;
 };
 
@@ -406,6 +425,23 @@ const reviewApplication = async (
       : `Your team application was rejected.`,
     link: `/teams/${teamRequestId}`,
   }).catch(() => {});
+
+  // Broadcast application review result to connected clients (non-blocking)
+  try {
+    const io = getSocketServer();
+    io.emit("team:application", {
+      teamRequestId,
+      application: {
+        id: result.id,
+        teamId: teamRequestId,
+        applicantId: application.applicantId,
+        status: result.status,
+        createdAt: result.createdAt.toISOString(),
+      },
+    });
+  } catch {
+    // Socket.IO may not be initialized in test environments
+  }
 
   return result;
 };

@@ -74,3 +74,31 @@ export const onboardingRateLimiter = rateLimit({
     );
   },
 });
+
+export const teamCreateRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json(
+      rateLimitResponse(
+        "Too many team creation requests. Please try again later.",
+      ),
+    );
+  },
+});
+
+export const teamApplyRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json(
+      rateLimitResponse(
+        "Too many team application requests. Please try again later.",
+      ),
+    );
+  },
+});

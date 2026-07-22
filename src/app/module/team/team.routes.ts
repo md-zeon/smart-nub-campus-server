@@ -1,6 +1,7 @@
 import { Router } from "express";
 import verifySession from "../../middleware/verifySession";
 import validateRequest from "../../middleware/validateRequest";
+import { teamCreateRateLimiter, teamApplyRateLimiter } from "../../middleware/rateLimit";
 import { teamController } from "./team.controller";
 import { teamValidation } from "./team.validation";
 
@@ -10,6 +11,7 @@ const router: Router = Router();
 router.post(
   "/",
   verifySession,
+  teamCreateRateLimiter,
   validateRequest(teamValidation.createTeamRequestSchema),
   teamController.createTeamRequest,
 );
@@ -41,6 +43,7 @@ router.post("/:id/leave", verifySession, teamController.leaveTeam);
 router.post(
   "/:id/apply",
   verifySession,
+  teamApplyRateLimiter,
   validateRequest(teamValidation.applyToTeamSchema),
   teamController.applyToTeam,
 );

@@ -11,7 +11,7 @@ const createTeamRequestSchema = z
     lookingForCount: z
       .number()
       .int()
-      .positive("Looking for count must be positive"),
+      .positive("Max team size must be positive"),
     projectName: z.string().trim().optional(),
     deadline: z.string().datetime().optional(),
     category: z.string().trim().optional(),
@@ -33,8 +33,9 @@ const updateTeamRequestSchema = z
     lookingForCount: z
       .number()
       .int()
-      .positive("Looking for count must be positive")
+      .positive("Max team size must be positive")
       .optional(),
+    status: z.enum(["CLOSED"]).optional(),
     projectName: z.string().trim().optional(),
     deadline: z.string().datetime().optional(),
     category: z.string().trim().optional(),

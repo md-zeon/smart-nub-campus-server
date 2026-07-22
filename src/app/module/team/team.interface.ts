@@ -14,6 +14,7 @@ export interface UpdateTeamRequestInput {
   title?: string;
   description?: string;
   lookingForCount?: number;
+  status?: "CLOSED";
   projectName?: string;
   deadline?: string;
   category?: string;
