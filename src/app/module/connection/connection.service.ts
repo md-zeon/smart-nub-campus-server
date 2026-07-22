@@ -2,6 +2,7 @@ import status from "http-status";
 import { Prisma } from "../../../generated/prisma/client";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { notificationService } from "../notification/notification.service";
 import {
   SendConnectionRequestInput,
   BlockUserInput,
@@ -172,6 +173,13 @@ const sendConnectionRequest = async (
         note: data.note ?? null,
       },
     });
+    notificationService.createNotification({
+      userId: data.receiverId,
+      type: "CONNECTION_REQUEST",
+      title: "New Connection Request",
+      message: `Someone sent you a connection request.`,
+      link: "/connections",
+    }).catch(() => {});
     return updated;
   }
 
@@ -184,6 +192,13 @@ const sendConnectionRequest = async (
     },
   });
 
+  notificationService.createNotification({
+    userId: data.receiverId,
+    type: "CONNECTION_REQUEST",
+    title: "New Connection Request",
+    message: `Someone sent you a connection request.`,
+    link: "/connections",
+  }).catch(() => {});
   return connection;
 };
 
@@ -217,6 +232,14 @@ const acceptConnection = async (connectionId: string, userId: string) => {
     where: { id: connectionId },
     data: { status: "ACCEPTED" },
   });
+
+  notificationService.createNotification({
+    userId: connection.requesterId,
+    type: "CONNECTION_ACCEPTED",
+    title: "Connection Accepted",
+    message: `Your connection request was accepted.`,
+    link: "/connections",
+  }).catch(() => {});
 
   return updated;
 };

@@ -3,6 +3,7 @@ import { VoteType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
 import { gamificationService } from "../gamification/gamification.service";
+import { notificationService } from "../notification/notification.service";
 import {
   CreateResourceInput,
   CreateCommentInput,
@@ -429,6 +430,17 @@ const toggleVote = async (
 
   await awardVote(type).catch(() => {});
 
+  // Notify resource owner on UP vote (skip self-votes)
+  if (type === VoteType.UP && userId !== ownerId) {
+    notificationService.createNotification({
+      userId: ownerId,
+      type: "RESOURCE_UPVOTE",
+      title: "Resource Upvoted",
+      message: `Someone upvoted your resource.`,
+      link: `/resources/${resourceId}`,
+    }).catch(() => {});
+  }
+
   return {
     action: "added",
     upvoteCount: updated!.upvoteCount,
@@ -525,6 +537,17 @@ const addComment = async (
       },
     },
   });
+
+  // Notify resource owner on comment (skip self-comments)
+  if (userId !== resource.uploaderId) {
+    notificationService.createNotification({
+      userId: resource.uploaderId,
+      type: "RESOURCE_COMMENT",
+      title: "New Comment",
+      message: `Someone commented on your resource.`,
+      link: `/resources/${resourceId}`,
+    }).catch(() => {});
+  }
 
   return comment;
 };

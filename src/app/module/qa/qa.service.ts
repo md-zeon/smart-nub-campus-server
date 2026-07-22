@@ -2,6 +2,7 @@ import status from "http-status";
 import { VoteType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { notificationService } from "../notification/notification.service";
 import {
   CreateAnswerInput,
   CreateQuestionInput,
@@ -366,6 +367,17 @@ const createAnswer = async (
     return created;
   });
 
+  // Notify question author (skip self-answer)
+  if (question.authorId !== userId) {
+    notificationService.createNotification({
+      userId: question.authorId,
+      type: "QUESTION_ANSWER",
+      title: "New Answer",
+      message: `Someone answered your question.`,
+      link: `/qa/${questionId}`,
+    }).catch(() => {});
+  }
+
   return answer;
 };
 
@@ -506,6 +518,14 @@ const acceptAnswer = async (
       });
     });
   }
+
+  notificationService.createNotification({
+    userId: answer.authorId,
+    type: "QUESTION_ACCEPTED",
+    title: "Answer Accepted",
+    message: `Your answer was accepted.`,
+    link: `/qa/${questionId}`,
+  }).catch(() => {});
 
   return { isAccepted: true, isAnswered: true };
 };

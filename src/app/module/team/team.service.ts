@@ -1,6 +1,7 @@
 import status from "http-status";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { notificationService } from "../notification/notification.service";
 import {
   ApplyToTeamInput,
   CreateTeamRequestInput,
@@ -294,6 +295,14 @@ const applyToTeam = async (
     },
   });
 
+  notificationService.createNotification({
+    userId: teamRequest.creatorId,
+    type: "TEAM_APPLICATION",
+    title: "Team Application",
+    message: `Someone applied to your team request.`,
+    link: `/teams/${teamRequestId}`,
+  }).catch(() => {});
+
   return application;
 };
 
@@ -387,6 +396,16 @@ const reviewApplication = async (
 
     return updatedApplication;
   });
+
+  notificationService.createNotification({
+    userId: application.applicantId,
+    type: reviewStatus === "ACCEPTED" ? "TEAM_APPLICATION_ACCEPTED" : "TEAM_APPLICATION_REJECTED",
+    title: reviewStatus === "ACCEPTED" ? "Application Accepted" : "Application Rejected",
+    message: reviewStatus === "ACCEPTED"
+      ? `Your team application was accepted.`
+      : `Your team application was rejected.`,
+    link: `/teams/${teamRequestId}`,
+  }).catch(() => {});
 
   return result;
 };

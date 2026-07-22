@@ -2,6 +2,7 @@ import status from "http-status";
 import { VoteType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { notificationService } from "../notification/notification.service";
 import {
   CreateDiscussionInput,
   CreateReplyInput,
@@ -458,6 +459,17 @@ const createReply = async (
 
     return created;
   });
+
+  // Notify discussion author (skip self-reply)
+  if (discussion.authorId !== userId) {
+    notificationService.createNotification({
+      userId: discussion.authorId,
+      type: "DISCUSSION_REPLY",
+      title: "New Reply",
+      message: `Someone replied to a discussion.`,
+      link: `/discussions/${discussionId}`,
+    }).catch(() => {});
+  }
 
   return reply;
 };

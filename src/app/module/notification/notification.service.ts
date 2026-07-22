@@ -1,9 +1,11 @@
 import { prisma } from "../../lib/prisma";
+import { getSocketServer } from "../../lib/socket/socket-server";
 import { buildPaginationQuery, calculatePaginationMeta } from "../../utils/pagination";
 import { CreateNotificationInput, NotificationListQuery } from "./notification.interface";
 
 /**
  * Create an in-app notification for a user.
+ * Also emits a real-time `notification:new` Socket.IO event to the user's room.
  */
 const createNotification = async (input: CreateNotificationInput) => {
   const notification = await prisma.notification.create({
@@ -15,6 +17,22 @@ const createNotification = async (input: CreateNotificationInput) => {
       link: input.link ?? null,
     },
   });
+
+  try {
+    const io = getSocketServer();
+    io.to(`user:${input.userId}`).emit("notification:new", {
+      id: notification.id,
+      userId: notification.userId,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      link: notification.link,
+      isRead: notification.isRead,
+      createdAt: notification.createdAt.toISOString(),
+    });
+  } catch {
+    // Socket.IO may not be initialized in test environments
+  }
 
   return notification;
 };

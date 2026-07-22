@@ -2,6 +2,7 @@ import status from "http-status";
 import { Prisma } from "../../../generated/prisma/client";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { notificationService } from "../notification/notification.service";
 import {
   SendMessageInput,
   CreateGroupInput,
@@ -405,6 +406,25 @@ const sendMessage = async (
 
     return newMessage;
   });
+
+  // Notify other conversation participants (fire-and-forget)
+  prisma.conversationParticipant
+    .findMany({
+      where: { conversationId, userId: { not: userId } },
+      select: { userId: true },
+    })
+    .then((participants) => {
+      for (const p of participants) {
+        notificationService.createNotification({
+          userId: p.userId,
+          type: "MESSAGE",
+          title: "New Message",
+          message: `You have a new message.`,
+          link: `/messages/${conversationId}`,
+        }).catch(() => {});
+      }
+    })
+    .catch(() => {});
 
   return message;
 };

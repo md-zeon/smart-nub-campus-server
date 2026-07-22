@@ -1,6 +1,7 @@
 import status from "http-status";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { notificationService } from "../notification/notification.service";
 import { buildPaginationQuery, calculatePaginationMeta } from "../../utils/pagination";
 import {
   POINT_VALUES,
@@ -438,6 +439,14 @@ const evaluateBadges = async (userId: string) => {
           badgeId: badge.id,
         },
       });
+
+      notificationService.createNotification({
+        userId,
+        type: "BADGE_UNLOCKED",
+        title: "Badge Unlocked",
+        message: `You earned the "${badge.name}" badge!`,
+        link: "/profile",
+      }).catch(() => {});
 
       // Award badge unlock points
       if (badge.points > 0) {
