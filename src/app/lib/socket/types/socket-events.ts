@@ -30,9 +30,9 @@ export interface Notification {
   userId: string;
   type: string;
   title: string;
-  body: string;
-  data?: Record<string, unknown>;
-  read: boolean;
+  message: string;
+  link?: string | null;
+  isRead: boolean;
   createdAt: string;
 }
 
