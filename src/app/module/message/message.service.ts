@@ -911,7 +911,7 @@ const getUnreadCount = async (userId: string) => {
   });
 
   if (participants.length === 0) {
-    return { totalUnread: 0 };
+    return { unreadCount: 0 };
   }
 
   // Calculate total unread messages across all conversations
@@ -929,7 +929,7 @@ const getUnreadCount = async (userId: string) => {
     totalUnread += unreadCount;
   }
 
-  return { totalUnread };
+  return { unreadCount: totalUnread };
 };
 
 /**
