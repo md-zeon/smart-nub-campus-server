@@ -3,6 +3,8 @@ import { VoteType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
 import { notificationService } from "../notification/notification.service";
+import { gamificationService } from "../gamification/gamification.service";
+import { getSocketServer } from "../../lib/socket";
 import {
   CreateDiscussionInput,
   CreateReplyInput,
@@ -140,6 +142,15 @@ const createDiscussion = async (data: CreateDiscussionInput, userId: string) => 
       discussionTags: { include: { tag: true } },
     },
   });
+
+  gamificationService
+    .awardPoints({
+      userId,
+      event: "DISCUSSION_CREATED",
+      reason: `Created discussion: ${data.title}`,
+      source: `DISCUSSION:${discussion.id}`,
+    })
+    .catch(() => {});
 
   return discussion;
 };
@@ -404,6 +415,10 @@ const deleteDiscussion = async (id: string, userId: string) => {
     data: { isDeleted: true },
   });
 
+  gamificationService
+    .handleContentDeleted("DISCUSSION", id, existing.authorId)
+    .catch(() => {});
+
   return { message: "Discussion deleted successfully." };
 };
 
@@ -471,6 +486,34 @@ const createReply = async (
     }).catch(() => {});
   }
 
+  // Award reputation points for posting a reply (non-blocking)
+  gamificationService
+    .awardPoints({
+      userId,
+      event: "REPLY_POSTED",
+      reason: `Replied to discussion`,
+      source: `DISCUSSION:${discussionId}`,
+    })
+    .catch(() => {});
+
+  // Broadcast new reply to all connected clients (non-blocking)
+  try {
+    const io = getSocketServer();
+    io.emit("discussion:reply", {
+      discussionId,
+      reply: {
+        id: reply.id,
+        content: reply.content,
+        authorId: reply.authorId,
+        author: reply.author,
+        parentId: reply.parentId,
+        createdAt: reply.createdAt,
+      },
+    });
+  } catch {
+    // Non-critical: ignore socket failures
+  }
+
   return reply;
 };
 
@@ -504,6 +547,10 @@ const deleteReply = async (replyId: string, userId: string) => {
     });
   });
 
+  gamificationService
+    .handleContentDeleted("DISCUSSION", reply.discussionId, reply.authorId)
+    .catch(() => {});
+
   return { message: "Reply deleted successfully." };
 };
 
@@ -529,6 +576,24 @@ const voteDiscussion = async (
     throw new AppError(status.BAD_REQUEST, "You cannot vote on your own discussion.");
   }
 
+  const ownerId = discussion.authorId;
+  const awardVote = (voteType: VoteType) => {
+    if (userId === ownerId) return Promise.resolve();
+    return voteType === VoteType.UP
+      ? gamificationService.handleUpvote(userId, ownerId, "DISCUSSION", discussionId)
+      : gamificationService.handleDownvote(userId, ownerId, "DISCUSSION", discussionId);
+  };
+  const reverseVote = (voteType: VoteType) => {
+    if (userId === ownerId) return Promise.resolve();
+    return gamificationService.handleVoteReversal(
+      userId,
+      ownerId,
+      "DISCUSSION",
+      discussionId,
+      voteType === VoteType.UP ? "UP" : "DOWN",
+    );
+  };
+
   const existingVote = await prisma.discussionVote.findUnique({
     where: { discussionId_userId: { discussionId, userId } },
   });
@@ -545,6 +610,8 @@ const voteDiscussion = async (
           });
         }
       });
+
+      await reverseVote(existingVote.type).catch(() => {});
 
       const updated = await prisma.discussion.findUnique({
         where: { id: discussionId },
@@ -573,6 +640,9 @@ const voteDiscussion = async (
       }
     });
 
+    await reverseVote(existingVote.type).catch(() => {});
+    await awardVote(input.type).catch(() => {});
+
     const updated = await prisma.discussion.findUnique({
       where: { id: discussionId },
       select: { upvoteCount: true },
@@ -593,6 +663,8 @@ const voteDiscussion = async (
       });
     }
   });
+
+  await awardVote(input.type).catch(() => {});
 
   const updated = await prisma.discussion.findUnique({
     where: { id: discussionId },
@@ -726,18 +798,13 @@ const bookmarkDiscussion = async (discussionId: string, userId: string) => {
 /**
  * Toggles pin status. Admin only.
  */
-const pinDiscussion = async (id: string, userId: string) => {
+const pinDiscussion = async (id: string) => {
   const existing = await prisma.discussion.findUnique({
     where: { id, isDeleted: false },
   });
 
   if (!existing) {
     throw new AppError(status.NOT_FOUND, "Discussion not found.");
-  }
-
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.role !== "ADMIN") {
-    throw new AppError(status.FORBIDDEN, "Only admins can pin discussions.");
   }
 
   const updated = await prisma.discussion.update({
@@ -751,18 +818,13 @@ const pinDiscussion = async (id: string, userId: string) => {
 /**
  * Toggles lock status. Admin only.
  */
-const lockDiscussion = async (id: string, userId: string) => {
+const lockDiscussion = async (id: string) => {
   const existing = await prisma.discussion.findUnique({
     where: { id, isDeleted: false },
   });
 
   if (!existing) {
     throw new AppError(status.NOT_FOUND, "Discussion not found.");
-  }
-
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.role !== "ADMIN") {
-    throw new AppError(status.FORBIDDEN, "Only admins can lock discussions.");
   }
 
   const updated = await prisma.discussion.update({
@@ -954,6 +1016,90 @@ const getMyReplies = async (userId: string, page = 1, limit = 12) => {
   };
 };
 
+/**
+ * Lists replies for a discussion with pagination and sorting.
+ * Returns top-level replies with nested children (1 level).
+ */
+const listReplies = async (
+  discussionId: string,
+  userId: string,
+  query: import("./discussion.interface").ListRepliesQuery = {},
+) => {
+  const { page = 1, limit = 20, sort = "newest" } = query;
+  const skip = (page - 1) * limit;
+
+  const discussion = await prisma.discussion.findUnique({
+    where: { id: discussionId, isDeleted: false },
+  });
+
+  if (!discussion) {
+    throw new AppError(status.NOT_FOUND, "Discussion not found.");
+  }
+
+  await checkVisibility(discussion.authorId, discussion.visibility, userId);
+
+  const where = { discussionId, parentId: null as string | null, isDeleted: false };
+
+  let orderBy: Record<string, unknown>[];
+  switch (sort) {
+    case "upvotes":
+      orderBy = [{ upvoteCount: "desc" }, { createdAt: "desc" }];
+      break;
+    case "oldest":
+      orderBy = [{ createdAt: "asc" }];
+      break;
+    case "newest":
+    default:
+      orderBy = [{ createdAt: "desc" }];
+      break;
+  }
+
+  const [replies, total] = await prisma.$transaction([
+    prisma.discussionReply.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy,
+      include: {
+        author: { select: { id: true, name: true, email: true, image: true } },
+        replies: {
+          where: { isDeleted: false },
+          orderBy: { createdAt: "asc" },
+          include: {
+            author: { select: { id: true, name: true, email: true, image: true } },
+          },
+        },
+      },
+    }),
+    prisma.discussionReply.count({ where }),
+  ]);
+
+  let repliesWithVotes = replies;
+
+  if (userId) {
+    const replyIds = replies.flatMap((r) => [r.id, ...r.replies.map((c) => c.id)]);
+    const votes = await prisma.discussionReplyVote.findMany({
+      where: { replyId: { in: replyIds }, userId },
+      select: { replyId: true, type: true },
+    });
+    const voteMap = new Map(votes.map((v) => [v.replyId, v.type]));
+
+    repliesWithVotes = replies.map((r) => ({
+      ...r,
+      userVote: voteMap.get(r.id) ?? null,
+      replies: r.replies.map((c) => ({
+        ...c,
+        userVote: voteMap.get(c.id) ?? null,
+      })),
+    }));
+  }
+
+  return {
+    replies: repliesWithVotes,
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  };
+};
+
 export const discussionService = {
   createDiscussion,
   getDiscussion,
@@ -975,4 +1121,5 @@ export const discussionService = {
   getTopContributors,
   getMyDiscussions,
   getMyReplies,
+  listReplies,
 };

@@ -124,7 +124,7 @@ const bookmarkDiscussion = catchAsync(async (req, res) => {
 
 const pinDiscussion = catchAsync(async (req, res) => {
   const id = req.params.id as string;
-  const result = await discussionService.pinDiscussion(id, req.user.id);
+  const result = await discussionService.pinDiscussion(id);
   sendResponse(res, {
     httpStatusCode: status.OK,
     success: true,
@@ -135,7 +135,7 @@ const pinDiscussion = catchAsync(async (req, res) => {
 
 const lockDiscussion = catchAsync(async (req, res) => {
   const id = req.params.id as string;
-  const result = await discussionService.lockDiscussion(id, req.user.id);
+  const result = await discussionService.lockDiscussion(id);
   sendResponse(res, {
     httpStatusCode: status.OK,
     success: true,
@@ -233,6 +233,20 @@ const getMyReplies = catchAsync(async (req, res) => {
   });
 });
 
+const listReplies = catchAsync(async (req, res) => {
+  const discussionId = req.params.id as string;
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 20;
+  const sort = (req.query.sort as string) || "newest";
+  const result = await discussionService.listReplies(discussionId, req.user.id, { page, limit, sort: sort as "upvotes" | "newest" | "oldest" });
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Replies retrieved successfully.",
+    data: result,
+  });
+});
+
 export const discussionController = {
   createDiscussion,
   getDiscussion,
@@ -254,4 +268,5 @@ export const discussionController = {
   getTopContributors,
   getMyDiscussions,
   getMyReplies,
+  listReplies,
 };

@@ -44,9 +44,16 @@ const voteSchema = z
   })
   .strict();
 
+const listRepliesSchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(20),
+  sort: z.enum(["upvotes", "newest", "oldest"]).optional().default("newest"),
+});
+
 export const discussionValidation = {
   createDiscussionSchema,
   updateDiscussionSchema,
   createReplySchema,
   voteSchema,
+  listRepliesSchema,
 };

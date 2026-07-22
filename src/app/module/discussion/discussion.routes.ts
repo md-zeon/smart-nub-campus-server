@@ -1,8 +1,10 @@
 import { Router } from "express";
 import verifySession from "../../middleware/verifySession";
+import requireRole from "../../middleware/requireRole";
 import validateRequest from "../../middleware/validateRequest";
 import { discussionController } from "./discussion.controller";
 import { discussionValidation } from "./discussion.validation";
+import { UserRole } from "../../../generated/prisma/enums";
 
 const router: Router = Router();
 
@@ -46,6 +48,9 @@ router.post(
   discussionController.voteReply,
 );
 
+// List replies for a discussion
+router.get("/:id/replies", verifySession, discussionController.listReplies);
+
 // Get a single discussion
 router.get("/:id", verifySession, discussionController.getDiscussion);
 
@@ -83,10 +88,10 @@ router.post(
 router.post("/:id/bookmark", verifySession, discussionController.bookmarkDiscussion);
 
 // Pin/unpin a discussion (admin)
-router.put("/:id/pin", verifySession, discussionController.pinDiscussion);
+router.put("/:id/pin", verifySession, requireRole(UserRole.ADMIN), discussionController.pinDiscussion);
 
 // Lock/unlock a discussion (admin)
-router.put("/:id/lock", verifySession, discussionController.lockDiscussion);
+router.put("/:id/lock", verifySession, requireRole(UserRole.ADMIN), discussionController.lockDiscussion);
 
 // Mark/unmark discussion as solved (author only)
 router.put("/:id/solved", verifySession, discussionController.markSolved);

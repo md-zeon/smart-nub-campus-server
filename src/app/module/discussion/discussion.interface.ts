@@ -37,3 +37,9 @@ export interface ListDiscussionsQuery {
   page?: number;
   limit?: number;
 }
+
+export interface ListRepliesQuery {
+  page?: number;
+  limit?: number;
+  sort?: "upvotes" | "newest" | "oldest";
+}
