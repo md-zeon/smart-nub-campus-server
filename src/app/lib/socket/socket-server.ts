@@ -158,6 +158,7 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
       // Only mark offline when all connections for this user are gone
       if (!connectionManager.isConnected(userId)) {
         presenceManager.setStatus(userId, "offline", io!);
+        presenceManager.removePresence(userId);
         console.log(`[Socket] User offline: ${userId} (reason: ${reason})`);
       } else {
         console.log(
