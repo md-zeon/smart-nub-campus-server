@@ -13,4 +13,6 @@ export type {
   DiscussionReply,
   Resource,
   TeamApplication,
+  QaQuestion,
+  QaAnswer,
 } from "./types/socket-events";

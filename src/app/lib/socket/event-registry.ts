@@ -233,6 +233,24 @@ eventRegistry.register({
 });
 
 eventRegistry.register({
+  name: "qa:newQuestion",
+  direction: "server-to-client",
+  description: "New question posted in Q&A",
+});
+
+eventRegistry.register({
+  name: "qa:newAnswer",
+  direction: "server-to-client",
+  description: "New answer posted on a question",
+});
+
+eventRegistry.register({
+  name: "qa:voteUpdate",
+  direction: "server-to-client",
+  description: "Vote updated on a question or answer",
+});
+
+eventRegistry.register({
   name: "event:new",
   direction: "server-to-client",
   description: "New event created",

@@ -2,6 +2,8 @@ import status from "http-status";
 import { VoteType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { getSocketServer } from "../../lib/socket/socket-server";
+import { gamificationService } from "../gamification/gamification.service";
 import { notificationService } from "../notification/notification.service";
 import {
   CreateAnswerInput,
@@ -62,6 +64,28 @@ const createQuestion = async (data: CreateQuestionInput, userId: string) => {
       questionTags: { include: { tag: true } },
     },
   });
+
+  gamificationService
+    .awardPoints({
+      userId,
+      event: "QUESTION_ASKED" as never,
+      reason: `Asked question: ${data.title}`,
+      source: `QUESTION:${question.id}`,
+    })
+    .catch(() => {});
+
+  try {
+    const io = getSocketServer();
+    io.emit("qa:newQuestion", {
+      id: question.id,
+      title: question.title,
+      categoryId: question.categoryId,
+      authorId: userId,
+      createdAt: question.createdAt.toISOString(),
+    });
+  } catch {
+    // Socket.IO may not be initialized
+  }
 
   return question;
 };
@@ -378,6 +402,19 @@ const createAnswer = async (
     }).catch(() => {});
   }
 
+  try {
+    const io = getSocketServer();
+    io.to(`question:${questionId}`).emit("qa:newAnswer", {
+      id: answer.id,
+      questionId,
+      authorId: userId,
+      content: answer.content,
+      createdAt: answer.createdAt.toISOString(),
+    });
+  } catch {
+    // Socket.IO may not be initialized
+  }
+
   return answer;
 };
 
@@ -416,14 +453,20 @@ const deleteAnswer = async (answerId: string, userId: string) => {
         where: { id: answer.questionId },
         data: { isAnswered: false },
       });
-
-      // Award -15 reputation to the answer author
-      await tx.user.update({
-        where: { id: answer.authorId },
-        data: { reputation: { decrement: 15 } },
-      });
     }
   });
+
+  // Award reputation points via gamification service (non-blocking)
+  if (answer.isAccepted) {
+    gamificationService
+      .awardPoints({
+        userId: answer.authorId,
+        event: "ANSWER_UNACCEPTED" as never,
+        reason: "Accepted answer deleted",
+        source: `ANSWER:${answerId}`,
+      })
+      .catch(() => {});
+  }
 
   return { message: "Answer deleted successfully." };
 };
@@ -470,46 +513,35 @@ const acceptAnswer = async (
 
   if (previousAccepted) {
     await prisma.$transaction(async (tx) => {
-      // Unaccept previous answer
       await tx.answer.update({
         where: { id: previousAccepted.id },
         data: { isAccepted: false },
       });
 
-      // Deduct -15 reputation from previous answer author
-      await tx.user.update({
-        where: { id: previousAccepted.authorId },
-        data: { reputation: { decrement: 15 } },
-      });
-
-      // Accept new answer
       await tx.answer.update({
         where: { id: answerId },
         data: { isAccepted: true },
       });
 
-      // Award +15 reputation to new answer author
-      await tx.user.update({
-        where: { id: answer.authorId },
-        data: { reputation: { increment: 15 } },
-      });
-
-      // Ensure isAnswered is true
       await tx.question.update({
         where: { id: questionId },
         data: { isAnswered: true },
       });
     });
+
+    gamificationService
+      .awardPoints({
+        userId: previousAccepted.authorId,
+        event: "ANSWER_UNACCEPTED" as never,
+        reason: "Answer unaccepted by new acceptance",
+        source: `ANSWER:${previousAccepted.id}`,
+      })
+      .catch(() => {});
   } else {
     await prisma.$transaction(async (tx) => {
       await tx.answer.update({
         where: { id: answerId },
         data: { isAccepted: true },
-      });
-
-      await tx.user.update({
-        where: { id: answer.authorId },
-        data: { reputation: { increment: 15 } },
       });
 
       await tx.question.update({
@@ -518,6 +550,15 @@ const acceptAnswer = async (
       });
     });
   }
+
+  gamificationService
+    .awardPoints({
+      userId: answer.authorId,
+      event: "ANSWER_ACCEPTED" as never,
+      reason: "Answer accepted",
+      source: `ANSWER:${answerId}`,
+    })
+    .catch(() => {});
 
   notificationService.createNotification({
     userId: answer.authorId,
@@ -563,12 +604,6 @@ const unacceptAnswer = async (questionId: string, userId: string) => {
       data: { isAccepted: false },
     });
 
-    // Deduct -15 reputation from the answer author
-    await tx.user.update({
-      where: { id: acceptedAnswer.authorId },
-      data: { reputation: { decrement: 15 } },
-    });
-
     // Check if any other answer is still accepted
     const otherAccepted = await tx.answer.findFirst({
       where: {
@@ -584,6 +619,15 @@ const unacceptAnswer = async (questionId: string, userId: string) => {
       data: { isAnswered: !!otherAccepted },
     });
   });
+
+  gamificationService
+    .awardPoints({
+      userId: acceptedAnswer.authorId,
+      event: "ANSWER_UNACCEPTED" as never,
+      reason: "Answer unaccepted",
+      source: `ANSWER:${acceptedAnswer.id}`,
+    })
+    .catch(() => {});
 
   return { isAccepted: false, isAnswered: false };
 };
@@ -632,6 +676,8 @@ const voteQuestion = async (
         select: { upvoteCount: true },
       });
 
+      try { getSocketServer().emit("qa:voteUpdate", { entityType: "question", entityId: questionId, upvoteCount: updated!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
+
       return { action: "removed", upvoteCount: updated!.upvoteCount };
     }
 
@@ -659,6 +705,8 @@ const voteQuestion = async (
       select: { upvoteCount: true },
     });
 
+    try { getSocketServer().emit("qa:voteUpdate", { entityType: "question", entityId: questionId, upvoteCount: updated!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
+
     return { action: "updated", upvoteCount: updated!.upvoteCount };
   }
 
@@ -679,6 +727,8 @@ const voteQuestion = async (
     where: { id: questionId },
     select: { upvoteCount: true },
   });
+
+  try { getSocketServer().emit("qa:voteUpdate", { entityType: "question", entityId: questionId, upvoteCount: updated!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
 
   return { action: "added", upvoteCount: updated!.upvoteCount };
 };
@@ -727,6 +777,8 @@ const voteAnswer = async (
         select: { upvoteCount: true },
       });
 
+      try { getSocketServer().emit("qa:voteUpdate", { entityType: "answer", entityId: answerId, upvoteCount: updated!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
+
       return { action: "removed", upvoteCount: updated!.upvoteCount };
     }
 
@@ -754,6 +806,8 @@ const voteAnswer = async (
       select: { upvoteCount: true },
     });
 
+    try { getSocketServer().emit("qa:voteUpdate", { entityType: "answer", entityId: answerId, upvoteCount: updated!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
+
     return { action: "updated", upvoteCount: updated!.upvoteCount };
   }
 
@@ -774,6 +828,8 @@ const voteAnswer = async (
     where: { id: answerId },
     select: { upvoteCount: true },
   });
+
+  try { getSocketServer().emit("qa:voteUpdate", { entityType: "answer", entityId: answerId, upvoteCount: updated!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
 
   return { action: "added", upvoteCount: updated!.upvoteCount };
 };

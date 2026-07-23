@@ -62,6 +62,24 @@ export interface TeamApplication {
   createdAt: string;
 }
 
+/** Minimal question shape for Q&A events. */
+export interface QaQuestion {
+  id: string;
+  title: string;
+  categoryId: string;
+  authorId: string;
+  createdAt: string;
+}
+
+/** Minimal answer shape for Q&A events. */
+export interface QaAnswer {
+  id: string;
+  questionId: string;
+  authorId: string;
+  content: string;
+  createdAt: string;
+}
+
 // ---------------------------------------------------------------------------
 // Event map
 // ---------------------------------------------------------------------------
@@ -150,6 +168,19 @@ export interface SocketEvents {
     application: TeamApplication;
   };
 
+  /** New question posted in Q&A. */
+  "qa:newQuestion": QaQuestion;
+
+  /** New answer posted on a question. */
+  "qa:newAnswer": QaAnswer;
+
+  /** Vote updated on a question or answer. */
+  "qa:voteUpdate": {
+    entityType: "question" | "answer";
+    entityId: string;
+    upvoteCount: number;
+  };
+
   /** Admin review status updated. */
   "admin:review-update": {
     type: string;
@@ -196,6 +227,9 @@ export type ServerEvents = keyof Pick<
   | "discussion:reply"
   | "resource:new"
   | "team:application"
+  | "qa:newQuestion"
+  | "qa:newAnswer"
+  | "qa:voteUpdate"
   | "admin:review-update"
   | "system:announcement"
   | "error:message"
