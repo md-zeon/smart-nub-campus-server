@@ -1,6 +1,7 @@
 import { Router } from "express";
 import verifySession from "../../middleware/verifySession";
 import validateRequest from "../../middleware/validateRequest";
+import { aiChatRateLimiter, aiToolRateLimiter } from "../../middleware/rateLimit";
 import aiController from "./ai.controller";
 import {
   createSessionSchema,
@@ -39,6 +40,7 @@ router.delete("/sessions/:sessionId", verifySession, aiController.deleteSession)
 router.post(
   "/sessions/:sessionId/messages",
   verifySession,
+  aiChatRateLimiter,
   validateRequest(sendMessageSchema),
   aiController.sendMessage,
 );
@@ -72,6 +74,7 @@ router.get("/stats/history", verifySession, aiController.getStudyStatsHistory);
 router.post(
   "/tools/summarize-pdf",
   verifySession,
+  aiToolRateLimiter,
   validateRequest(summarizePdfSchema),
   aiController.summarizePdf,
 );
@@ -80,6 +83,7 @@ router.post(
 router.post(
   "/tools/generate-quiz",
   verifySession,
+  aiToolRateLimiter,
   validateRequest(generateQuizSchema),
   aiController.generateQuiz,
 );
@@ -88,6 +92,7 @@ router.post(
 router.post(
   "/tools/generate-flashcards",
   verifySession,
+  aiToolRateLimiter,
   validateRequest(generateFlashcardsSchema),
   aiController.generateFlashcards,
 );
@@ -96,6 +101,7 @@ router.post(
 router.post(
   "/tools/explain-code",
   verifySession,
+  aiToolRateLimiter,
   validateRequest(explainCodeSchema),
   aiController.explainCode,
 );

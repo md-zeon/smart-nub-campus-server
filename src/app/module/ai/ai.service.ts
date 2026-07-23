@@ -1,4 +1,4 @@
-import { StatusCodes } from "http-status-codes";
+import status from "http-status";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
 import { Prisma } from "../../../generated/prisma/client";
@@ -45,21 +45,37 @@ const createSession = async (userId: string, title?: string) => {
 };
 
 /**
- * Get all sessions for a user, ordered by most recent.
+ * Get sessions for a user with pagination, ordered by most recent.
  */
-const getSessions = async (userId: string) => {
-  const sessions = await prisma.aIChatSession.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    include: {
-      aiMessages: {
-        take: 1,
-        orderBy: { createdAt: "desc" },
-        select: { content: true, role: true },
+const getSessions = async (userId: string, page: number = 1, limit: number = 20) => {
+  const skip = (page - 1) * limit;
+
+  const [sessions, total] = await Promise.all([
+    prisma.aIChatSession.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        aiMessages: {
+          take: 1,
+          orderBy: { createdAt: "desc" },
+          select: { content: true, role: true },
+        },
       },
+      skip,
+      take: limit,
+    }),
+    prisma.aIChatSession.count({ where: { userId } }),
+  ]);
+
+  return {
+    sessions,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
     },
-  });
-  return sessions;
+  };
 };
 
 /**
@@ -72,11 +88,11 @@ const getSessionById = async (sessionId: string, userId: string) => {
   });
 
   if (!session) {
-    throw new AppError(StatusCodes.NOT_FOUND, "Chat session not found.");
+    throw new AppError(status.NOT_FOUND, "Chat session not found.");
   }
 
   if (session.userId !== userId) {
-    throw new AppError(StatusCodes.FORBIDDEN, "You do not have access to this session.");
+    throw new AppError(status.FORBIDDEN, "You do not have access to this session.");
   }
 
   return session;
@@ -91,11 +107,11 @@ const deleteSession = async (sessionId: string, userId: string) => {
   });
 
   if (!session) {
-    throw new AppError(StatusCodes.NOT_FOUND, "Chat session not found.");
+    throw new AppError(status.NOT_FOUND, "Chat session not found.");
   }
 
   if (session.userId !== userId) {
-    throw new AppError(StatusCodes.FORBIDDEN, "You do not have access to this session.");
+    throw new AppError(status.FORBIDDEN, "You do not have access to this session.");
   }
 
   await prisma.aIChatSession.delete({ where: { id: sessionId } });
@@ -112,11 +128,11 @@ const sendMessage = async (sessionId: string, content: string, userId: string) =
   });
 
   if (!session) {
-    throw new AppError(StatusCodes.NOT_FOUND, "Chat session not found.");
+    throw new AppError(status.NOT_FOUND, "Chat session not found.");
   }
 
   if (session.userId !== userId) {
-    throw new AppError(StatusCodes.FORBIDDEN, "You do not have access to this session.");
+    throw new AppError(status.FORBIDDEN, "You do not have access to this session.");
   }
 
   // Generate mock AI response
@@ -192,11 +208,11 @@ const getMessages = async (
   });
 
   if (!session) {
-    throw new AppError(StatusCodes.NOT_FOUND, "Chat session not found.");
+    throw new AppError(status.NOT_FOUND, "Chat session not found.");
   }
 
   if (session.userId !== userId) {
-    throw new AppError(StatusCodes.FORBIDDEN, "You do not have access to this session.");
+    throw new AppError(status.FORBIDDEN, "You do not have access to this session.");
   }
 
   const skip = (page - 1) * limit;
@@ -232,11 +248,11 @@ const markHelpful = async (messageId: string, isHelpful: boolean, userId: string
   });
 
   if (!message) {
-    throw new AppError(StatusCodes.NOT_FOUND, "Message not found.");
+    throw new AppError(status.NOT_FOUND, "Message not found.");
   }
 
   if (message.session.userId !== userId) {
-    throw new AppError(StatusCodes.FORBIDDEN, "You do not have access to this message.");
+    throw new AppError(status.FORBIDDEN, "You do not have access to this message.");
   }
 
   const updated = await prisma.aIMessage.update({
@@ -260,10 +276,15 @@ const getStudyStats = async (userId: string, weekStart?: Date) => {
   });
 
   return stats || {
+    id: null,
+    userId,
+    weekStart: targetWeek,
     questionsAsked: 0,
     timeSpentMinutes: 0,
     topicsExplored: 0,
     quizzesGenerated: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
   };
 };
 
@@ -306,12 +327,34 @@ const summarizePdf = async (fileUrl: string) => {
  * Placeholder: Quiz generation endpoint.
  * Returns a structured stub for future LLM integration.
  */
-const generateQuiz = async (content: string, numQuestions: number = 5) => {
+const generateQuiz = async (userId: string, content: string, numQuestions: number = 5) => {
   const placeholderQuestions = Array.from({ length: numQuestions }, (_, i) => ({
     question: `Placeholder question ${i + 1} based on the provided content`,
     options: ["Option A", "Option B", "Option C", "Option D"],
     correctAnswer: "Option A",
   }));
+
+  const weekStart = getWeekStart();
+
+  // Increment quizzesGenerated stat
+  await prisma.aIStudyStats.upsert({
+    where: {
+      userId_weekStart: { userId, weekStart },
+    },
+    create: {
+      userId,
+      weekStart,
+      questionsAsked: 0,
+      topicsExplored: 0,
+      timeSpentMinutes: 0,
+      quizzesGenerated: 1,
+    },
+    update: {
+      quizzesGenerated: { increment: 1 },
+    },
+  }).catch(() => {
+    // Silently fail — stats update is non-critical
+  });
 
   return {
     status: "placeholder",

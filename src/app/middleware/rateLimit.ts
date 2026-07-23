@@ -102,3 +102,31 @@ export const teamApplyRateLimiter = rateLimit({
     );
   },
 });
+
+export const aiChatRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json(
+      rateLimitResponse(
+        "Too many AI chat messages. Please try again later.",
+      ),
+    );
+  },
+});
+
+export const aiToolRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json(
+      rateLimitResponse(
+        "Too many AI tool requests. Please try again later.",
+      ),
+    );
+  },
+});
