@@ -1,7 +1,7 @@
 import type { Socket } from "socket.io";
 import { auth } from "../../auth";
 import { prisma } from "../../prisma";
-import { UserStatus } from "../../../../generated/prisma/enums";
+import validateUserStatus from "../../../shared/validateUserStatus";
 
 /**
  * Socket.IO middleware that validates the connecting client's session via
@@ -79,23 +79,9 @@ export function socketAuthMiddleware(
         return;
       }
 
-      if (user.isDeleted) {
-        next(new Error("Your account has been deleted. Please contact support."));
-        return;
-      }
-
-      if (user.isDeactivated) {
-        next(new Error("Your account has been deactivated. Please contact support."));
-        return;
-      }
-
-      if (user.status === UserStatus.BANNED) {
-        next(new Error("Your account has been banned. Please contact support."));
-        return;
-      }
-
-      if (user.status === UserStatus.SUSPENDED) {
-        next(new Error("Your account is suspended. Please contact support."));
+      const statusError = validateUserStatus(user);
+      if (statusError) {
+        next(new Error(statusError));
         return;
       }
 
