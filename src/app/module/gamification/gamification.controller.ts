@@ -145,12 +145,7 @@ const getMyReputationHistory = catchAsync(async (req, res) => {
 });
 
 const getMyBadges = catchAsync(async (req, res) => {
-  const { prisma } = await import("../../lib/prisma");
-  const userBadges = await prisma.userBadge.findMany({
-    where: { userId: req.user.id },
-    include: { badge: true },
-    orderBy: { unlockedAt: "desc" },
-  });
+  const userBadges = await gamificationService.getUserBadges(req.user.id);
   sendResponse(res, {
     httpStatusCode: status.OK,
     success: true,

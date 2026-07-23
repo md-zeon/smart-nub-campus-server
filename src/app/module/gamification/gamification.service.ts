@@ -498,6 +498,14 @@ const evaluateCondition = (
   return currentValue >= threshold;
 };
 
+const getUserBadges = async (userId: string) => {
+  return prisma.userBadge.findMany({
+    where: { userId },
+    include: { badge: true },
+    orderBy: { unlockedAt: "desc" },
+  });
+};
+
 export const gamificationService = {
   awardPoints,
   getLeaderboard,
@@ -512,4 +520,5 @@ export const gamificationService = {
   checkVoteFarming,
   adminAdjustPoints,
   getReputationHistory,
+  getUserBadges,
 };
