@@ -43,4 +43,20 @@ export interface RequestUser {
     employeeId: string | null;
     joinedAt: Date;
   } | null;
+  profile: {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    userId: string;
+    bio: string | null;
+    coverImage: string | null;
+    githubUrl: string | null;
+    linkedinUrl: string | null;
+    portfolioUrl: string | null;
+    websiteUrl: string | null;
+    location: string | null;
+    phoneNumber: string | null;
+    currentSemester: number | null;
+    batchYear: number | null;
+  } | null;
 }

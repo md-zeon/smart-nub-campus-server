@@ -27,6 +27,7 @@ const verifySession = async (
       include: {
         student: true,
         admin: true,
+        profile: true,
       },
     });
 
