@@ -263,6 +263,24 @@ eventRegistry.register({
 });
 
 eventRegistry.register({
+  name: "connection:request",
+  direction: "server-to-client",
+  description: "New connection request sent",
+});
+
+eventRegistry.register({
+  name: "connection:accepted",
+  direction: "server-to-client",
+  description: "Connection request accepted",
+});
+
+eventRegistry.register({
+  name: "connection:removed",
+  direction: "server-to-client",
+  description: "Connection removed",
+});
+
+eventRegistry.register({
   name: "admin:review-update",
   direction: "server-to-client",
   description: "Admin review status updated",

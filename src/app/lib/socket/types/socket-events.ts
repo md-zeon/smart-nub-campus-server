@@ -80,6 +80,15 @@ export interface QaAnswer {
   createdAt: string;
 }
 
+/** Minimal connection shape for connection events. */
+export interface ConnectionEvent {
+  id: string;
+  requesterId: string;
+  receiverId: string;
+  status: string;
+  createdAt: string;
+}
+
 // ---------------------------------------------------------------------------
 // Event map
 // ---------------------------------------------------------------------------
@@ -181,6 +190,15 @@ export interface SocketEvents {
     upvoteCount: number;
   };
 
+  /** New connection request sent. */
+  "connection:request": ConnectionEvent;
+
+  /** Connection request accepted. */
+  "connection:accepted": ConnectionEvent;
+
+  /** Connection removed. */
+  "connection:removed": { connectionId: string; removedBy: string };
+
   /** Admin review status updated. */
   "admin:review-update": {
     type: string;
@@ -230,6 +248,9 @@ export type ServerEvents = keyof Pick<
   | "qa:newQuestion"
   | "qa:newAnswer"
   | "qa:voteUpdate"
+  | "connection:request"
+  | "connection:accepted"
+  | "connection:removed"
   | "admin:review-update"
   | "system:announcement"
   | "error:message"

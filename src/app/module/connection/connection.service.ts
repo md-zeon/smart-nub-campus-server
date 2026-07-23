@@ -2,6 +2,7 @@ import status from "http-status";
 import { Prisma } from "../../../generated/prisma/client";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { getSocketServer } from "../../lib/socket/socket-server";
 import { notificationService } from "../notification/notification.service";
 import {
   SendConnectionRequestInput,
@@ -180,6 +181,16 @@ const sendConnectionRequest = async (
       message: `Someone sent you a connection request.`,
       link: "/connections",
     }).catch(() => {});
+    try {
+      const io = getSocketServer();
+      io.to(`user:${data.receiverId}`).emit("connection:request", {
+        id: updated.id,
+        requesterId: updated.requesterId,
+        receiverId: updated.receiverId,
+        status: updated.status,
+        createdAt: updated.createdAt.toISOString(),
+      });
+    } catch { /* Socket.IO may not be initialized */ }
     return updated;
   }
 
@@ -199,6 +210,16 @@ const sendConnectionRequest = async (
     message: `Someone sent you a connection request.`,
     link: "/connections",
   }).catch(() => {});
+  try {
+    const io = getSocketServer();
+    io.to(`user:${data.receiverId}`).emit("connection:request", {
+      id: connection.id,
+      requesterId: connection.requesterId,
+      receiverId: connection.receiverId,
+      status: connection.status,
+      createdAt: connection.createdAt.toISOString(),
+    });
+  } catch { /* Socket.IO may not be initialized */ }
   return connection;
 };
 
@@ -240,6 +261,16 @@ const acceptConnection = async (connectionId: string, userId: string) => {
     message: `Your connection request was accepted.`,
     link: "/connections",
   }).catch(() => {});
+  try {
+    const io = getSocketServer();
+    io.to(`user:${connection.requesterId}`).emit("connection:accepted", {
+      id: updated.id,
+      requesterId: updated.requesterId,
+      receiverId: updated.receiverId,
+      status: updated.status,
+      createdAt: updated.createdAt.toISOString(),
+    });
+  } catch { /* Socket.IO may not be initialized */ }
 
   return updated;
 };
@@ -401,7 +432,8 @@ const getBlockedUsers = async (userId: string) => {
 };
 
 /**
- * Remove an accepted connection. Either party can remove it.
+ * Remove an accepted connection or cancel a pending outgoing request.
+ * Either party can remove accepted connections. Only the requester can cancel pending.
  */
 const removeConnection = async (connectionId: string, userId: string) => {
   const connection = await prisma.connection.findUnique({
@@ -422,16 +454,33 @@ const removeConnection = async (connectionId: string, userId: string) => {
     );
   }
 
-  if (connection.status !== "ACCEPTED") {
+  if (connection.status === "PENDING") {
+    // Only the requester can cancel a pending request
+    if (connection.requesterId !== userId) {
+      throw new AppError(
+        status.FORBIDDEN,
+        "Only the requester can cancel a pending connection request.",
+      );
+    }
+  } else if (connection.status !== "ACCEPTED") {
     throw new AppError(
       status.BAD_REQUEST,
-      "Only accepted connections can be removed.",
+      "Only accepted or pending connections can be removed.",
     );
   }
 
   await prisma.connection.delete({
     where: { id: connectionId },
   });
+
+  try {
+    const io = getSocketServer();
+    const otherUserId = getOtherUserId(connection, userId);
+    io.to(`user:${otherUserId}`).emit("connection:removed", {
+      connectionId,
+      removedBy: userId,
+    });
+  } catch { /* Socket.IO may not be initialized */ }
 
   return { message: "Connection removed successfully." };
 };

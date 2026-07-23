@@ -24,11 +24,6 @@ vi.mock("../../../../app/lib/prisma", () => ({
       findMany: vi.fn(),
       delete: vi.fn(),
     },
-    connectionFavorite: {
-      create: vi.fn(),
-      findUnique: vi.fn(),
-      delete: vi.fn(),
-    },
     student: {
       findMany: vi.fn(),
     },
@@ -47,6 +42,18 @@ vi.mock("../../../../app/lib/prisma", () => ({
       }
       return fns((...args: any[]) => args[args.length - 1]);
     }),
+  },
+}));
+
+vi.mock("../../../../app/lib/socket/socket-server", () => ({
+  getSocketServer: vi.fn().mockReturnValue({
+    to: vi.fn().mockReturnValue({ emit: vi.fn() }),
+  }),
+}));
+
+vi.mock("../notification/notification.service", () => ({
+  notificationService: {
+    createNotification: vi.fn().mockResolvedValue({}),
   },
 }));
 
@@ -374,17 +381,50 @@ describe("removeConnection", () => {
     ).rejects.toThrow("You are not part of this connection.");
   });
 
-  it("throws BAD_REQUEST when connection is not accepted", async () => {
+  it("throws BAD_REQUEST when connection is not accepted or pending", async () => {
+    (mockedPrisma.connection.findUnique as any).mockResolvedValue({
+      id: connectionId,
+      requesterId: userId,
+      receiverId,
+      status: "REJECTED",
+    });
+
+    await expect(
+      connectionService.removeConnection(connectionId, userId),
+    ).rejects.toThrow("Only accepted or pending connections can be removed.");
+  });
+
+  it("allows requester to cancel a pending outgoing request", async () => {
     (mockedPrisma.connection.findUnique as any).mockResolvedValue({
       id: connectionId,
       requesterId: userId,
       receiverId,
       status: "PENDING",
     });
+    (mockedPrisma.connection.delete as any).mockResolvedValue({});
+
+    const result = await connectionService.removeConnection(
+      connectionId,
+      userId,
+    );
+
+    expect(result.message).toBe("Connection removed successfully.");
+    expect(mockedPrisma.connection.delete).toHaveBeenCalledWith({
+      where: { id: connectionId },
+    });
+  });
+
+  it("throws FORBIDDEN when receiver tries to cancel a pending request", async () => {
+    (mockedPrisma.connection.findUnique as any).mockResolvedValue({
+      id: connectionId,
+      requesterId: userId,
+      receiverId: receiverId,
+      status: "PENDING",
+    });
 
     await expect(
-      connectionService.removeConnection(connectionId, userId),
-    ).rejects.toThrow("Only accepted connections can be removed.");
+      connectionService.removeConnection(connectionId, receiverId),
+    ).rejects.toThrow("Only the requester can cancel a pending connection request.");
   });
 });
 
