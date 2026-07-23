@@ -2,34 +2,31 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../../../../app/lib/prisma", () => ({
   prisma: {
-    aiSession: {
+    aIChatSession: {
       create: vi.fn(),
       findUnique: vi.fn(),
       findMany: vi.fn(),
+      count: vi.fn(),
       delete: vi.fn(),
       update: vi.fn(),
     },
-    aiMessage: {
+    aIMessage: {
       create: vi.fn(),
-      findMany: vi.fn(),
-    },
-    gamificationProfile: {
       findUnique: vi.fn(),
-    },
-    pointTransaction: {
       findMany: vi.fn(),
+      count: vi.fn(),
+      update: vi.fn(),
     },
+    aIStudyStats: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+    },
+    $transaction: vi.fn(),
   },
 }));
 
-import {
-  createChatSession,
-  sendChatMessage,
-  getChatHistory,
-  getUserSessions,
-  deleteSession,
-  getStudyStats,
-} from "../ai.service";
+import aiService from "../ai.service";
 import { prisma } from "../../../../app/lib/prisma";
 
 const mockPrisma = vi.mocked(prisma);
@@ -39,7 +36,7 @@ describe("AIService", () => {
     vi.clearAllMocks();
   });
 
-  describe("createChatSession", () => {
+  describe("createSession", () => {
     it("should create a new chat session with default title", async () => {
       const mockSession = {
         id: "session-1",
@@ -47,11 +44,11 @@ describe("AIService", () => {
         title: "New Chat",
         createdAt: new Date(),
       };
-      mockPrisma.aiSession.create.mockResolvedValue(mockSession as never);
+      mockPrisma.aIChatSession.create.mockResolvedValue(mockSession as never);
 
-      const result = await createChatSession("user-1");
+      const result = await aiService.createSession("user-1");
 
-      expect(mockPrisma.aiSession.create).toHaveBeenCalledWith({
+      expect(mockPrisma.aIChatSession.create).toHaveBeenCalledWith({
         data: {
           userId: "user-1",
           title: "New Chat",
@@ -67,11 +64,11 @@ describe("AIService", () => {
         title: "Physics Notes",
         createdAt: new Date(),
       };
-      mockPrisma.aiSession.create.mockResolvedValue(mockSession as never);
+      mockPrisma.aIChatSession.create.mockResolvedValue(mockSession as never);
 
-      const result = await createChatSession("user-1", "Physics Notes");
+      const result = await aiService.createSession("user-1", "Physics Notes");
 
-      expect(mockPrisma.aiSession.create).toHaveBeenCalledWith({
+      expect(mockPrisma.aIChatSession.create).toHaveBeenCalledWith({
         data: {
           userId: "user-1",
           title: "Physics Notes",
@@ -81,218 +78,322 @@ describe("AIService", () => {
     });
   });
 
-  describe("sendChatMessage", () => {
-    it("should send a message and return AI response", async () => {
-      const mockSession = {
-        id: "session-1",
-        userId: "user-1",
-        title: "Chat",
-      };
-      const mockUserMessage = {
-        id: "msg-1",
-        sessionId: "session-1",
-        role: "user",
-        content: "What is Newton's first law?",
-      };
-      const mockAiMessage = {
-        id: "msg-2",
-        sessionId: "session-1",
-        role: "assistant",
-        content: "Newton's first law states that an object at rest stays at rest...",
-      };
+  describe("getSessions", () => {
+    it("should return sessions with pagination", async () => {
+      const mockSessions = [
+        { id: "s1", title: "Chat 1", aiMessages: [{ content: "Hi", role: "USER" }] },
+        { id: "s2", title: "Chat 2", aiMessages: [] },
+      ];
+      mockPrisma.aIChatSession.findMany.mockResolvedValue(mockSessions as never);
+      mockPrisma.aIChatSession.count.mockResolvedValue(2);
 
-      mockPrisma.aiSession.findUnique.mockResolvedValue(mockSession as never);
-      mockPrisma.aiMessage.create
-        .mockResolvedValueOnce(mockUserMessage as never)
-        .mockResolvedValueOnce(mockAiMessage as never);
+      const result = await aiService.getSessions("user-1", 1, 20);
 
-      const result = await sendChatMessage(
-        "session-1",
-        "user-1",
-        "What is Newton's first law?"
-      );
-
-      expect(mockPrisma.aiSession.findUnique).toHaveBeenCalledWith({
-        where: { id: "session-1" },
+      expect(mockPrisma.aIChatSession.findMany).toHaveBeenCalledWith({
+        where: { userId: "user-1" },
+        orderBy: { createdAt: "desc" },
+        include: {
+          aiMessages: {
+            take: 1,
+            orderBy: { createdAt: "desc" },
+            select: { content: true, role: true },
+          },
+        },
+        skip: 0,
+        take: 20,
       });
-      expect(mockPrisma.aiMessage.create).toHaveBeenCalledTimes(2);
-      expect(result).toEqual({
-        userMessage: mockUserMessage,
-        aiMessage: mockAiMessage,
+      expect(result.sessions).toEqual(mockSessions);
+      expect(result.meta).toEqual({
+        page: 1,
+        limit: 20,
+        total: 2,
+        totalPages: 1,
       });
     });
 
-    it("should throw if session does not exist", async () => {
-      mockPrisma.aiSession.findUnique.mockResolvedValue(null);
+    it("should return empty sessions for user with no sessions", async () => {
+      mockPrisma.aIChatSession.findMany.mockResolvedValue([]);
+      mockPrisma.aIChatSession.count.mockResolvedValue(0);
 
-      await expect(
-        sendChatMessage("invalid-session", "user-1", "Hello")
-      ).rejects.toThrow("Session not found");
-    });
+      const result = await aiService.getSessions("user-1");
 
-    it("should throw if user does not own the session", async () => {
-      const mockSession = {
-        id: "session-1",
-        userId: "other-user",
-      };
-      mockPrisma.aiSession.findUnique.mockResolvedValue(mockSession as never);
-
-      await expect(
-        sendChatMessage("session-1", "user-1", "Hello")
-      ).rejects.toThrow("Unauthorized");
+      expect(result.sessions).toEqual([]);
+      expect(result.meta.total).toBe(0);
     });
   });
 
-  describe("getChatHistory", () => {
-    it("should return messages for a valid session", async () => {
+  describe("getSessionById", () => {
+    it("should return session with messages", async () => {
       const mockSession = {
         id: "session-1",
         userId: "user-1",
+        aiMessages: [{ id: "msg-1", content: "Hi", role: "USER" }],
       };
-      const mockMessages = [
-        { id: "msg-1", role: "user", content: "Hi" },
-        { id: "msg-2", role: "assistant", content: "Hello!" },
-      ];
+      mockPrisma.aIChatSession.findUnique.mockResolvedValue(mockSession as never);
 
-      mockPrisma.aiSession.findUnique.mockResolvedValue(mockSession as never);
-      mockPrisma.aiMessage.findMany.mockResolvedValue(mockMessages as never);
+      const result = await aiService.getSessionById("session-1", "user-1");
 
-      const result = await getChatHistory("session-1", "user-1");
-
-      expect(mockPrisma.aiMessage.findMany).toHaveBeenCalledWith({
-        where: { sessionId: "session-1" },
-        orderBy: { createdAt: "asc" },
-      });
-      expect(result).toEqual(mockMessages);
+      expect(result).toEqual(mockSession);
     });
 
     it("should throw if session does not exist", async () => {
-      mockPrisma.aiSession.findUnique.mockResolvedValue(null);
+      mockPrisma.aIChatSession.findUnique.mockResolvedValue(null);
 
       await expect(
-        getChatHistory("invalid-session", "user-1")
-      ).rejects.toThrow("Session not found");
+        aiService.getSessionById("invalid-session", "user-1")
+      ).rejects.toThrow("Chat session not found");
     });
 
     it("should throw if user does not own the session", async () => {
-      mockPrisma.aiSession.findUnique.mockResolvedValue({
+      mockPrisma.aIChatSession.findUnique.mockResolvedValue({
         id: "session-1",
         userId: "other-user",
       } as never);
 
       await expect(
-        getChatHistory("session-1", "user-1")
-      ).rejects.toThrow("Unauthorized");
-    });
-  });
-
-  describe("getUserSessions", () => {
-    it("should return all sessions for a user", async () => {
-      const mockSessions = [
-        { id: "s1", title: "Chat 1" },
-        { id: "s2", title: "Chat 2" },
-      ];
-      mockPrisma.aiSession.findMany.mockResolvedValue(mockSessions as never);
-
-      const result = await getUserSessions("user-1");
-
-      expect(mockPrisma.aiSession.findMany).toHaveBeenCalledWith({
-        where: { userId: "user-1" },
-        orderBy: { createdAt: "desc" },
-      });
-      expect(result).toEqual(mockSessions);
-    });
-
-    it("should return empty array if user has no sessions", async () => {
-      mockPrisma.aiSession.findMany.mockResolvedValue([]);
-
-      const result = await getUserSessions("user-1");
-
-      expect(result).toEqual([]);
+        aiService.getSessionById("session-1", "user-1")
+      ).rejects.toThrow("You do not have access to this session");
     });
   });
 
   describe("deleteSession", () => {
     it("should delete a session successfully", async () => {
-      const mockSession = {
-        id: "session-1",
-        userId: "user-1",
-      };
-      mockPrisma.aiSession.findUnique.mockResolvedValue(mockSession as never);
-      mockPrisma.aiSession.delete.mockResolvedValue(mockSession as never);
+      const mockSession = { id: "session-1", userId: "user-1" };
+      mockPrisma.aIChatSession.findUnique.mockResolvedValue(mockSession as never);
+      mockPrisma.aIChatSession.delete.mockResolvedValue(mockSession as never);
 
-      await deleteSession("session-1", "user-1");
+      await aiService.deleteSession("session-1", "user-1");
 
-      expect(mockPrisma.aiSession.delete).toHaveBeenCalledWith({
+      expect(mockPrisma.aIChatSession.delete).toHaveBeenCalledWith({
         where: { id: "session-1" },
       });
     });
 
     it("should throw if session does not exist", async () => {
-      mockPrisma.aiSession.findUnique.mockResolvedValue(null);
+      mockPrisma.aIChatSession.findUnique.mockResolvedValue(null);
 
       await expect(
-        deleteSession("invalid-session", "user-1")
-      ).rejects.toThrow("Session not found");
+        aiService.deleteSession("invalid-session", "user-1")
+      ).rejects.toThrow("Chat session not found");
     });
 
     it("should throw if user does not own the session", async () => {
-      mockPrisma.aiSession.findUnique.mockResolvedValue({
+      mockPrisma.aIChatSession.findUnique.mockResolvedValue({
         id: "session-1",
         userId: "other-user",
       } as never);
 
       await expect(
-        deleteSession("session-1", "user-1")
-      ).rejects.toThrow("Unauthorized");
+        aiService.deleteSession("session-1", "user-1")
+      ).rejects.toThrow("You do not have access to this session");
+    });
+  });
+
+  describe("sendMessage", () => {
+    it("should send a message and return user and AI messages", async () => {
+      const mockSession = { id: "session-1", userId: "user-1", title: "Chat" };
+      const mockUserMessage = {
+        id: "msg-1",
+        sessionId: "session-1",
+        role: "USER",
+        content: "What is Newton's first law?",
+      };
+      const mockAiMessage = {
+        id: "msg-2",
+        sessionId: "session-1",
+        role: "ASSISTANT",
+        content: "Newton's first law states...",
+      };
+
+      mockPrisma.aIChatSession.findUnique.mockResolvedValue(mockSession as never);
+      mockPrisma.$transaction.mockImplementation(async (fn: Function) => {
+        const tx = {
+          aIMessage: {
+            create: vi.fn()
+              .mockResolvedValueOnce(mockUserMessage)
+              .mockResolvedValueOnce(mockAiMessage),
+          },
+          aIStudyStats: {
+            upsert: vi.fn().mockResolvedValue({}),
+          },
+          aIChatSession: {
+            update: vi.fn().mockResolvedValue({}),
+          },
+        };
+        return fn(tx);
+      });
+
+      const result = await aiService.sendMessage(
+        "session-1",
+        "What is Newton's first law?",
+        "user-1"
+      );
+
+      expect(mockPrisma.aIChatSession.findUnique).toHaveBeenCalledWith({
+        where: { id: "session-1" },
+      });
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
+      expect(result.userMessage).toEqual(mockUserMessage);
+      expect(result.aiMessage).toEqual(mockAiMessage);
+    });
+
+    it("should throw if session does not exist", async () => {
+      mockPrisma.aIChatSession.findUnique.mockResolvedValue(null);
+
+      await expect(
+        aiService.sendMessage("invalid-session", "Hello", "user-1")
+      ).rejects.toThrow("Chat session not found");
+    });
+
+    it("should throw if user does not own the session", async () => {
+      mockPrisma.aIChatSession.findUnique.mockResolvedValue({
+        id: "session-1",
+        userId: "other-user",
+      } as never);
+
+      await expect(
+        aiService.sendMessage("session-1", "Hello", "user-1")
+      ).rejects.toThrow("You do not have access to this session");
+    });
+  });
+
+  describe("getMessages", () => {
+    it("should return messages for a valid session", async () => {
+      const mockSession = { id: "session-1", userId: "user-1" };
+      const mockMessages = [
+        { id: "msg-1", role: "USER", content: "Hi" },
+        { id: "msg-2", role: "ASSISTANT", content: "Hello!" },
+      ];
+
+      mockPrisma.aIChatSession.findUnique.mockResolvedValue(mockSession as never);
+      mockPrisma.aIMessage.findMany.mockResolvedValue(mockMessages as never);
+      mockPrisma.aIMessage.count.mockResolvedValue(2);
+
+      const result = await aiService.getMessages("session-1", "user-1");
+
+      expect(mockPrisma.aIMessage.findMany).toHaveBeenCalledWith({
+        where: { sessionId: "session-1" },
+        orderBy: { createdAt: "asc" },
+        skip: 0,
+        take: 50,
+      });
+      expect(result.data).toEqual(mockMessages);
+      expect(result.meta.total).toBe(2);
+    });
+
+    it("should throw if session does not exist", async () => {
+      mockPrisma.aIChatSession.findUnique.mockResolvedValue(null);
+
+      await expect(
+        aiService.getMessages("invalid-session", "user-1")
+      ).rejects.toThrow("Chat session not found");
+    });
+
+    it("should throw if user does not own the session", async () => {
+      mockPrisma.aIChatSession.findUnique.mockResolvedValue({
+        id: "session-1",
+        userId: "other-user",
+      } as never);
+
+      await expect(
+        aiService.getMessages("session-1", "user-1")
+      ).rejects.toThrow("You do not have access to this session");
+    });
+  });
+
+  describe("markHelpful", () => {
+    it("should mark a message as helpful", async () => {
+      const mockMessage = {
+        id: "msg-1",
+        session: { userId: "user-1" },
+      };
+      const mockUpdated = { id: "msg-1", isHelpful: true };
+
+      mockPrisma.aIMessage.findUnique.mockResolvedValue(mockMessage as never);
+      mockPrisma.aIMessage.update.mockResolvedValue(mockUpdated as never);
+
+      const result = await aiService.markHelpful("msg-1", true, "user-1");
+
+      expect(mockPrisma.aIMessage.update).toHaveBeenCalledWith({
+        where: { id: "msg-1" },
+        data: { isHelpful: true },
+      });
+      expect(result).toEqual(mockUpdated);
+    });
+
+    it("should throw if message does not exist", async () => {
+      mockPrisma.aIMessage.findUnique.mockResolvedValue(null);
+
+      await expect(
+        aiService.markHelpful("invalid-msg", true, "user-1")
+      ).rejects.toThrow("Message not found");
+    });
+
+    it("should throw if user does not own the message", async () => {
+      mockPrisma.aIMessage.findUnique.mockResolvedValue({
+        id: "msg-1",
+        session: { userId: "other-user" },
+      } as never);
+
+      await expect(
+        aiService.markHelpful("msg-1", true, "user-1")
+      ).rejects.toThrow("You do not have access to this message");
     });
   });
 
   describe("getStudyStats", () => {
-    it("should return study stats for a user with a profile", async () => {
-      const mockProfile = {
+    it("should return study stats for a user", async () => {
+      const mockStats = {
+        id: "stat-1",
         userId: "user-1",
-        totalPoints: 500,
-        level: 5,
-        streak: 7,
+        weekStart: new Date(),
+        questionsAsked: 10,
+        timeSpentMinutes: 30,
+        topicsExplored: 5,
+        quizzesGenerated: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
-      const mockTransactions = [
-        { id: "t1", points: 100, createdAt: new Date("2026-07-01") },
-        { id: "t2", points: 200, createdAt: new Date("2026-07-15") },
-      ];
 
-      mockPrisma.gamificationProfile.findUnique.mockResolvedValue(
-        mockProfile as never
-      );
-      mockPrisma.pointTransaction.findMany.mockResolvedValue(
-        mockTransactions as never
-      );
+      mockPrisma.aIStudyStats.findUnique.mockResolvedValue(mockStats as never);
 
-      const result = await getStudyStats("user-1");
+      const result = await aiService.getStudyStats("user-1");
 
-      expect(mockPrisma.gamificationProfile.findUnique).toHaveBeenCalledWith({
-        where: { userId: "user-1" },
-      });
-      expect(mockPrisma.pointTransaction.findMany).toHaveBeenCalledWith({
-        where: { userId: "user-1" },
-        orderBy: { createdAt: "desc" },
-      });
-      expect(result).toHaveProperty("totalPoints", 500);
-      expect(result).toHaveProperty("level", 5);
-      expect(result).toHaveProperty("streak", 7);
-      expect(result).toHaveProperty("recentActivity");
+      expect(mockPrisma.aIStudyStats.findUnique).toHaveBeenCalled();
+      expect(result).toEqual(mockStats);
     });
 
-    it("should return default stats if no profile exists", async () => {
-      mockPrisma.gamificationProfile.findUnique.mockResolvedValue(null);
-      mockPrisma.pointTransaction.findMany.mockResolvedValue([]);
+    it("should return default stats if no stats exist", async () => {
+      mockPrisma.aIStudyStats.findUnique.mockResolvedValue(null);
 
-      const result = await getStudyStats("user-1");
+      const result = await aiService.getStudyStats("user-1");
 
-      expect(result).toHaveProperty("totalPoints", 0);
-      expect(result).toHaveProperty("level", 1);
-      expect(result).toHaveProperty("streak", 0);
-      expect(result).toHaveProperty("recentActivity", []);
+      expect(result).toHaveProperty("userId", "user-1");
+      expect(result).toHaveProperty("questionsAsked", 0);
+      expect(result).toHaveProperty("timeSpentMinutes", 0);
+      expect(result).toHaveProperty("topicsExplored", 0);
+      expect(result).toHaveProperty("quizzesGenerated", 0);
+      expect(result).toHaveProperty("id", null);
+    });
+  });
+
+  describe("getStudyStatsHistory", () => {
+    it("should return stats history", async () => {
+      const mockStats = [
+        { id: "s1", userId: "user-1", questionsAsked: 10 },
+        { id: "s2", userId: "user-1", questionsAsked: 5 },
+      ];
+
+      mockPrisma.aIStudyStats.findMany.mockResolvedValue(mockStats as never);
+
+      const result = await aiService.getStudyStatsHistory("user-1");
+
+      expect(mockPrisma.aIStudyStats.findMany).toHaveBeenCalledWith({
+        where: { userId: "user-1" },
+        orderBy: { weekStart: "desc" },
+        take: 4,
+      });
+      expect(result).toEqual(mockStats);
     });
   });
 });
