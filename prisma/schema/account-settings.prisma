@@ -69,15 +69,17 @@ model LoginHistory {
 }
 
 model DataExport {
-  id        String   @id @default(uuid())
+  id        String    @id
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      String
-  status    String   @default("PENDING")
+  status    String    @default("PENDING")
   fileUrl   String?
   expiresAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
+  @@index([status])
   @@index([userId])
-  @@map("data_exports")
+  @@map("export_jobs")
 }
