@@ -84,6 +84,11 @@ export function socketAuthMiddleware(
         return;
       }
 
+      if (user.isDeactivated) {
+        next(new Error("Your account has been deactivated. Please contact support."));
+        return;
+      }
+
       if (user.status === UserStatus.BANNED) {
         next(new Error("Your account has been banned. Please contact support."));
         return;

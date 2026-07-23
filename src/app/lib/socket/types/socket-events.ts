@@ -199,6 +199,23 @@ export interface SocketEvents {
   /** Connection removed. */
   "connection:removed": { connectionId: string; removedBy: string };
 
+  /** New event created. */
+  "event:new": {
+    id: string;
+    title: string;
+    description: string;
+    startDate: string;
+    location: string;
+    createdById: string;
+  };
+
+  /** RSVP status changed for an event. */
+  "event:rsvpUpdate": {
+    eventId: string;
+    userId: string;
+    status: string;
+  };
+
   /** Admin review status updated. */
   "admin:review-update": {
     type: string;
@@ -251,6 +268,8 @@ export type ServerEvents = keyof Pick<
   | "connection:request"
   | "connection:accepted"
   | "connection:removed"
+  | "event:new"
+  | "event:rsvpUpdate"
   | "admin:review-update"
   | "system:announcement"
   | "error:message"

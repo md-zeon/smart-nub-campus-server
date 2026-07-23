@@ -1,6 +1,7 @@
 import status from "http-status";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { getSocketServer } from "../../lib/socket/socket-server";
 import {
   ListUsersQuery,
   ListResourcesQuery,
@@ -317,6 +318,17 @@ const verifyResource = async (id: string, isVerified: boolean) => {
       category: { select: { id: true, name: true, slug: true } },
     },
   });
+
+  try {
+    const io = getSocketServer();
+    io.emit("admin:review-update", {
+      type: "resource",
+      entityId: id,
+      status: isVerified ? "VERIFIED" : "UNVERIFIED",
+    });
+  } catch {
+    // Socket.IO may not be initialized in test environments
+  }
 
   return updated;
 };
