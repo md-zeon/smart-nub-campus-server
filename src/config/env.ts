@@ -64,7 +64,9 @@ const loadEnvVariables = (): EnvConfig => {
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL as string,
     CORS_ORIGINS: process.env.CORS_ORIGINS
       ? process.env.CORS_ORIGINS.split(",").map((s) => s.trim())
-      : ["http://localhost:3000"],
+      : process.env.NODE_ENV === "production"
+        ? [] // No CORS origins in production unless explicitly configured
+        : ["http://localhost:3000"],
     // Rate limiting defaults
     RATE_LIMIT_LOGIN_WINDOW_MS: Number(process.env.RATE_LIMIT_LOGIN_WINDOW_MS) || 900_000,
     RATE_LIMIT_LOGIN_MAX: Number(process.env.RATE_LIMIT_LOGIN_MAX) || 5,

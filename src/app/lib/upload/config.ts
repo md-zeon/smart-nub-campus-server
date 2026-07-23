@@ -13,7 +13,7 @@ export const UPLOAD_CONFIG = {
       "image/png",
       "image/gif",
       "image/webp",
-      "image/svg+xml",
+      // SVG excluded due to stored XSS risk via embedded JavaScript
     ],
     video: ["video/mp4", "video/webm", "video/quicktime"],
     raw: [

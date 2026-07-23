@@ -32,6 +32,14 @@ export class UploadService {
       );
     }
 
+    // Validate context against allowed contexts
+    if (!UPLOAD_CONFIG.allowedContexts.includes(context as any)) {
+      throw new AppError(
+        status.BAD_REQUEST,
+        `Invalid upload context: ${context}. Allowed: ${UPLOAD_CONFIG.allowedContexts.join(", ")}`,
+      );
+    }
+
     // Validate MIME type based on type hint using centralized config
     if (type && file.mimetype) {
       const allowedTypes = UPLOAD_CONFIG.allowedMimeTypes;

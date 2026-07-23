@@ -130,3 +130,31 @@ export const aiToolRateLimiter = rateLimit({
     );
   },
 });
+
+export const uploadRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 30, // 30 uploads per hour
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json(
+      rateLimitResponse(
+        "Too many upload requests. Please try again later.",
+      ),
+    );
+  },
+});
+
+export const globalRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // 100 requests per 15 minutes
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json(
+      rateLimitResponse(
+        "Too many requests. Please try again later.",
+      ),
+    );
+  },
+});

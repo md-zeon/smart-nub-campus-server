@@ -33,7 +33,10 @@ const globalErrorHandler = (
     statusCode = err.statusCode;
     message = err.message;
     stack = err.stack;
-    errorSources = err.cause ? [{ path: "", message: String(err.cause) }] : [];
+    // Only include cause in development to prevent internal detail leaks
+    errorSources = envVars.NODE_ENV === "development" && err.cause
+      ? [{ path: "", message: String(err.cause) }]
+      : [];
   } else if (err instanceof Error) {
     statusCode = status.INTERNAL_SERVER_ERROR;
     message = err.message;
