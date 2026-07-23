@@ -11,5 +11,6 @@ model Admin {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([department])
   @@map("admin")
 }

@@ -38,6 +38,8 @@ model Discussion {
 
   @@index([categoryId])
   @@index([authorId])
+  @@index([isSolved])
+  @@index([visibility])
   @@index([createdAt(sort: Desc)])
   @@index([upvoteCount(sort: Desc)])
   @@map("discussion")

@@ -20,6 +20,7 @@ model TeamRequest {
 
   @@index([creatorId])
   @@index([status])
+  @@index([deadline])
   @@index([createdAt(sort: Desc)])
   @@map("team_requests")
 }

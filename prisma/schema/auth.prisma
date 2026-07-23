@@ -80,6 +80,7 @@ model User {
     dataExports                   DataExport[]
 
     @@unique([email])
+    @@index([isDeleted])
   @@map("user")
 }
 

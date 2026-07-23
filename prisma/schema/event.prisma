@@ -15,6 +15,7 @@ model Event {
 
   @@index([eventDate(sort: Desc)])
   @@index([status])
+  @@index([status, eventDate])
   @@map("events")
 }
 

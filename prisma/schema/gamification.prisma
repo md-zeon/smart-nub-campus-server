@@ -8,6 +8,7 @@ model ReputationPoint {
   event     ReputationEvent
   createdAt DateTime         @default(now())
   @@index([userId])
+  @@index([userId, source])
   @@index([createdAt(sort: Desc)])
   @@map("reputation_points")
 }

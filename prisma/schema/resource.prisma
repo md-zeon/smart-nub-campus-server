@@ -45,6 +45,8 @@ model Resource {
   @@index([courseId])
   @@index([categoryId])
   @@index([uploaderId])
+  @@index([downloadCount(sort: Desc)])
+  @@index([isDeleted, isVerified])
   @@index([createdAt(sort: Desc)])
   @@index([upvoteCount(sort: Desc)])
   @@map("resource")

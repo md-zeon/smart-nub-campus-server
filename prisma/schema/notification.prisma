@@ -8,8 +8,10 @@ model Notification {
   link      String?
   isRead    Boolean          @default(false)
   createdAt DateTime         @default(now())
+  updatedAt DateTime?
   @@index([userId])
   @@index([isRead])
+  @@index([type])
   @@index([createdAt(sort: Desc)])
   @@map("notifications")
 }
