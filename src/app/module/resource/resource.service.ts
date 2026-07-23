@@ -633,7 +633,7 @@ const deleteComment = async (id: string, userId: string) => {
 
   await prisma.comment.update({
     where: { id },
-    data: { isDeleted: true },
+    data: { isDeleted: true, deletedAt: new Date() },
   });
 
   return { message: "Comment deleted successfully." };

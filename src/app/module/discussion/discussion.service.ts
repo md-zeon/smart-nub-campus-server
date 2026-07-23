@@ -412,7 +412,7 @@ const deleteDiscussion = async (id: string, userId: string) => {
 
   await prisma.discussion.update({
     where: { id },
-    data: { isDeleted: true },
+    data: { isDeleted: true, deletedAt: new Date() },
   });
 
   gamificationService
@@ -538,7 +538,7 @@ const deleteReply = async (replyId: string, userId: string) => {
   await prisma.$transaction(async (tx) => {
     await tx.discussionReply.update({
       where: { id: replyId },
-      data: { isDeleted: true },
+      data: { isDeleted: true, deletedAt: new Date() },
     });
 
     await tx.discussion.update({

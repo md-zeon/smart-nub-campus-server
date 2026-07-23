@@ -344,7 +344,7 @@ const deleteQuestion = async (id: string, userId: string) => {
 
   await prisma.question.update({
     where: { id },
-    data: { isDeleted: true },
+    data: { isDeleted: true, deletedAt: new Date() },
   });
 
   return { message: "Question deleted successfully." };
@@ -439,7 +439,7 @@ const deleteAnswer = async (answerId: string, userId: string) => {
   await prisma.$transaction(async (tx) => {
     await tx.answer.update({
       where: { id: answerId },
-      data: { isDeleted: true },
+      data: { isDeleted: true, deletedAt: new Date() },
     });
 
     await tx.question.update({

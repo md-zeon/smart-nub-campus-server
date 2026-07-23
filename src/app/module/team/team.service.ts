@@ -250,7 +250,7 @@ const deleteTeamRequest = async (id: string, userId: string) => {
 
   await prisma.teamRequest.update({
     where: { id },
-    data: { isDeleted: true },
+    data: { isDeleted: true, deletedAt: new Date() },
   });
 
   return { message: "Team request deleted successfully." };
