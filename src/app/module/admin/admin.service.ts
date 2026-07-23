@@ -180,12 +180,41 @@ const getUserById = async (id: string) => {
       role: true,
       status: true,
       isDeleted: true,
+      isDeactivated: true,
       hasCompletedOnboarding: true,
       createdAt: true,
       updatedAt: true,
-      student: true,
-      admin: true,
-      profile: true,
+      student: {
+        select: {
+          id: true,
+          studentId: true,
+          department: true,
+          admissionYear: true,
+          admissionSemester: true,
+        },
+      },
+      admin: {
+        select: {
+          id: true,
+          designation: true,
+          department: true,
+          joinedAt: true,
+        },
+      },
+      profile: {
+        select: {
+          id: true,
+          bio: true,
+          coverImage: true,
+          githubUrl: true,
+          linkedinUrl: true,
+          portfolioUrl: true,
+          websiteUrl: true,
+          location: true,
+          currentSemester: true,
+          batchYear: true,
+        },
+      },
       _count: {
         select: {
           resources: true,

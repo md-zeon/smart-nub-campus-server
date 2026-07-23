@@ -1,6 +1,7 @@
 import status from "http-status";
 import catchAsync from "../../shared/catchAsync";
 import sendResponse from "../../shared/sendResponse";
+import AppError from "../../errorHelpers/AppError";
 import { notificationService } from "./notification.service";
 import { NotificationListQuery } from "./notification.interface";
 
@@ -49,13 +50,7 @@ const markAsRead = catchAsync(async (req, res) => {
   const notificationId = req.params.id as string;
   const result = await notificationService.markAsRead(notificationId, req.user.id);
   if (!result) {
-    sendResponse(res, {
-      httpStatusCode: status.NOT_FOUND,
-      success: false,
-      message: "Notification not found or unauthorized.",
-      data: null,
-    });
-    return;
+    throw new AppError(status.NOT_FOUND, "Notification not found or unauthorized.");
   }
   sendResponse(res, {
     httpStatusCode: status.OK,

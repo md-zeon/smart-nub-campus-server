@@ -1,6 +1,7 @@
 import httpStatus from "http-status";
 import catchAsync from "../../shared/catchAsync";
 import sendResponse from "../../shared/sendResponse";
+import AppError from "../../errorHelpers/AppError";
 import { VerificationStatus } from "../../../generated/prisma/enums";
 import { verificationService } from "./verification.service";
 import { CreateVerificationRequestResponse } from "./verification.interface";
@@ -11,11 +12,7 @@ const createVerificationRequest = catchAsync(async (req, res) => {
 
   if (!result.onboardingStep) {
     // This should never happen — the service always creates/returns an onboarding step
-    return sendResponse(res, {
-      httpStatusCode: httpStatus.INTERNAL_SERVER_ERROR,
-      success: false,
-      message: "Failed to create onboarding step.",
-    });
+    throw new AppError(httpStatus.INTERNAL_SERVER_ERROR, "Failed to create onboarding step.");
   }
 
   // Set onboarding cookie with the onboarding step ID
