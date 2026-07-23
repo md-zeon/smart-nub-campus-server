@@ -15,6 +15,9 @@ router.use(requireRole(UserRole.ADMIN));
 // --- Dashboard Stats ---
 router.get("/stats", adminController.getDashboardStats);
 
+// --- Dashboard Charts ---
+router.get("/stats/charts", adminController.getDashboardCharts);
+
 // --- User Management ---
 router.get("/users", adminController.listUsers);
 router.get("/users/:id", adminController.getUserById);

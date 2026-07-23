@@ -2,7 +2,7 @@ import status from "http-status";
 import catchAsync from "../../shared/catchAsync";
 import sendResponse from "../../shared/sendResponse";
 import { adminService } from "./admin.service";
-import { ListUsersQuery, ListResourcesQuery, ListAuditLogsQuery } from "./admin.interface";
+import { ListUsersQuery, ListResourcesQuery, ListAuditLogsQuery, DashboardChartsQuery } from "./admin.interface";
 
 // --- Dashboard Stats ---
 const getDashboardStats = catchAsync(async (req, res) => {
@@ -19,6 +19,22 @@ const getDashboardStats = catchAsync(async (req, res) => {
     httpStatusCode: status.OK,
     success: true,
     message: "Dashboard stats retrieved successfully.",
+    data: result,
+  });
+});
+
+// --- Dashboard Charts ---
+const getDashboardCharts = catchAsync(async (req, res) => {
+  const query: DashboardChartsQuery = {
+    days: parseInt(req.query.days as string) || 7,
+  };
+
+  const result = await adminService.getDashboardCharts(query);
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Dashboard charts retrieved successfully.",
     data: result,
   });
 });
@@ -549,6 +565,7 @@ const getAuditLogById = catchAsync(async (req, res) => {
 
 export const adminController = {
   getDashboardStats,
+  getDashboardCharts,
   listUsers,
   getUserById,
   updateUserStatus,

@@ -35,3 +35,17 @@ export interface CreateAuditLogInput {
   details?: Record<string, unknown>;
   ipAddress?: string;
 }
+
+export interface DashboardChartsQuery {
+  days?: number;
+}
+
+export interface ChartBucket {
+  date: string;
+  count: number;
+}
+
+export interface DepartmentBucket {
+  department: string;
+  count: number;
+}

@@ -6,6 +6,9 @@ import {
   ListResourcesQuery,
   ListAuditLogsQuery,
   CreateAuditLogInput,
+  DashboardChartsQuery,
+  ChartBucket,
+  DepartmentBucket,
 } from "./admin.interface";
 
 // --- Helper: Create audit log entry ---
@@ -60,6 +63,65 @@ const getDashboardStats = async () => {
     totalQuestions,
     totalEvents,
     pendingVerifications,
+  };
+};
+
+// --- Dashboard Charts ---
+const getDashboardCharts = async (query: DashboardChartsQuery) => {
+  const days = query.days ?? 7;
+  const now = new Date();
+  const startDate = new Date(now);
+  startDate.setDate(startDate.getDate() - days);
+
+  const [userRegistrations, resourceUploads, departmentDistribution, verificationTrends] =
+    await Promise.all([
+      prisma.$queryRaw<ChartBucket[]>`
+        SELECT
+          TO_CHAR("createdAt"::date, 'YYYY-MM-DD') AS date,
+          COUNT(*)::int AS count
+        FROM "user"
+        WHERE "createdAt" >= ${startDate}
+          AND "isDeleted" = false
+        GROUP BY "createdAt"::date
+        ORDER BY "createdAt"::date ASC
+      `,
+      prisma.$queryRaw<ChartBucket[]>`
+        SELECT
+          TO_CHAR("createdAt"::date, 'YYYY-MM-DD') AS date,
+          COUNT(*)::int AS count
+        FROM "resource"
+        WHERE "createdAt" >= ${startDate}
+          AND "isDeleted" = false
+        GROUP BY "createdAt"::date
+        ORDER BY "createdAt"::date ASC
+      `,
+      prisma.student.groupBy({
+        by: ["department"],
+        _count: true,
+        orderBy: { _count: { department: "desc" } },
+        take: 8,
+      }),
+      prisma.$queryRaw<ChartBucket[]>`
+        SELECT
+          TO_CHAR(DATE_TRUNC('week', "createdAt"), 'YYYY-MM-DD') AS date,
+          COUNT(*)::int AS count
+        FROM "verification_request"
+        WHERE "createdAt" >= ${new Date(now.getTime() - 4 * 7 * 24 * 60 * 60 * 1000)}
+        GROUP BY DATE_TRUNC('week', "createdAt")
+        ORDER BY DATE_TRUNC('week', "createdAt") ASC
+      `,
+    ]);
+
+  const departmentBuckets: DepartmentBucket[] = departmentDistribution.map((d) => ({
+    department: d.department,
+    count: d._count,
+  }));
+
+  return {
+    userRegistrations,
+    resourceUploads,
+    departmentDistribution: departmentBuckets,
+    verificationTrends,
   };
 };
 
@@ -768,6 +830,7 @@ const getAuditLogById = async (id: string) => {
 export const adminService = {
   createAuditLog,
   getDashboardStats,
+  getDashboardCharts,
   listUsers,
   getUserById,
   updateUserStatus,
