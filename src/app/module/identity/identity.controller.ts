@@ -30,8 +30,9 @@ const getMyProfile = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getPublicProfile = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as RequestUser;
   const { userId } = req.params;
-  const result = await identityService.getPublicProfile(userId as string);
+  const result = await identityService.getPublicProfile(user.id, userId as string);
 
   sendResponse(res, {
     httpStatusCode: status.OK,
