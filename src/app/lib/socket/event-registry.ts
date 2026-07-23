@@ -1,27 +1,10 @@
 /**
  * Centralized registry of all Socket.IO events.
  *
- * Each entry describes an event's name, direction, and the handler
- * that should be invoked when the event is received. Modules register
- * their handlers at startup.
- *
- * This file acts as the single source of truth for what events exist
- * and who handles them.
+ * This file acts as the single source of truth for what events exist.
+ * Server-to-client events are registered here for documentation purposes.
+ * Client-to-server handlers are implemented inline in socket-server.ts.
  */
-
-import type { Socket, Server as SocketIOServer } from "socket.io";
-import { roomManager } from "./room-manager";
-import { presenceManager } from "./presence-manager";
-
-// ---------------------------------------------------------------------------
-// Handler type
-// ---------------------------------------------------------------------------
-
-type EventHandler = (
-  io: SocketIOServer,
-  socket: Socket,
-  data: unknown,
-) => void | Promise<void>;
 
 // ---------------------------------------------------------------------------
 // Registry
@@ -30,14 +13,13 @@ type EventHandler = (
 interface EventDefinition<K extends string = string> {
   name: K;
   direction: "client-to-server" | "server-to-client";
-  handler?: EventHandler;
   description: string;
 }
 
 class EventRegistry {
   private events = new Map<string, EventDefinition>();
 
-  /** Register an event with its handler. */
+  /** Register an event definition. */
   register<K extends string>(definition: EventDefinition<K>): void {
     this.events.set(definition.name, definition as EventDefinition);
   }
@@ -51,48 +33,6 @@ class EventRegistry {
   getEventNames(): string[] {
     return Array.from(this.events.keys());
   }
-
-  /** Attach all registered client-to-server handlers to a socket. */
-  attachHandlers(io: SocketIOServer, socket: Socket): void {
-    for (const definition of this.events.values()) {
-      if (definition.direction !== "client-to-server" || !definition.handler) {
-        continue;
-      }
-
-      // Rate limiting: 100 events/sec/socket
-      let eventCount = 0;
-      const windowStart = Date.now();
-
-      socket.on(definition.name, async (data: unknown) => {
-        // Simple rate limiter
-        const now = Date.now();
-        if (now - windowStart > 1000) {
-          // Reset window
-          eventCount = 0;
-        }
-        eventCount++;
-
-        if (eventCount > 100) {
-          socket.emit("error:message", {
-            message: "Rate limit exceeded. Please slow down.",
-          });
-          return;
-        }
-
-        try {
-          await definition.handler!(io, socket, data);
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : "Event handler error";
-          console.error(
-            `[EventRegistry] Error handling "${definition.name}":`,
-            message,
-          );
-          socket.emit("error:message", { message });
-        }
-      });
-    }
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -101,88 +41,51 @@ class EventRegistry {
 
 export const eventRegistry = new EventRegistry();
 
-// ── Messaging events ──────────────────────────────────────────────────────
+// ── Client → Server events ────────────────────────────────────────────────
 
 eventRegistry.register({
   name: "messaging:send",
   direction: "client-to-server",
   description: "Send a message in a conversation",
-  handler: (_io, socket, data: unknown) => {
-    const d = data as { conversationId: string };
-    roomManager.broadcastToRoom(
-      _io,
-      `conversation:${d.conversationId}`,
-      "messaging:new",
-      { senderId: socket.data.user.id, ...d },
-    );
-  },
 });
 
 eventRegistry.register({
   name: "messaging:read",
   direction: "client-to-server",
-  description: "Mark a message as read",
-  handler: (_io, _socket, _data) => {
-    // Phase 6 stub — full implementation will handle read receipts
-    void _io;
-    void _socket;
-    void _data;
-  },
+  description: "Mark messages as read",
 });
 
 eventRegistry.register({
   name: "typing:start",
   direction: "client-to-server",
   description: "User started typing",
-  handler: (_io, socket, data: unknown) => {
-    const d = data as { conversationId: string };
-    roomManager.broadcastToRoom(
-      _io,
-      `conversation:${d.conversationId}`,
-      "typing:update",
-      {
-        conversationId: d.conversationId,
-        userId: socket.data.user.id,
-        isTyping: true,
-      },
-    );
-  },
 });
 
 eventRegistry.register({
   name: "typing:stop",
   direction: "client-to-server",
   description: "User stopped typing",
-  handler: (_io, socket, data: unknown) => {
-    const d = data as { conversationId: string };
-    roomManager.broadcastToRoom(
-      _io,
-      `conversation:${d.conversationId}`,
-      "typing:update",
-      {
-        conversationId: d.conversationId,
-        userId: socket.data.user.id,
-        isTyping: false,
-      },
-    );
-  },
 });
 
 eventRegistry.register({
   name: "presence:heartbeat",
   direction: "client-to-server",
   description: "Keep-alive heartbeat from client",
-  handler: (_io, socket, _data) => {
-    void _io;
-    void _data;
-    const userId = socket.data.user?.id as string;
-    if (userId) {
-      presenceManager.touchHeartbeat(userId);
-    }
-  },
 });
 
-// ── Server → Client events (no handlers — these are emitted by the server) ─
+eventRegistry.register({
+  name: "conversation:join",
+  direction: "client-to-server",
+  description: "Join a conversation room",
+});
+
+eventRegistry.register({
+  name: "conversation:leave",
+  direction: "client-to-server",
+  description: "Leave a conversation room",
+});
+
+// ── Server → Client events ────────────────────────────────────────────────
 
 eventRegistry.register({
   name: "messaging:new",

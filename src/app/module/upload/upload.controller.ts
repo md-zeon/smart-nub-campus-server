@@ -1,71 +1,52 @@
-import { Request, Response, NextFunction } from "express";
+import status from "http-status";
+import catchAsync from "../../shared/catchAsync";
+import sendResponse from "../../shared/sendResponse";
 import { uploadService } from "./upload.service";
 import type { UploadResult } from "../../lib/upload/provider";
 
-export class UploadController {
-  async upload(
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void | Response> {
-    try {
-      if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          error: "No file uploaded",
-        });
-      }
-
-      const context = req.body.context || "uploads";
-      const type = req.body.type || "image";
-
-      const result: UploadResult = await uploadService.upload(
-        req.file,
-        context,
-        type as "image" | "video" | "raw",
-      );
-
-      return res.status(200).json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      next(error);
-    }
+const upload = catchAsync(async (req, res) => {
+  if (!req.file) {
+    throw new Error("No file uploaded");
   }
 
-  async delete(
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void | Response> {
-    try {
-      const { publicId } = req.body;
+  const context = req.body.context || "uploads";
+  const type = req.body.type || "image";
 
-      if (!publicId) {
-        return res.status(400).json({
-          success: false,
-          error: "publicId is required",
-        });
-      }
+  const result: UploadResult = await uploadService.upload(
+    req.file,
+    context,
+    type as "image" | "video" | "raw",
+  );
 
-      const deleted = await uploadService.delete(publicId);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "File uploaded successfully",
+    data: result,
+  });
+});
 
-      if (!deleted) {
-        return res.status(404).json({
-          success: false,
-          error: "File not found or could not be deleted",
-        });
-      }
+const deleteFile = catchAsync(async (req, res) => {
+  const { publicId } = req.body;
 
-      return res.status(200).json({
-        success: true,
-        message: "File deleted successfully",
-      });
-    } catch (error) {
-      next(error);
-    }
+  if (!publicId) {
+    throw new Error("publicId is required");
   }
-}
 
-export const uploadController = new UploadController();
+  const deleted = await uploadService.delete(publicId);
+
+  if (!deleted) {
+    throw new Error("File not found or could not be deleted");
+  }
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "File deleted successfully",
+  });
+});
+
+export const uploadController = {
+  upload,
+  delete: deleteFile,
+};

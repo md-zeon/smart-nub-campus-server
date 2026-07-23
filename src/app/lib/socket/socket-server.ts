@@ -177,7 +177,8 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
     console.error("[Socket.IO Engine] Connection error:", err.message);
   });
 
-  console.log("[Socket.IO] Server initialized");
+  // Start heartbeat check to mark stale users offline
+  presenceManager.startHeartbeatCheck(io);
 
   return io;
 }
