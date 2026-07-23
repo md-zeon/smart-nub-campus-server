@@ -10,6 +10,7 @@ import {
   passwordResetRateLimiter,
   globalRateLimiter,
 } from "./app/middleware/rateLimit";
+import { requestLogger } from "./app/middleware/requestLogger";
 import cors from "cors";
 import ENVVARS from "./config/env";
 
@@ -29,6 +30,9 @@ app.use(express.json());
 
 // Middleware to parse cookies
 app.use(cookieParser());
+
+// Request logging
+app.use(requestLogger);
 
 // Enable CORS
 app.use(
