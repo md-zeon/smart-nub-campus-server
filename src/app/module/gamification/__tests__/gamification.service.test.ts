@@ -260,7 +260,7 @@ describe("handleUpvote", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           userId: USER_ID,
-          event: "RESOURCE_UPVOTED_received",
+          event: "RESOURCE_UPVOTED_RECEIVED",
           reason: "Upvote received on resource",
           source: `RESOURCE:${CONTENT_ID}`,
         }),
@@ -280,7 +280,7 @@ describe("handleUpvote", () => {
     expect(mockPrisma.reputationPoint.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          event: "DISCUSSION_UPVOTED_received",
+          event: "DISCUSSION_UPVOTED_RECEIVED",
         }),
       }),
     );
@@ -297,7 +297,7 @@ describe("handleUpvote", () => {
     expect(mockPrisma.reputationPoint.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          event: "QUESTION_UPVOTED_received",
+          event: "QUESTION_UPVOTED_RECEIVED",
         }),
       }),
     );
@@ -314,7 +314,7 @@ describe("handleUpvote", () => {
     expect(mockPrisma.reputationPoint.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          event: "ANSWER_UPVOTED_received",
+          event: "ANSWER_UPVOTED_RECEIVED",
         }),
       }),
     );
@@ -370,7 +370,7 @@ describe("handleDownvote", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           userId: USER_ID,
-          event: "RESOURCE_DOWNVOTED_received",
+          event: "RESOURCE_DOWNVOTED_RECEIVED",
           reason: "Downvote received on resource",
         }),
       }),
@@ -415,7 +415,7 @@ describe("handleDownvote", () => {
 
     const recipientCall = vi.mocked(mockPrisma.reputationPoint.create).mock
       .calls[0][0];
-    expect(recipientCall.data.event).toBe("DISCUSSION_DOWNVOTED_received");
+    expect(recipientCall.data.event).toBe("DISCUSSION_DOWNVOTED_RECEIVED");
   });
 
   it("checks for vote farming before awarding points", async () => {
@@ -447,7 +447,7 @@ describe("handleVoteReversal", () => {
       id: "orig-1",
       userId: USER_ID,
       points: 2,
-      event: "RESOURCE_UPVOTED_received",
+      event: "RESOURCE_UPVOTED_RECEIVED",
       source: `RESOURCE:${CONTENT_ID}`,
       createdAt: new Date("2025-01-01"),
     };
@@ -473,7 +473,7 @@ describe("handleVoteReversal", () => {
       where: {
         userId: USER_ID,
         source: `RESOURCE:${CONTENT_ID}`,
-        event: "RESOURCE_UPVOTED_received",
+        event: "RESOURCE_UPVOTED_RECEIVED",
       },
       orderBy: { createdAt: "desc" },
     });
@@ -510,7 +510,7 @@ describe("handleVoteReversal", () => {
       id: "orig-1",
       userId: USER_ID,
       points: -1,
-      event: "RESOURCE_DOWNVOTED_received",
+      event: "RESOURCE_DOWNVOTED_RECEIVED",
     } as any);
     vi.mocked(mockPrisma.reputationPoint.create).mockResolvedValue({
       id: "rev-1",
@@ -530,7 +530,7 @@ describe("handleVoteReversal", () => {
     expect(mockPrisma.reputationPoint.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          event: "RESOURCE_DOWNVOTED_received",
+          event: "RESOURCE_DOWNVOTED_RECEIVED",
         }),
       }),
     );
@@ -545,7 +545,7 @@ describe("handleContentDeleted", () => {
   it("reverses all positive point records for the content", async () => {
     const records = [
       { id: "r1", points: 10, event: "RESOURCE_UPLOADED" },
-      { id: "r2", points: 2, event: "RESOURCE_UPVOTED_received" },
+      { id: "r2", points: 2, event: "RESOURCE_UPVOTED_RECEIVED" },
     ];
     vi.mocked(mockPrisma.reputationPoint.findMany).mockResolvedValue(
       records as any,
@@ -571,7 +571,7 @@ describe("handleContentDeleted", () => {
 
   it("does not reverse negative point records", async () => {
     const records = [
-      { id: "r1", points: -1, event: "RESOURCE_DOWNVOTED_received" },
+      { id: "r1", points: -1, event: "RESOURCE_DOWNVOTED_RECEIVED" },
     ];
     vi.mocked(mockPrisma.reputationPoint.findMany).mockResolvedValue(
       records as any,

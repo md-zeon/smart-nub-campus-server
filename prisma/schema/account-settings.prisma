@@ -69,7 +69,7 @@ model LoginHistory {
 }
 
 model DataExport {
-  id        String    @id
+  id        String    @id @default(uuid())
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      String

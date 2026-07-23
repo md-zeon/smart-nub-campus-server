@@ -364,10 +364,10 @@ const requestDeletion = async (
   if (reason) {
     await prisma.auditLog.create({
       data: {
-        adminUserId: userId,
+        userId: userId,
         action: "ACCOUNT_DELETION_REQUESTED",
-        targetType: "User",
-        targetId: userId,
+        entityType: "User",
+        entityId: userId,
         details: { reason },
       },
     });
@@ -399,10 +399,10 @@ const cancelDeletion = async (userId: string) => {
   // Log the cancellation
   await prisma.auditLog.create({
     data: {
-      adminUserId: userId,
+      userId: userId,
       action: "ACCOUNT_DELETION_CANCELLED",
-      targetType: "User",
-      targetId: userId,
+      entityType: "User",
+      entityId: userId,
     },
   });
 };

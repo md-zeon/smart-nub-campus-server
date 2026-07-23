@@ -16,10 +16,10 @@ import {
 const createAuditLog = async (data: CreateAuditLogInput) => {
   return prisma.auditLog.create({
     data: {
-      adminUserId: data.adminUserId,
+      userId: data.adminUserId,
       action: data.action,
-      targetType: data.targetType,
-      targetId: data.targetId ?? null,
+      entityType: data.targetType,
+      entityId: data.targetId ?? "",
       details: (data.details as Record<string, string>) ?? undefined,
       ipAddress: data.ipAddress ?? null,
     },
@@ -819,9 +819,9 @@ const listAuditLogs = async (query: ListAuditLogsQuery) => {
 
   const where: Record<string, unknown> = {};
 
-  if (adminUserId) where.adminUserId = adminUserId;
+  if (adminUserId) where.userId = adminUserId;
   if (action) where.action = action;
-  if (targetType) where.targetType = targetType;
+  if (targetType) where.entityType = targetType;
 
   if (startDate || endDate) {
     const dateFilter: Record<string, Date> = {};
@@ -837,7 +837,7 @@ const listAuditLogs = async (query: ListAuditLogsQuery) => {
       take: limit,
       orderBy: { createdAt: "desc" },
       include: {
-        adminUser: {
+        user: {
           select: { id: true, name: true, email: true },
         },
       },
@@ -855,7 +855,7 @@ const getAuditLogById = async (id: string) => {
   const log = await prisma.auditLog.findUnique({
     where: { id },
     include: {
-      adminUser: {
+      user: {
         select: { id: true, name: true, email: true },
       },
     },

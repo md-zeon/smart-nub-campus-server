@@ -143,10 +143,10 @@ const handleUpvote = async (
   await checkVoteFarming(voterId, recipientId);
 
   const eventMap: Record<string, string> = {
-    RESOURCE: "RESOURCE_UPVOTED_received",
-    DISCUSSION: "DISCUSSION_UPVOTED_received",
-    QUESTION: "QUESTION_UPVOTED_received",
-    ANSWER: "ANSWER_UPVOTED_received",
+    RESOURCE: "RESOURCE_UPVOTED_RECEIVED",
+    DISCUSSION: "DISCUSSION_UPVOTED_RECEIVED",
+    QUESTION: "QUESTION_UPVOTED_RECEIVED",
+    ANSWER: "ANSWER_UPVOTED_RECEIVED",
   };
 
   return awardPoints({
@@ -176,10 +176,10 @@ const handleDownvote = async (
   await checkVoteFarming(voterId, recipientId);
 
   const eventMap: Record<string, string> = {
-    RESOURCE: "RESOURCE_DOWNVOTED_received",
-    DISCUSSION: "DISCUSSION_DOWNVOTED_received",
-    QUESTION: "QUESTION_DOWNVOTED_received",
-    ANSWER: "ANSWER_DOWNVOTED_received",
+    RESOURCE: "RESOURCE_DOWNVOTED_RECEIVED",
+    DISCUSSION: "DISCUSSION_DOWNVOTED_RECEIVED",
+    QUESTION: "QUESTION_DOWNVOTED_RECEIVED",
+    ANSWER: "ANSWER_DOWNVOTED_RECEIVED",
   };
 
   // Deduct from recipient (author)
@@ -192,10 +192,10 @@ const handleDownvote = async (
 
   // Also deduct from voter
   const givenEventMap: Record<string, string> = {
-    RESOURCE: "RESOURCE_DOWNVOTED_given",
-    DISCUSSION: "RESOURCE_DOWNVOTED_given",
-    QUESTION: "RESOURCE_DOWNVOTED_given",
-    ANSWER: "RESOURCE_DOWNVOTED_given",
+    RESOURCE: "RESOURCE_DOWNVOTED_GIVEN",
+    DISCUSSION: "RESOURCE_DOWNVOTED_GIVEN",
+    QUESTION: "RESOURCE_DOWNVOTED_GIVEN",
+    ANSWER: "RESOURCE_DOWNVOTED_GIVEN",
   };
 
   await awardPoints({
@@ -220,16 +220,16 @@ const handleVoteReversal = async (
 ) => {
   const eventMap: Record<string, Record<string, string>> = {
     UP: {
-      RESOURCE: "RESOURCE_UPVOTED_received",
-      DISCUSSION: "DISCUSSION_UPVOTED_received",
-      QUESTION: "QUESTION_UPVOTED_received",
-      ANSWER: "ANSWER_UPVOTED_received",
+      RESOURCE: "RESOURCE_UPVOTED_RECEIVED",
+      DISCUSSION: "DISCUSSION_UPVOTED_RECEIVED",
+      QUESTION: "QUESTION_UPVOTED_RECEIVED",
+      ANSWER: "ANSWER_UPVOTED_RECEIVED",
     },
     DOWN: {
-      RESOURCE: "RESOURCE_DOWNVOTED_received",
-      DISCUSSION: "DISCUSSION_DOWNVOTED_received",
-      QUESTION: "QUESTION_DOWNVOTED_received",
-      ANSWER: "ANSWER_DOWNVOTED_received",
+      RESOURCE: "RESOURCE_DOWNVOTED_RECEIVED",
+      DISCUSSION: "DISCUSSION_DOWNVOTED_RECEIVED",
+      QUESTION: "QUESTION_DOWNVOTED_RECEIVED",
+      ANSWER: "ANSWER_DOWNVOTED_RECEIVED",
     },
   };
 
