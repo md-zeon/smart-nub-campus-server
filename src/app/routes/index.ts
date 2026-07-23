@@ -16,6 +16,7 @@ import { eventRoutes } from "../module/event/event.routes";
 import { gamificationRoutes } from "../module/gamification/gamification.routes";
 import { notificationRoutes } from "../module/notification/notification.routes";
 import { adminRoutes } from "../module/admin/admin.routes";
+import { settingsRoutes } from "../module/settings/settings.routes";
 import { authRoutes } from "../module/auth/auth.routes";
 import { auth } from "../lib/auth";
 
@@ -45,5 +46,6 @@ router.use("/events", eventRoutes);
 router.use("/gamification", gamificationRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/admin", adminRoutes);
+router.use("/settings", settingsRoutes);
 
 export const IndexRoutes = router;

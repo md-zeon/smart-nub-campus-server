@@ -73,6 +73,12 @@ model User {
     // Audit log relations (Phase 10)
     auditLogs                     AuditLog[]
 
+    // Settings relations
+    settings                      UserSettings?
+    notificationSettings          UserNotificationSettings?
+    loginHistory                  LoginHistory[]
+    dataExports                   DataExport[]
+
     @@unique([email])
   @@map("user")
 }

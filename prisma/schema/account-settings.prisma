@@ -1,0 +1,83 @@
+model UserSettings {
+  id             String                 @id @default(uuid())
+  userId         String                 @unique
+  user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  showProfile            ProfileVisibilityLevel @default(EVERYONE)
+  showAcademicInfo       ProfileVisibilityLevel @default(EVERYONE)
+  showSkills             ProfileVisibilityLevel @default(EVERYONE)
+  showProjects           ProfileVisibilityLevel @default(EVERYONE)
+  showReputation         ProfileVisibilityLevel @default(EVERYONE)
+  showBadges             ProfileVisibilityLevel @default(EVERYONE)
+  showSocialLinks        ProfileVisibilityLevel @default(EVERYONE)
+
+  connectionRequestPolicy ConnectionRequestPolicy @default(EVERYONE)
+  messagingPolicy         MessagingPolicy         @default(EVERYONE)
+  allowMessageRequests    Boolean                 @default(true)
+  showOnlineStatus        Boolean                 @default(true)
+  showLastActive          Boolean                 @default(true)
+  readReceipts            Boolean                 @default(true)
+  searchableProfile       Boolean                 @default(true)
+  appearInRecommendations Boolean                 @default(true)
+  twoFactorEnabled        Boolean                 @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_settings")
+}
+
+model UserNotificationSettings {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  resourcesInApp  Boolean @default(true)
+  resourcesEmail  Boolean @default(false)
+  discussionsInApp Boolean @default(true)
+  discussionsEmail Boolean @default(false)
+  qaInApp         Boolean @default(true)
+  qaEmail         Boolean @default(false)
+  messagingInApp  Boolean @default(true)
+  messagingEmail  Boolean @default(false)
+  networkInApp    Boolean @default(true)
+  networkEmail    Boolean @default(false)
+  teamsInApp      Boolean @default(true)
+  teamsEmail      Boolean @default(false)
+  adminInApp      Boolean @default(true)
+  adminEmail      Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_notification_settings")
+}
+
+model LoginHistory {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress    String?
+  userAgent    String?
+  success      Boolean  @default(true)
+  failureReason String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+  @@map("login_history")
+}
+
+model DataExport {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  status    String   @default("PENDING")
+  fileUrl   String?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("data_exports")
+}
