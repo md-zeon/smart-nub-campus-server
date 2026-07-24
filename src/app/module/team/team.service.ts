@@ -203,11 +203,9 @@ const updateTeamRequest = async (
     // Update skills if provided
     if (data.skillTagIds) {
       await tx.teamRequestSkill.deleteMany({ where: { teamRequestId: id } });
-      for (const tagId of data.skillTagIds) {
-        await tx.teamRequestSkill.create({
-          data: { teamRequestId: id, tagId },
-        });
-      }
+      await tx.teamRequestSkill.createMany({
+        data: data.skillTagIds.map((tagId) => ({ teamRequestId: id, tagId })),
+      });
     }
 
     // If lookingForCount decreased below currentMemberCount, update status

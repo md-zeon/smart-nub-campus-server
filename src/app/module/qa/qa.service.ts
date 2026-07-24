@@ -307,11 +307,9 @@ const updateQuestion = async (
 
     if (data.tagIds) {
       await tx.questionTag.deleteMany({ where: { questionId: id } });
-      for (const tagId of data.tagIds) {
-        await tx.questionTag.create({
-          data: { questionId: id, tagId },
-        });
-      }
+      await tx.questionTag.createMany({
+        data: data.tagIds.map((tagId) => ({ questionId: id, tagId })),
+      });
     }
   });
 

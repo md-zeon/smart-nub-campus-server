@@ -375,11 +375,9 @@ const updateDiscussion = async (
     // Replace tags if provided
     if (data.tagIds) {
       await tx.discussionTag.deleteMany({ where: { discussionId: id } });
-      for (const tagId of data.tagIds) {
-        await tx.discussionTag.create({
-          data: { discussionId: id, tagId },
-        });
-      }
+      await tx.discussionTag.createMany({
+        data: data.tagIds.map((tagId) => ({ discussionId: id, tagId })),
+      });
     }
 
     return tx.discussion.findUnique({

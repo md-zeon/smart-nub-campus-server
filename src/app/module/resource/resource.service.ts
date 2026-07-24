@@ -269,17 +269,20 @@ const updateResource = async (
     if (data.tags) {
       await tx.resourceTag.deleteMany({ where: { resourceId: id } });
 
-      for (const tagName of data.tags) {
-        const slug = tagName.toLowerCase().replace(/\s+/g, "-");
-        const tag = await tx.tag.upsert({
-          where: { slug },
-          update: {},
-          create: { name: tagName, slug },
-        });
-        await tx.resourceTag.create({
-          data: { resourceId: id, tagId: tag.id },
-        });
-      }
+      const tagResults = await Promise.all(
+        data.tags.map((tagName) => {
+          const slug = tagName.toLowerCase().replace(/\s+/g, "-");
+          return tx.tag.upsert({
+            where: { slug },
+            update: {},
+            create: { name: tagName, slug },
+          });
+        }),
+      );
+
+      await tx.resourceTag.createMany({
+        data: tagResults.map((tag) => ({ resourceId: id, tagId: tag.id })),
+      });
     }
 
     return tx.resource.findUnique({
