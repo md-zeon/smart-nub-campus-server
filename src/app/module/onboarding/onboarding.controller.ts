@@ -2,6 +2,7 @@ import status from "http-status";
 import { OnboardingStepValue } from "../../../generated/prisma/enums";
 import catchAsync from "../../shared/catchAsync";
 import sendResponse from "../../shared/sendResponse";
+import AppError from "../../errorHelpers/AppError";
 import { onboardingService } from "./onboarding.service";
 import { Request, Response } from "express";
 
@@ -88,11 +89,11 @@ const completeOnboarding = catchAsync(async (req: Request, res: Response) => {
   const { email } = req.body;
 
   if (!onboardingStepId) {
-    return sendResponse(res, {
-      httpStatusCode: status.UNAUTHORIZED,
-      success: false,
-      message: "No onboarding session found.",
-    });
+    throw new AppError(status.UNAUTHORIZED, "No onboarding session found.");
+  }
+
+  if (!email) {
+    throw new AppError(status.BAD_REQUEST, "Email is required.");
   }
 
   await onboardingService.completeOnboarding(onboardingStepId, email);

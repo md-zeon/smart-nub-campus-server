@@ -5,7 +5,7 @@ import {
 import cloudinaryProvider from "../../lib/upload/cloudinary";
 import AppError from "../../errorHelpers/AppError";
 import status from "http-status";
-import { UPLOAD_CONFIG } from "../../lib/upload/config";
+import { UPLOAD_CONFIG, type UploadContext } from "../../lib/upload/config";
 
 export class UploadService {
   private provider: UploadProvider;
@@ -29,6 +29,14 @@ export class UploadService {
       throw new AppError(
         status.BAD_REQUEST,
         `File size exceeds ${UPLOAD_CONFIG.maxFileSize / (1024 * 1024)}MB limit`,
+      );
+    }
+
+    // Validate context against allowed contexts
+    if (!UPLOAD_CONFIG.allowedContexts.includes(context as UploadContext)) {
+      throw new AppError(
+        status.BAD_REQUEST,
+        `Invalid upload context: ${context}. Allowed: ${UPLOAD_CONFIG.allowedContexts.join(", ")}`,
       );
     }
 

@@ -11,6 +11,9 @@ router.post(
   accountController.createAccount,
 );
 
-router.get("/email-by-student-id/:id", accountController.getEmailByStudentId);
+router.get(
+  "/email-by-student-id/:id",
+  accountController.getEmailByStudentId,
+);
 
 export const accountRoutes = router;

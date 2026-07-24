@@ -1,45 +1,45 @@
 model VerificationRequest {
-    id String @id @default(uuid())
+  id String @id @default(uuid())
 
-    // Personal Information
-    name        String
-    email       String   @unique
-    dateOfBirth DateTime
-    studentId   String   @unique
-    idCardImage        String  // Cloudinary URL
-    idCardImagePublicId String? // Cloudinary public ID for cleanup
+  // Personal Information
+  name                String
+  email               String   @unique
+  dateOfBirth         DateTime
+  studentId           String   @unique
+  idCardImage         String // Cloudinary URL
+  idCardImagePublicId String? // Cloudinary public ID for cleanup
 
-    // Verification
-    status VerificationStatus @default(PENDING)
-    note   String?
+  // Verification
+  status VerificationStatus @default(PENDING)
+  note   String?
 
-    // Review audit
-    reviewedById String?
-    reviewedBy   User?     @relation("VerificationReviewedBy", fields: [reviewedById], references: [id])
-    reviewedAt   DateTime?
+  // Review audit
+  reviewedById String?
+  reviewedBy   User?     @relation("VerificationReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
 
-    // Relation
-    onboardingStep OnboardingStep?
+  // Relation
+  onboardingStep OnboardingStep?
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-    @@index([reviewedById])
-    @@map("verification_requests")
+  @@index([reviewedById])
+  @@map("verification_requests")
 }
 
 model OnboardingStep {
-    id String @id @default(uuid())
+  id String @id @default(uuid())
 
-    verificationRequestId String @unique
+  verificationRequestId String @unique
 
-    verificationRequest VerificationRequest @relation(fields: [verificationRequestId], references: [id], onDelete: Cascade)
-    step                OnboardingStepValue @default(VERIFICATION_FORM)
+  verificationRequest VerificationRequest @relation(fields: [verificationRequestId], references: [id], onDelete: Cascade)
+  step                OnboardingStepValue @default(VERIFICATION_FORM)
 
-    completedAt DateTime?
+  completedAt DateTime?
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-    @@map("onboarding_steps")
+  @@map("onboarding_steps")
 }

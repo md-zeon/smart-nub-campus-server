@@ -1,0 +1,121 @@
+model QuestionCategory {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  slug      String     @unique
+  icon      String?
+  questions Question[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("question_categories")
+}
+
+model Question {
+  id                String             @id @default(uuid())
+  title             String             @db.VarChar(200)
+  content           String             @db.Text
+  categoryId        String
+  category          QuestionCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  authorId          String
+  author            User               @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  courseId          String?
+  course            Course?            @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  upvoteCount       Int                @default(0)
+  answerCount       Int                @default(0)
+  viewCount         Int                @default(0)
+  isAnswered        Boolean            @default(false)
+  isClosed          Boolean            @default(false)
+  questionTags      QuestionTag[]
+  answers           Answer[]
+  questionVotes     QuestionVote[]
+  questionBookmarks QuestionBookmark[]
+  isDeleted         Boolean            @default(false)
+  deletedAt         DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([isAnswered])
+  @@index([createdAt(sort: Desc)])
+  @@index([upvoteCount(sort: Desc)])
+  @@map("question")
+}
+
+model Answer {
+  id          String       @id @default(uuid())
+  content     String       @db.Text
+  questionId  String
+  question    Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User         @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  upvoteCount Int          @default(0)
+  isAccepted  Boolean      @default(false)
+  answerVotes AnswerVote[]
+  isDeleted   Boolean      @default(false)
+  deletedAt   DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([questionId])
+  @@index([authorId])
+  @@index([isAccepted])
+  @@map("answers")
+}
+
+model QuestionVote {
+  id         String   @id @default(uuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       VoteType
+  createdAt  DateTime @default(now())
+
+  @@unique([questionId, userId])
+  @@index([questionId])
+  @@index([userId])
+  @@map("question_votes")
+}
+
+model AnswerVote {
+  id        String   @id @default(uuid())
+  answerId  String
+  answer    Answer   @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      VoteType
+  createdAt DateTime @default(now())
+
+  @@unique([answerId, userId])
+  @@index([answerId])
+  @@index([userId])
+  @@map("answer_votes")
+}
+
+model QuestionTag {
+  id         String   @id @default(uuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  tagId      String
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([questionId, tagId])
+  @@index([questionId])
+  @@index([tagId])
+  @@map("question_tags")
+}
+
+model QuestionBookmark {
+  id         String   @id @default(uuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([questionId, userId])
+  @@index([userId])
+  @@map("question_bookmarks")
+}
