@@ -1,6 +1,9 @@
 import { Router } from "express";
 import validateRequest from "../../middleware/validateRequest";
-import { passwordResetRateLimiter } from "../../middleware/rateLimit";
+import {
+  otpRateLimiter,
+  passwordResetRateLimiter,
+} from "../../middleware/rateLimit";
 import { authController } from "./auth.controller";
 import { authValidation } from "./auth.validation";
 
@@ -8,7 +11,7 @@ const router: Router = Router();
 
 router.post(
   "/forgot-password",
-  passwordResetRateLimiter,
+  otpRateLimiter,
   validateRequest(authValidation.forgotPasswordSchema),
   authController.forgotPassword,
 );
