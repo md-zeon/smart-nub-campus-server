@@ -16,6 +16,7 @@ const validateRequest = (
     }
 
     // sanitizing the request by removing any extra fields that are not defined in the schema
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (req as any)[target] = parsedResult.data;
     next();
   };
