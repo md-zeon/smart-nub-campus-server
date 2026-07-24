@@ -19,12 +19,16 @@ import { adminRoutes } from "../module/admin/admin.routes";
 import { settingsRoutes } from "../module/settings/settings.routes";
 import { authRoutes } from "../module/auth/auth.routes";
 import { auth } from "../lib/auth";
+import { signUpRateLimiter } from "../middleware/rateLimit";
 
 const router: Router = Router();
 
 // Custom auth endpoints mounted BEFORE Better Auth handler
 // so they don't get intercepted by the catch-all /auth handler
 router.use("/auth", authRoutes);
+
+// Rate-limit Better Auth sign-up endpoint (catch-all handles /sign-up/email, /sign-in/email, etc.)
+router.use("/auth/sign-up", signUpRateLimiter);
 
 // Mount Better Auth handler after custom routes to expose OTP endpoints
 // This enables: /email-otp/send-verification-otp, /email-otp/verify-email, etc.

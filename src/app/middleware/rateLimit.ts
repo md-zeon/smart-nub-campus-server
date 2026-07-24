@@ -158,3 +158,17 @@ export const globalRateLimiter = rateLimit({
     );
   },
 });
+
+export const signUpRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // 5 sign-up attempts per hour
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json(
+      rateLimitResponse(
+        "Too many sign-up attempts. Please try again later.",
+      ),
+    );
+  },
+});

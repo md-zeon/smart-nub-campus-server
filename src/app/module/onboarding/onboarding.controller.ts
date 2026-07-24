@@ -86,14 +86,14 @@ const getCurrentStep = catchAsync(async (req: Request, res: Response) => {
 
 const completeOnboarding = catchAsync(async (req: Request, res: Response) => {
   const onboardingStepId = req.cookies?.onboarding_step;
-  const email = req.user?.email;
+  const { email } = req.body;
 
   if (!onboardingStepId) {
     throw new AppError(status.UNAUTHORIZED, "No onboarding session found.");
   }
 
   if (!email) {
-    throw new AppError(status.UNAUTHORIZED, "Session user not found.");
+    throw new AppError(status.BAD_REQUEST, "Email is required.");
   }
 
   await onboardingService.completeOnboarding(onboardingStepId, email);

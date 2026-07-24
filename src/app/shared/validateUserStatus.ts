@@ -4,7 +4,6 @@ type UserStatusInput = {
   isDeleted: boolean;
   isDeactivated: boolean;
   status: UserStatus;
-  hasCompletedOnboarding?: boolean;
 };
 
 /**
@@ -26,10 +25,6 @@ const validateUserStatus = (user: UserStatusInput): string | null => {
 
   if (user.status === UserStatus.SUSPENDED) {
     return "Your account is suspended. Please contact support.";
-  }
-
-  if (user.hasCompletedOnboarding === false) {
-    return "Please complete onboarding before accessing the platform.";
   }
 
   return null;
