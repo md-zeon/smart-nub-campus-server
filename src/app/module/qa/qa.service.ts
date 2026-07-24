@@ -659,7 +659,7 @@ const voteQuestion = async (
   if (existingVote) {
     if (existingVote.type === input.type) {
       // Remove vote
-      await prisma.$transaction(async (tx) => {
+      const counts = await prisma.$transaction(async (tx) => {
         await tx.questionVote.delete({ where: { id: existingVote.id } });
         if (input.type === VoteType.UP) {
           await tx.question.update({
@@ -667,20 +667,19 @@ const voteQuestion = async (
             data: { upvoteCount: { decrement: 1 } },
           });
         }
+        return tx.question.findUnique({
+          where: { id: questionId },
+          select: { upvoteCount: true },
+        });
       });
 
-      const updated = await prisma.question.findUnique({
-        where: { id: questionId },
-        select: { upvoteCount: true },
-      });
+      try { getSocketServer().emit("qa:voteUpdate", { entityType: "question", entityId: questionId, upvoteCount: counts!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
 
-      try { getSocketServer().emit("qa:voteUpdate", { entityType: "question", entityId: questionId, upvoteCount: updated!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
-
-      return { action: "removed", upvoteCount: updated!.upvoteCount };
+      return { action: "removed", upvoteCount: counts!.upvoteCount };
     }
 
     // Update vote
-    await prisma.$transaction(async (tx) => {
+    const counts = await prisma.$transaction(async (tx) => {
       await tx.questionVote.update({
         where: { id: existingVote.id },
         data: { type: input.type },
@@ -696,20 +695,19 @@ const voteQuestion = async (
           data: { upvoteCount: { decrement: 1 } },
         });
       }
+      return tx.question.findUnique({
+        where: { id: questionId },
+        select: { upvoteCount: true },
+      });
     });
 
-    const updated = await prisma.question.findUnique({
-      where: { id: questionId },
-      select: { upvoteCount: true },
-    });
+    try { getSocketServer().emit("qa:voteUpdate", { entityType: "question", entityId: questionId, upvoteCount: counts!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
 
-    try { getSocketServer().emit("qa:voteUpdate", { entityType: "question", entityId: questionId, upvoteCount: updated!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
-
-    return { action: "updated", upvoteCount: updated!.upvoteCount };
+    return { action: "updated", upvoteCount: counts!.upvoteCount };
   }
 
   // Add new vote
-  await prisma.$transaction(async (tx) => {
+  const counts = await prisma.$transaction(async (tx) => {
     await tx.questionVote.create({
       data: { questionId, userId, type: input.type },
     });
@@ -719,16 +717,15 @@ const voteQuestion = async (
         data: { upvoteCount: { increment: 1 } },
       });
     }
+    return tx.question.findUnique({
+      where: { id: questionId },
+      select: { upvoteCount: true },
+    });
   });
 
-  const updated = await prisma.question.findUnique({
-    where: { id: questionId },
-    select: { upvoteCount: true },
-  });
+  try { getSocketServer().emit("qa:voteUpdate", { entityType: "question", entityId: questionId, upvoteCount: counts!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
 
-  try { getSocketServer().emit("qa:voteUpdate", { entityType: "question", entityId: questionId, upvoteCount: updated!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
-
-  return { action: "added", upvoteCount: updated!.upvoteCount };
+  return { action: "added", upvoteCount: counts!.upvoteCount };
 };
 
 /**
@@ -760,7 +757,7 @@ const voteAnswer = async (
   if (existingVote) {
     if (existingVote.type === input.type) {
       // Remove vote
-      await prisma.$transaction(async (tx) => {
+      const counts = await prisma.$transaction(async (tx) => {
         await tx.answerVote.delete({ where: { id: existingVote.id } });
         if (input.type === VoteType.UP) {
           await tx.answer.update({
@@ -768,20 +765,19 @@ const voteAnswer = async (
             data: { upvoteCount: { decrement: 1 } },
           });
         }
+        return tx.answer.findUnique({
+          where: { id: answerId },
+          select: { upvoteCount: true },
+        });
       });
 
-      const updated = await prisma.answer.findUnique({
-        where: { id: answerId },
-        select: { upvoteCount: true },
-      });
+      try { getSocketServer().emit("qa:voteUpdate", { entityType: "answer", entityId: answerId, upvoteCount: counts!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
 
-      try { getSocketServer().emit("qa:voteUpdate", { entityType: "answer", entityId: answerId, upvoteCount: updated!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
-
-      return { action: "removed", upvoteCount: updated!.upvoteCount };
+      return { action: "removed", upvoteCount: counts!.upvoteCount };
     }
 
     // Update vote
-    await prisma.$transaction(async (tx) => {
+    const counts = await prisma.$transaction(async (tx) => {
       await tx.answerVote.update({
         where: { id: existingVote.id },
         data: { type: input.type },
@@ -797,20 +793,19 @@ const voteAnswer = async (
           data: { upvoteCount: { decrement: 1 } },
         });
       }
+      return tx.answer.findUnique({
+        where: { id: answerId },
+        select: { upvoteCount: true },
+      });
     });
 
-    const updated = await prisma.answer.findUnique({
-      where: { id: answerId },
-      select: { upvoteCount: true },
-    });
+    try { getSocketServer().emit("qa:voteUpdate", { entityType: "answer", entityId: answerId, upvoteCount: counts!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
 
-    try { getSocketServer().emit("qa:voteUpdate", { entityType: "answer", entityId: answerId, upvoteCount: updated!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
-
-    return { action: "updated", upvoteCount: updated!.upvoteCount };
+    return { action: "updated", upvoteCount: counts!.upvoteCount };
   }
 
   // Add new vote
-  await prisma.$transaction(async (tx) => {
+  const counts = await prisma.$transaction(async (tx) => {
     await tx.answerVote.create({
       data: { answerId, userId, type: input.type },
     });
@@ -820,16 +815,15 @@ const voteAnswer = async (
         data: { upvoteCount: { increment: 1 } },
       });
     }
+    return tx.answer.findUnique({
+      where: { id: answerId },
+      select: { upvoteCount: true },
+    });
   });
 
-  const updated = await prisma.answer.findUnique({
-    where: { id: answerId },
-    select: { upvoteCount: true },
-  });
+  try { getSocketServer().emit("qa:voteUpdate", { entityType: "answer", entityId: answerId, upvoteCount: counts!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
 
-  try { getSocketServer().emit("qa:voteUpdate", { entityType: "answer", entityId: answerId, upvoteCount: updated!.upvoteCount }); } catch { /* Socket.IO may not be initialized */ }
-
-  return { action: "added", upvoteCount: updated!.upvoteCount };
+  return { action: "added", upvoteCount: counts!.upvoteCount };
 };
 
 /**

@@ -599,7 +599,7 @@ const voteDiscussion = async (
   if (existingVote) {
     if (existingVote.type === input.type) {
       // Remove vote
-      await prisma.$transaction(async (tx) => {
+      const counts = await prisma.$transaction(async (tx) => {
         await tx.discussionVote.delete({ where: { id: existingVote.id } });
         if (input.type === VoteType.UP) {
           await tx.discussion.update({
@@ -607,20 +607,19 @@ const voteDiscussion = async (
             data: { upvoteCount: { decrement: 1 } },
           });
         }
+        return tx.discussion.findUnique({
+          where: { id: discussionId },
+          select: { upvoteCount: true },
+        });
       });
 
       await reverseVote(existingVote.type).catch(() => {});
 
-      const updated = await prisma.discussion.findUnique({
-        where: { id: discussionId },
-        select: { upvoteCount: true },
-      });
-
-      return { action: "removed", upvoteCount: updated!.upvoteCount };
+      return { action: "removed", upvoteCount: counts!.upvoteCount };
     }
 
     // Update vote
-    await prisma.$transaction(async (tx) => {
+    const counts = await prisma.$transaction(async (tx) => {
       await tx.discussionVote.update({
         where: { id: existingVote.id },
         data: { type: input.type },
@@ -636,21 +635,20 @@ const voteDiscussion = async (
           data: { upvoteCount: { decrement: 1 } },
         });
       }
+      return tx.discussion.findUnique({
+        where: { id: discussionId },
+        select: { upvoteCount: true },
+      });
     });
 
     await reverseVote(existingVote.type).catch(() => {});
     await awardVote(input.type).catch(() => {});
 
-    const updated = await prisma.discussion.findUnique({
-      where: { id: discussionId },
-      select: { upvoteCount: true },
-    });
-
-    return { action: "updated", upvoteCount: updated!.upvoteCount };
+    return { action: "updated", upvoteCount: counts!.upvoteCount };
   }
 
   // Add new vote
-  await prisma.$transaction(async (tx) => {
+  const counts = await prisma.$transaction(async (tx) => {
     await tx.discussionVote.create({
       data: { discussionId, userId, type: input.type },
     });
@@ -660,16 +658,15 @@ const voteDiscussion = async (
         data: { upvoteCount: { increment: 1 } },
       });
     }
+    return tx.discussion.findUnique({
+      where: { id: discussionId },
+      select: { upvoteCount: true },
+    });
   });
 
   await awardVote(input.type).catch(() => {});
 
-  const updated = await prisma.discussion.findUnique({
-    where: { id: discussionId },
-    select: { upvoteCount: true },
-  });
-
-  return { action: "added", upvoteCount: updated!.upvoteCount };
+  return { action: "added", upvoteCount: counts!.upvoteCount };
 };
 
 /**
@@ -697,7 +694,7 @@ const voteReply = async (replyId: string, userId: string, input: VoteInput) => {
   if (existingVote) {
     if (existingVote.type === input.type) {
       // Remove vote
-      await prisma.$transaction(async (tx) => {
+      const counts = await prisma.$transaction(async (tx) => {
         await tx.discussionReplyVote.delete({ where: { id: existingVote.id } });
         if (input.type === VoteType.UP) {
           await tx.discussionReply.update({
@@ -705,18 +702,17 @@ const voteReply = async (replyId: string, userId: string, input: VoteInput) => {
             data: { upvoteCount: { decrement: 1 } },
           });
         }
+        return tx.discussionReply.findUnique({
+          where: { id: replyId },
+          select: { upvoteCount: true },
+        });
       });
 
-      const updated = await prisma.discussionReply.findUnique({
-        where: { id: replyId },
-        select: { upvoteCount: true },
-      });
-
-      return { action: "removed", upvoteCount: updated!.upvoteCount };
+      return { action: "removed", upvoteCount: counts!.upvoteCount };
     }
 
     // Update vote
-    await prisma.$transaction(async (tx) => {
+    const counts = await prisma.$transaction(async (tx) => {
       await tx.discussionReplyVote.update({
         where: { id: existingVote.id },
         data: { type: input.type },
@@ -732,18 +728,17 @@ const voteReply = async (replyId: string, userId: string, input: VoteInput) => {
           data: { upvoteCount: { decrement: 1 } },
         });
       }
+      return tx.discussionReply.findUnique({
+        where: { id: replyId },
+        select: { upvoteCount: true },
+      });
     });
 
-    const updated = await prisma.discussionReply.findUnique({
-      where: { id: replyId },
-      select: { upvoteCount: true },
-    });
-
-    return { action: "updated", upvoteCount: updated!.upvoteCount };
+    return { action: "updated", upvoteCount: counts!.upvoteCount };
   }
 
   // Add new vote
-  await prisma.$transaction(async (tx) => {
+  const counts = await prisma.$transaction(async (tx) => {
     await tx.discussionReplyVote.create({
       data: { replyId, userId, type: input.type },
     });
@@ -753,14 +748,13 @@ const voteReply = async (replyId: string, userId: string, input: VoteInput) => {
         data: { upvoteCount: { increment: 1 } },
       });
     }
+    return tx.discussionReply.findUnique({
+      where: { id: replyId },
+      select: { upvoteCount: true },
+    });
   });
 
-  const updated = await prisma.discussionReply.findUnique({
-    where: { id: replyId },
-    select: { upvoteCount: true },
-  });
-
-  return { action: "added", upvoteCount: updated!.upvoteCount };
+  return { action: "added", upvoteCount: counts!.upvoteCount };
 };
 
 /**

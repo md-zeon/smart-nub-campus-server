@@ -366,7 +366,7 @@ const toggleVote = async (
 
   if (existingVote) {
     if (existingVote.type === type) {
-      await prisma.$transaction(async (tx) => {
+      const counts = await prisma.$transaction(async (tx) => {
         await tx.resourceVote.delete({
           where: { id: existingVote.id },
         });
@@ -376,23 +376,23 @@ const toggleVote = async (
           where: { id: resourceId },
           data: { [decrementField]: { decrement: 1 } },
         });
-      });
 
-      const updated = await prisma.resource.findUnique({
-        where: { id: resourceId },
-        select: { upvoteCount: true, downvoteCount: true },
+        return tx.resource.findUnique({
+          where: { id: resourceId },
+          select: { upvoteCount: true, downvoteCount: true },
+        });
       });
 
       await reverseVote(existingVote.type).catch(() => {});
 
       return {
         action: "removed",
-        upvoteCount: updated!.upvoteCount,
-        downvoteCount: updated!.downvoteCount,
+        upvoteCount: counts!.upvoteCount,
+        downvoteCount: counts!.downvoteCount,
       };
     }
 
-    await prisma.$transaction(async (tx) => {
+    const counts = await prisma.$transaction(async (tx) => {
       await tx.resourceVote.update({
         where: { id: existingVote.id },
         data: { type },
@@ -415,11 +415,11 @@ const toggleVote = async (
           },
         });
       }
-    });
 
-    const updated = await prisma.resource.findUnique({
-      where: { id: resourceId },
-      select: { upvoteCount: true, downvoteCount: true },
+      return tx.resource.findUnique({
+        where: { id: resourceId },
+        select: { upvoteCount: true, downvoteCount: true },
+      });
     });
 
     await reverseVote(existingVote.type).catch(() => {});
@@ -427,12 +427,12 @@ const toggleVote = async (
 
     return {
       action: "updated",
-      upvoteCount: updated!.upvoteCount,
-      downvoteCount: updated!.downvoteCount,
+      upvoteCount: counts!.upvoteCount,
+      downvoteCount: counts!.downvoteCount,
     };
   }
 
-  await prisma.$transaction(async (tx) => {
+  const counts = await prisma.$transaction(async (tx) => {
     await tx.resourceVote.create({
       data: { resourceId, userId, type },
     });
@@ -442,11 +442,11 @@ const toggleVote = async (
       where: { id: resourceId },
       data: { [incrementField]: { increment: 1 } },
     });
-  });
 
-  const updated = await prisma.resource.findUnique({
-    where: { id: resourceId },
-    select: { upvoteCount: true, downvoteCount: true },
+    return tx.resource.findUnique({
+      where: { id: resourceId },
+      select: { upvoteCount: true, downvoteCount: true },
+    });
   });
 
   await awardVote(type).catch(() => {});
@@ -464,8 +464,8 @@ const toggleVote = async (
 
   return {
     action: "added",
-    upvoteCount: updated!.upvoteCount,
-    downvoteCount: updated!.downvoteCount,
+    upvoteCount: counts!.upvoteCount,
+    downvoteCount: counts!.downvoteCount,
   };
 };
 
