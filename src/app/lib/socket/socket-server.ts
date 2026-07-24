@@ -63,7 +63,28 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
     );
 
     // ── Conversation room join/leave ────────────────────────────────────
-    socket.on("conversation:join", (data) => {
+    socket.on("conversation:join", async (data) => {
+      const { prisma } = await import("../prisma");
+      const participant = await prisma.conversationParticipant.findUnique({
+        where: {
+          conversationId_userId: {
+            conversationId: data.conversationId,
+            userId,
+          },
+        },
+        select: { id: true },
+      });
+
+      if (!participant) {
+        console.warn(
+          `[Socket] User ${userId} rejected from joining conversation ${data.conversationId} (not a participant)`,
+        );
+        socket.emit("error:message", {
+          message: "You are not a participant of this conversation.",
+        });
+        return;
+      }
+
       roomManager.joinRoom(socket, `conversation:${data.conversationId}`);
     });
 

@@ -97,7 +97,7 @@ const formatConnection = (connection: Record<string, unknown>, userId: string): 
     requester: Record<string, unknown>;
     receiver: Record<string, unknown>;
   };
-  const otherUser = conn.requesterId === userId ? conn.requester : conn.receiver;
+  const otherUser = conn.requesterId === userId ? conn.receiver : conn.requester;
   return {
     id: conn.id,
     requesterId: conn.requesterId,
