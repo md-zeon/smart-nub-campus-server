@@ -5,7 +5,7 @@ import status from "http-status";
 dotenv.config();
 
 interface EnvConfig {
-  NODE_ENV: "development" | "production";
+  NODE_ENV: "development" | "production" | "test";
   PORT: string;
   DATABASE_URL: string;
   BETTER_AUTH_SECRET: string;
@@ -13,6 +13,7 @@ interface EnvConfig {
   // CORS
   CORS_ORIGINS: string[];
   // Rate limiting
+  DISABLE_RATE_LIMIT: boolean;
   RATE_LIMIT_LOGIN_WINDOW_MS: number;
   RATE_LIMIT_LOGIN_MAX: number;
   RATE_LIMIT_OTP_WINDOW_MS: number;
@@ -59,7 +60,7 @@ const loadEnvVariables = (): EnvConfig => {
     }
   }
   return {
-    NODE_ENV: process.env.NODE_ENV as "development" | "production",
+    NODE_ENV: process.env.NODE_ENV as "development" | "production" | "test",
     PORT: process.env.PORT as string,
     DATABASE_URL: process.env.DATABASE_URL as string,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET as string,
@@ -69,7 +70,8 @@ const loadEnvVariables = (): EnvConfig => {
       : process.env.NODE_ENV === "production"
         ? [] // No CORS origins in production unless explicitly configured
         : ["http://localhost:3000"],
-    // Rate limiting defaults
+    // Rate limiting
+    DISABLE_RATE_LIMIT: process.env.DISABLE_RATE_LIMIT === "true",
     RATE_LIMIT_LOGIN_WINDOW_MS: Number(process.env.RATE_LIMIT_LOGIN_WINDOW_MS) || 900_000,
     RATE_LIMIT_LOGIN_MAX: Number(process.env.RATE_LIMIT_LOGIN_MAX) || 5,
     RATE_LIMIT_OTP_WINDOW_MS: Number(process.env.RATE_LIMIT_OTP_WINDOW_MS) || 600_000,

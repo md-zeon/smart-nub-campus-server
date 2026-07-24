@@ -1,5 +1,26 @@
-import { rateLimit } from "express-rate-limit";
+import { rateLimit, Options } from "express-rate-limit";
+import { Request, Response, NextFunction } from "express";
 import ENVVARS from "../../config/env";
+
+const rateLimitingDisabled =
+  ENVVARS.DISABLE_RATE_LIMIT ||
+  ENVVARS.NODE_ENV === "development" ||
+  ENVVARS.NODE_ENV === "test";
+
+const noopLimiter = (_req: Request, _res: Response, next: NextFunction) =>
+  next();
+
+const sharedDefaults: Pick<Options, "standardHeaders" | "legacyHeaders"> = {
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+};
+
+function createLimiter(options: Partial<Options>) {
+  if (rateLimitingDisabled) {
+    return noopLimiter;
+  }
+  return rateLimit({ ...sharedDefaults, ...options });
+}
 
 const rateLimitResponse = (message: string) => ({
   success: false,
@@ -7,11 +28,9 @@ const rateLimitResponse = (message: string) => ({
   errorSources: [],
 });
 
-export const loginRateLimiter = rateLimit({
+export const loginRateLimiter = createLimiter({
   windowMs: ENVVARS.RATE_LIMIT_LOGIN_WINDOW_MS,
   max: ENVVARS.RATE_LIMIT_LOGIN_MAX,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
   handler: (_req, res) => {
     res.status(429).json(
       rateLimitResponse("Too many login attempts. Please try again later."),
@@ -19,11 +38,9 @@ export const loginRateLimiter = rateLimit({
   },
 });
 
-export const otpRateLimiter = rateLimit({
+export const otpRateLimiter = createLimiter({
   windowMs: ENVVARS.RATE_LIMIT_OTP_WINDOW_MS,
   max: ENVVARS.RATE_LIMIT_OTP_MAX,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
   handler: (_req, res) => {
     res.status(429).json(
       rateLimitResponse(
@@ -33,11 +50,9 @@ export const otpRateLimiter = rateLimit({
   },
 });
 
-export const passwordResetRateLimiter = rateLimit({
+export const passwordResetRateLimiter = createLimiter({
   windowMs: ENVVARS.RATE_LIMIT_OTP_WINDOW_MS,
   max: ENVVARS.RATE_LIMIT_OTP_MAX,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
   handler: (_req, res) => {
     res.status(429).json(
       rateLimitResponse(
@@ -47,11 +62,9 @@ export const passwordResetRateLimiter = rateLimit({
   },
 });
 
-export const verificationRateLimiter = rateLimit({
+export const verificationRateLimiter = createLimiter({
   windowMs: ENVVARS.RATE_LIMIT_VERIFICATION_WINDOW_MS,
   max: ENVVARS.RATE_LIMIT_VERIFICATION_MAX,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
   handler: (_req, res) => {
     res.status(429).json(
       rateLimitResponse(
@@ -61,11 +74,9 @@ export const verificationRateLimiter = rateLimit({
   },
 });
 
-export const onboardingRateLimiter = rateLimit({
+export const onboardingRateLimiter = createLimiter({
   windowMs: ENVVARS.RATE_LIMIT_ONBOARDING_WINDOW_MS,
   max: ENVVARS.RATE_LIMIT_ONBOARDING_MAX,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
   handler: (_req, res) => {
     res.status(429).json(
       rateLimitResponse(
@@ -75,11 +86,9 @@ export const onboardingRateLimiter = rateLimit({
   },
 });
 
-export const teamCreateRateLimiter = rateLimit({
+export const teamCreateRateLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
   max: 10,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
   handler: (_req, res) => {
     res.status(429).json(
       rateLimitResponse(
@@ -89,11 +98,9 @@ export const teamCreateRateLimiter = rateLimit({
   },
 });
 
-export const teamApplyRateLimiter = rateLimit({
+export const teamApplyRateLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
   max: 20,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
   handler: (_req, res) => {
     res.status(429).json(
       rateLimitResponse(
@@ -103,11 +110,9 @@ export const teamApplyRateLimiter = rateLimit({
   },
 });
 
-export const aiChatRateLimiter = rateLimit({
+export const aiChatRateLimiter = createLimiter({
   windowMs: 60 * 60 * 1000,
   max: 30,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
   handler: (_req, res) => {
     res.status(429).json(
       rateLimitResponse(
@@ -117,11 +122,9 @@ export const aiChatRateLimiter = rateLimit({
   },
 });
 
-export const aiToolRateLimiter = rateLimit({
+export const aiToolRateLimiter = createLimiter({
   windowMs: 60 * 60 * 1000,
   max: 10,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
   handler: (_req, res) => {
     res.status(429).json(
       rateLimitResponse(
@@ -131,11 +134,9 @@ export const aiToolRateLimiter = rateLimit({
   },
 });
 
-export const uploadRateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 30, // 30 uploads per hour
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
+export const uploadRateLimiter = createLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
   handler: (_req, res) => {
     res.status(429).json(
       rateLimitResponse(
@@ -145,11 +146,9 @@ export const uploadRateLimiter = rateLimit({
   },
 });
 
-export const onboardingUploadRateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 30, // 30 uploads per hour
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
+export const onboardingUploadRateLimiter = createLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
   handler: (_req, res) => {
     res.status(429).json(
       rateLimitResponse(
@@ -159,25 +158,19 @@ export const onboardingUploadRateLimiter = rateLimit({
   },
 });
 
-export const globalRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per 15 minutes
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
+export const globalRateLimiter = createLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   handler: (_req, res) => {
     res.status(429).json(
-      rateLimitResponse(
-        "Too many requests. Please try again later.",
-      ),
+      rateLimitResponse("Too many requests. Please try again later."),
     );
   },
 });
 
-export const signUpRateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5, // 5 sign-up attempts per hour
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
+export const signUpRateLimiter = createLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
   handler: (_req, res) => {
     res.status(429).json(
       rateLimitResponse(
