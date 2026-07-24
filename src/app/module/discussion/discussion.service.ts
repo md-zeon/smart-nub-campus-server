@@ -369,7 +369,7 @@ const updateDiscussion = async (
   if (data.courseId !== undefined) updateData.courseId = data.courseId;
   if (data.visibility !== undefined) updateData.visibility = data.visibility;
 
-  await prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx) => {
     await tx.discussion.update({ where: { id }, data: updateData });
 
     // Replace tags if provided
@@ -381,16 +381,16 @@ const updateDiscussion = async (
         });
       }
     }
-  });
 
-  return prisma.discussion.findUnique({
-    where: { id },
-    include: {
-      category: true,
-      course: true,
-      author: { select: { id: true, name: true, email: true, image: true } },
-      discussionTags: { include: { tag: true } },
-    },
+    return tx.discussion.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        course: true,
+        author: { select: { id: true, name: true, email: true, image: true } },
+        discussionTags: { include: { tag: true } },
+      },
+    });
   });
 };
 

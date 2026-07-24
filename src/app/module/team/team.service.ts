@@ -196,7 +196,7 @@ const updateTeamRequest = async (
   if (data.deadline !== undefined) updateData.deadline = data.deadline ? new Date(data.deadline) : null;
   if (data.category !== undefined) updateData.category = data.category;
 
-  await prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx) => {
     // Update the team request
     await tx.teamRequest.update({ where: { id }, data: updateData });
 
@@ -217,18 +217,18 @@ const updateTeamRequest = async (
         data: { lookingForCount: data.lookingForCount },
       });
     }
-  });
 
-  return prisma.teamRequest.findUnique({
-    where: { id },
-    include: {
-      teamRequestSkills: { include: { tag: true } },
-      teamMembers: {
-        include: {
-          user: { select: { id: true, name: true, email: true, image: true } },
+    return tx.teamRequest.findUnique({
+      where: { id },
+      include: {
+        teamRequestSkills: { include: { tag: true } },
+        teamMembers: {
+          include: {
+            user: { select: { id: true, name: true, email: true, image: true } },
+          },
         },
       },
-    },
+    });
   });
 };
 

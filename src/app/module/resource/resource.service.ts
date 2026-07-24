@@ -260,8 +260,8 @@ const updateResource = async (
   if (data.description !== undefined) updateData.description = data.description;
   if (data.categoryId !== undefined) updateData.categoryId = data.categoryId;
 
-  await prisma.$transaction(async (tx) => {
-    const updated = await tx.resource.update({
+  return prisma.$transaction(async (tx) => {
+    await tx.resource.update({
       where: { id },
       data: updateData,
     });
@@ -282,19 +282,17 @@ const updateResource = async (
       }
     }
 
-    return updated;
-  });
-
-  return prisma.resource.findUnique({
-    where: { id },
-    include: {
-      course: true,
-      category: true,
-      uploader: {
-        select: { id: true, name: true, email: true, image: true },
+    return tx.resource.findUnique({
+      where: { id },
+      include: {
+        course: true,
+        category: true,
+        uploader: {
+          select: { id: true, name: true, email: true, image: true },
+        },
+        resourceTags: { include: { tag: true } },
       },
-      resourceTags: { include: { tag: true } },
-    },
+    });
   });
 };
 
