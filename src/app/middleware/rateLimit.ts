@@ -62,8 +62,8 @@ export const verificationRateLimiter = rateLimit({
 });
 
 export const onboardingRateLimiter = rateLimit({
-  windowMs: ENVVARS.RATE_LIMIT_OTP_WINDOW_MS,
-  max: ENVVARS.RATE_LIMIT_OTP_MAX,
+  windowMs: ENVVARS.RATE_LIMIT_ONBOARDING_WINDOW_MS,
+  max: ENVVARS.RATE_LIMIT_ONBOARDING_MAX,
   standardHeaders: "draft-7",
   legacyHeaders: false,
   handler: (_req, res) => {
@@ -140,6 +140,20 @@ export const uploadRateLimiter = rateLimit({
     res.status(429).json(
       rateLimitResponse(
         "Too many upload requests. Please try again later.",
+      ),
+    );
+  },
+});
+
+export const onboardingUploadRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 30, // 30 uploads per hour
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json(
+      rateLimitResponse(
+        "Too many onboarding upload requests. Please try again later.",
       ),
     );
   },
