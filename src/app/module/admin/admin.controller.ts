@@ -295,7 +295,7 @@ const getResourceCategoryById = catchAsync(async (req, res) => {
 });
 
 const createResourceCategory = catchAsync(async (req, res) => {
-  const result = await adminService.createResourceCategory(req.body);
+  const result = await adminService.createResourceCategory(req.body) as { id: string; name: string };
 
   await adminService.createAuditLog({
     adminUserId: req.user.id,
@@ -382,7 +382,7 @@ const getDiscussionCategoryById = catchAsync(async (req, res) => {
 });
 
 const createDiscussionCategory = catchAsync(async (req, res) => {
-  const result = await adminService.createDiscussionCategory(req.body);
+  const result = await adminService.createDiscussionCategory(req.body) as { id: string; name: string };
 
   await adminService.createAuditLog({
     adminUserId: req.user.id,
@@ -469,7 +469,7 @@ const getQuestionCategoryById = catchAsync(async (req, res) => {
 });
 
 const createQuestionCategory = catchAsync(async (req, res) => {
-  const result = await adminService.createQuestionCategory(req.body);
+  const result = await adminService.createQuestionCategory(req.body) as { id: string; name: string };
 
   await adminService.createAuditLog({
     adminUserId: req.user.id,

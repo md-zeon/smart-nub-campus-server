@@ -489,320 +489,143 @@ const deleteCourse = async (id: string) => {
   return { message: "Course deleted successfully." };
 };
 
-// --- Resource Category Management ---
-const listResourceCategories = async (page = 1, limit = 50) => {
-  const skip = (page - 1) * limit;
+// --- Category CRUD Factory (DRY for resource/discussion/question categories) ---
+interface CategoryModel {
+  findMany: (args: unknown) => Promise<unknown[]>;
+  count: () => Promise<number>;
+  findUnique: (args: unknown) => Promise<Record<string, unknown> | null>;
+  create: (args: unknown) => Promise<Record<string, unknown>>;
+  update: (args: unknown) => Promise<Record<string, unknown>>;
+  delete: (args: unknown) => Promise<unknown>;
+}
 
-  const [categories, total] = await prisma.$transaction([
-    prisma.resourceCategory.findMany({
-      skip,
-      take: limit,
-      orderBy: { name: "asc" },
-      include: { _count: { select: { resources: true } } },
-    }),
-    prisma.resourceCategory.count(),
-  ]);
-
-  return {
-    data: categories,
-    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-  };
-};
-
-const getResourceCategoryById = async (id: string) => {
-  const category = await prisma.resourceCategory.findUnique({
-    where: { id },
-    include: { _count: { select: { resources: true } } },
-  });
-
-  if (!category) {
-    throw new AppError(status.NOT_FOUND, "Resource category not found.");
-  }
-
-  return category;
-};
-
-const createResourceCategory = async (data: {
-  name: string;
-  icon?: string;
-  description?: string;
-}) => {
-  const slug = data.name.toLowerCase().replace(/\s+/g, "-");
-  const existing = await prisma.resourceCategory.findUnique({
-    where: { slug },
-  });
-
-  if (existing) {
-    throw new AppError(status.CONFLICT, "Category with this name already exists.");
-  }
-
-  const category = await prisma.resourceCategory.create({
-    data: {
-      name: data.name,
-      slug,
-      icon: data.icon ?? null,
-      description: data.description ?? null,
-    },
-  });
-
-  return category;
-};
-
-const updateResourceCategory = async (
-  id: string,
-  data: Record<string, unknown>,
-) => {
-  const category = await prisma.resourceCategory.findUnique({ where: { id } });
-
-  if (!category) {
-    throw new AppError(status.NOT_FOUND, "Resource category not found.");
-  }
-
-  const updateData: Record<string, unknown> = {};
-  if (data.name !== undefined) {
-    updateData.name = data.name;
-    updateData.slug = (data.name as string).toLowerCase().replace(/\s+/g, "-");
-  }
-  if (data.icon !== undefined) updateData.icon = data.icon;
-  if (data.description !== undefined) updateData.description = data.description;
-
-  const updated = await prisma.resourceCategory.update({
-    where: { id },
-    data: updateData,
-  });
-
-  return updated;
-};
-
-const deleteResourceCategory = async (id: string) => {
-  const category = await prisma.resourceCategory.findUnique({
-    where: { id },
-    include: { _count: { select: { resources: true } } },
-  });
-
-  if (!category) {
-    throw new AppError(status.NOT_FOUND, "Resource category not found.");
-  }
-
-  if (category._count.resources > 0) {
-    throw new AppError(
-      status.BAD_REQUEST,
-      "Cannot delete a category with associated resources.",
-    );
-  }
-
-  await prisma.resourceCategory.delete({ where: { id } });
-
-  return { message: "Resource category deleted successfully." };
-};
-
-// --- Discussion Category Management ---
-const listDiscussionCategories = async (page = 1, limit = 50) => {
-  const skip = (page - 1) * limit;
-
-  const [categories, total] = await prisma.$transaction([
-    prisma.discussionCategory.findMany({
-      skip,
-      take: limit,
-      orderBy: { name: "asc" },
-      include: { _count: { select: { discussions: true } } },
-    }),
-    prisma.discussionCategory.count(),
-  ]);
+function createCategoryCRUD(
+  model: CategoryModel,
+  label: string,
+  childCountField: string,
+  extraCreateFields?: string[],
+) {
+  const slugify = (name: string) => name.toLowerCase().replace(/\s+/g, "-");
 
   return {
-    data: categories,
-    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-  };
-};
-
-const getDiscussionCategoryById = async (id: string) => {
-  const category = await prisma.discussionCategory.findUnique({
-    where: { id },
-    include: { _count: { select: { discussions: true } } },
-  });
-
-  if (!category) {
-    throw new AppError(status.NOT_FOUND, "Discussion category not found.");
-  }
-
-  return category;
-};
-
-const createDiscussionCategory = async (data: {
-  name: string;
-  icon?: string;
-}) => {
-  const slug = data.name.toLowerCase().replace(/\s+/g, "-");
-  const existing = await prisma.discussionCategory.findUnique({
-    where: { slug },
-  });
-
-  if (existing) {
-    throw new AppError(status.CONFLICT, "Category with this name already exists.");
-  }
-
-  const category = await prisma.discussionCategory.create({
-    data: {
-      name: data.name,
-      slug,
-      icon: data.icon ?? null,
+    list: async (page = 1, limit = 50) => {
+      const skip = (page - 1) * limit;
+      const [categories, total] = await Promise.all([
+        model.findMany({
+          skip,
+          take: limit,
+          orderBy: { name: "asc" },
+          include: { _count: { select: { [childCountField]: true } } },
+        }),
+        model.count(),
+      ]);
+      return {
+        data: categories,
+        meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      };
     },
-  });
 
-  return category;
-};
-
-const updateDiscussionCategory = async (
-  id: string,
-  data: Record<string, unknown>,
-) => {
-  const category = await prisma.discussionCategory.findUnique({ where: { id } });
-
-  if (!category) {
-    throw new AppError(status.NOT_FOUND, "Discussion category not found.");
-  }
-
-  const updateData: Record<string, unknown> = {};
-  if (data.name !== undefined) {
-    updateData.name = data.name;
-    updateData.slug = (data.name as string).toLowerCase().replace(/\s+/g, "-");
-  }
-  if (data.icon !== undefined) updateData.icon = data.icon;
-
-  const updated = await prisma.discussionCategory.update({
-    where: { id },
-    data: updateData,
-  });
-
-  return updated;
-};
-
-const deleteDiscussionCategory = async (id: string) => {
-  const category = await prisma.discussionCategory.findUnique({
-    where: { id },
-    include: { _count: { select: { discussions: true } } },
-  });
-
-  if (!category) {
-    throw new AppError(status.NOT_FOUND, "Discussion category not found.");
-  }
-
-  if (category._count.discussions > 0) {
-    throw new AppError(
-      status.BAD_REQUEST,
-      "Cannot delete a category with associated discussions.",
-    );
-  }
-
-  await prisma.discussionCategory.delete({ where: { id } });
-
-  return { message: "Discussion category deleted successfully." };
-};
-
-// --- Question Category Management ---
-const listQuestionCategories = async (page = 1, limit = 50) => {
-  const skip = (page - 1) * limit;
-
-  const [categories, total] = await prisma.$transaction([
-    prisma.questionCategory.findMany({
-      skip,
-      take: limit,
-      orderBy: { name: "asc" },
-      include: { _count: { select: { questions: true } } },
-    }),
-    prisma.questionCategory.count(),
-  ]);
-
-  return {
-    data: categories,
-    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-  };
-};
-
-const getQuestionCategoryById = async (id: string) => {
-  const category = await prisma.questionCategory.findUnique({
-    where: { id },
-    include: { _count: { select: { questions: true } } },
-  });
-
-  if (!category) {
-    throw new AppError(status.NOT_FOUND, "Question category not found.");
-  }
-
-  return category;
-};
-
-const createQuestionCategory = async (data: {
-  name: string;
-  icon?: string;
-}) => {
-  const slug = data.name.toLowerCase().replace(/\s+/g, "-");
-  const existing = await prisma.questionCategory.findUnique({
-    where: { slug },
-  });
-
-  if (existing) {
-    throw new AppError(status.CONFLICT, "Category with this name already exists.");
-  }
-
-  const category = await prisma.questionCategory.create({
-    data: {
-      name: data.name,
-      slug,
-      icon: data.icon ?? null,
+    getById: async (id: string) => {
+      const category = await model.findUnique({
+        where: { id },
+        include: { _count: { select: { [childCountField]: true } } },
+      });
+      if (!category) {
+        throw new AppError(status.NOT_FOUND, `${label} not found.`);
+      }
+      return category;
     },
-  });
 
-  return category;
-};
+    create: async (data: Record<string, unknown>) => {
+      const slug = slugify(data.name as string);
+      const existing = await model.findUnique({ where: { slug } });
+      if (existing) {
+        throw new AppError(status.CONFLICT, "Category with this name already exists.");
+      }
+      const createData: Record<string, unknown> = {
+        name: data.name,
+        slug,
+        icon: data.icon ?? null,
+      };
+      for (const field of extraCreateFields ?? []) {
+        createData[field] = data[field] ?? null;
+      }
+      return model.create({ data: createData });
+    },
 
-const updateQuestionCategory = async (
-  id: string,
-  data: Record<string, unknown>,
-) => {
-  const category = await prisma.questionCategory.findUnique({ where: { id } });
+    update: async (id: string, data: Record<string, unknown>) => {
+      const category = await model.findUnique({ where: { id } });
+      if (!category) {
+        throw new AppError(status.NOT_FOUND, `${label} not found.`);
+      }
+      const updateData: Record<string, unknown> = {};
+      if (data.name !== undefined) {
+        updateData.name = data.name;
+        updateData.slug = slugify(data.name as string);
+      }
+      if (data.icon !== undefined) updateData.icon = data.icon;
+      for (const field of extraCreateFields ?? []) {
+        if (data[field] !== undefined) updateData[field] = data[field];
+      }
+      return model.update({ where: { id }, data: updateData });
+    },
 
-  if (!category) {
-    throw new AppError(status.NOT_FOUND, "Question category not found.");
-  }
+    delete: async (id: string) => {
+      const category = await model.findUnique({
+        where: { id },
+        include: { _count: { select: { [childCountField]: true } } },
+      }) as Record<string, unknown> | null;
+      if (!category) {
+        throw new AppError(status.NOT_FOUND, `${label} not found.`);
+      }
+      const count = (category._count as Record<string, number>)[childCountField];
+      if (count > 0) {
+        throw new AppError(
+          status.BAD_REQUEST,
+          `Cannot delete a category with associated ${childCountField}.`,
+        );
+      }
+      await model.delete({ where: { id } });
+      return { message: `${label} deleted successfully.` };
+    },
+  };
+}
 
-  const updateData: Record<string, unknown> = {};
-  if (data.name !== undefined) {
-    updateData.name = data.name;
-    updateData.slug = (data.name as string).toLowerCase().replace(/\s+/g, "-");
-  }
-  if (data.icon !== undefined) updateData.icon = data.icon;
+const resourceCategory = createCategoryCRUD(
+  prisma.resourceCategory as unknown as CategoryModel,
+  "Resource category",
+  "resources",
+  ["description"],
+);
+const discussionCategory = createCategoryCRUD(
+  prisma.discussionCategory as unknown as CategoryModel,
+  "Discussion category",
+  "discussions",
+);
+const questionCategory = createCategoryCRUD(
+  prisma.questionCategory as unknown as CategoryModel,
+  "Question category",
+  "questions",
+);
 
-  const updated = await prisma.questionCategory.update({
-    where: { id },
-    data: updateData,
-  });
+// --- Category Management (DRY via factory) ---
+const listResourceCategories = resourceCategory.list;
+const getResourceCategoryById = resourceCategory.getById;
+const createResourceCategory = resourceCategory.create;
+const updateResourceCategory = resourceCategory.update;
+const deleteResourceCategory = resourceCategory.delete;
 
-  return updated;
-};
+const listDiscussionCategories = discussionCategory.list;
+const getDiscussionCategoryById = discussionCategory.getById;
+const createDiscussionCategory = discussionCategory.create;
+const updateDiscussionCategory = discussionCategory.update;
+const deleteDiscussionCategory = discussionCategory.delete;
 
-const deleteQuestionCategory = async (id: string) => {
-  const category = await prisma.questionCategory.findUnique({
-    where: { id },
-    include: { _count: { select: { questions: true } } },
-  });
-
-  if (!category) {
-    throw new AppError(status.NOT_FOUND, "Question category not found.");
-  }
-
-  if (category._count.questions > 0) {
-    throw new AppError(
-      status.BAD_REQUEST,
-      "Cannot delete a category with associated questions.",
-    );
-  }
-
-  await prisma.questionCategory.delete({ where: { id } });
-
-  return { message: "Question category deleted successfully." };
-};
+const listQuestionCategories = questionCategory.list;
+const getQuestionCategoryById = questionCategory.getById;
+const createQuestionCategory = questionCategory.create;
+const updateQuestionCategory = questionCategory.update;
+const deleteQuestionCategory = questionCategory.delete;
 
 // --- Audit Log ---
 const listAuditLogs = async (query: ListAuditLogsQuery) => {
