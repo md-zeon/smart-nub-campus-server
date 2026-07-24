@@ -3,6 +3,7 @@ import { VoteType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
 import { getSocketServer } from "../../lib/socket/socket-server";
+import { softDelete } from "../../shared/softDelete";
 import { gamificationService } from "../gamification/gamification.service";
 import { notificationService } from "../notification/notification.service";
 import {
@@ -312,10 +313,7 @@ const deleteResource = async (id: string, userId: string) => {
     throw new AppError(status.FORBIDDEN, "You can only delete your own resources.");
   }
 
-  await prisma.resource.update({
-    where: { id },
-    data: { isDeleted: true, deletedAt: new Date() },
-  });
+  await softDelete(prisma.resource, id);
 
   // Reverse reputation points awarded for this resource (non-blocking)
   gamificationService
@@ -632,10 +630,7 @@ const deleteComment = async (id: string, userId: string) => {
     throw new AppError(status.FORBIDDEN, "You can only delete your own comments.");
   }
 
-  await prisma.comment.update({
-    where: { id },
-    data: { isDeleted: true, deletedAt: new Date() },
-  });
+  await softDelete(prisma.comment, id);
 
   return { message: "Comment deleted successfully." };
 };

@@ -3,6 +3,7 @@ import { VoteType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
 import { getSocketServer } from "../../lib/socket/socket-server";
+import { softDelete } from "../../shared/softDelete";
 import { gamificationService } from "../gamification/gamification.service";
 import { notificationService } from "../notification/notification.service";
 import {
@@ -340,10 +341,7 @@ const deleteQuestion = async (id: string, userId: string) => {
     throw new AppError(status.FORBIDDEN, "You can only delete your own questions.");
   }
 
-  await prisma.question.update({
-    where: { id },
-    data: { isDeleted: true, deletedAt: new Date() },
-  });
+  await softDelete(prisma.question, id);
 
   return { message: "Question deleted successfully." };
 };
@@ -435,10 +433,7 @@ const deleteAnswer = async (answerId: string, userId: string) => {
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.answer.update({
-      where: { id: answerId },
-      data: { isDeleted: true, deletedAt: new Date() },
-    });
+    await softDelete(tx.answer, answerId);
 
     await tx.question.update({
       where: { id: answer.questionId },

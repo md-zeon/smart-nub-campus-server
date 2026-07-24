@@ -2,6 +2,7 @@ import status from "http-status";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
 import { getSocketServer } from "../../lib/socket/socket-server";
+import { softDelete } from "../../shared/softDelete";
 import {
   ListUsersQuery,
   ListResourcesQuery,
@@ -282,10 +283,7 @@ const deleteUser = async (id: string) => {
     throw new AppError(status.FORBIDDEN, "Cannot delete an admin user.");
   }
 
-  await prisma.user.update({
-    where: { id },
-    data: { isDeleted: true, deletedAt: new Date() },
-  });
+  await softDelete(prisma.user, id);
 
   return { message: "User deleted successfully." };
 };
@@ -371,10 +369,7 @@ const deleteResource = async (id: string) => {
     throw new AppError(status.NOT_FOUND, "Resource not found.");
   }
 
-  await prisma.resource.update({
-    where: { id },
-    data: { isDeleted: true, deletedAt: new Date() },
-  });
+  await softDelete(prisma.resource, id);
 
   return { message: "Resource removed successfully." };
 };

@@ -2,6 +2,7 @@ import status from "http-status";
 import { VoteType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { softDelete } from "../../shared/softDelete";
 import { notificationService } from "../notification/notification.service";
 import { gamificationService } from "../gamification/gamification.service";
 import { getSocketServer } from "../../lib/socket";
@@ -408,10 +409,7 @@ const deleteDiscussion = async (id: string, userId: string) => {
     throw new AppError(status.FORBIDDEN, "You can only delete your own discussions.");
   }
 
-  await prisma.discussion.update({
-    where: { id },
-    data: { isDeleted: true, deletedAt: new Date() },
-  });
+  await softDelete(prisma.discussion, id);
 
   gamificationService
     .handleContentDeleted("DISCUSSION", id, existing.authorId)
@@ -534,10 +532,7 @@ const deleteReply = async (replyId: string, userId: string) => {
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.discussionReply.update({
-      where: { id: replyId },
-      data: { isDeleted: true, deletedAt: new Date() },
-    });
+    await softDelete(tx.discussionReply, replyId);
 
     await tx.discussion.update({
       where: { id: reply.discussionId },

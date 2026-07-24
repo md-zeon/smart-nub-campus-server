@@ -2,6 +2,7 @@ import status from "http-status";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
 import { getSocketServer } from "../../lib/socket/socket-server";
+import { softDelete } from "../../shared/softDelete";
 import { notificationService } from "../notification/notification.service";
 import {
   ApplyToTeamInput,
@@ -246,10 +247,7 @@ const deleteTeamRequest = async (id: string, userId: string) => {
     throw new AppError(status.FORBIDDEN, "You can only delete your own team requests.");
   }
 
-  await prisma.teamRequest.update({
-    where: { id },
-    data: { isDeleted: true, deletedAt: new Date() },
-  });
+  await softDelete(prisma.teamRequest, id);
 
   return { message: "Team request deleted successfully." };
 };
