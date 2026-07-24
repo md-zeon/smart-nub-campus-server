@@ -15,9 +15,7 @@ describe("validateRequest middleware", () => {
   });
 
   it("calls next() for valid request body", () => {
-    const schema = z.object({
-      body: z.object({ name: z.string(), age: z.number() }),
-    });
+    const schema = z.object({ name: z.string(), age: z.number() });
     req.body = { name: "John", age: 25 };
     const middleware = validateRequest(schema);
     middleware(req, res, next);
@@ -26,9 +24,7 @@ describe("validateRequest middleware", () => {
   });
 
   it("strips unknown fields from request body", () => {
-    const schema = z.object({
-      body: z.object({ name: z.string() }).strict(),
-    });
+    const schema = z.object({ name: z.string() });
     req.body = { name: "John", unknownField: "should be removed" };
     const middleware = validateRequest(schema);
     middleware(req, res, next);

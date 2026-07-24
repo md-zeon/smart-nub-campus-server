@@ -515,7 +515,7 @@ describe("getUnreadCount", () => {
 
     const result = await messageService.getUnreadCount(userId);
 
-    expect(result.totalUnread).toBe(4);
+    expect(result.unreadCount).toBe(4);
   });
 
   it("returns 0 when user has no conversations", async () => {
@@ -523,7 +523,7 @@ describe("getUnreadCount", () => {
 
     const result = await messageService.getUnreadCount(userId);
 
-    expect(result.totalUnread).toBe(0);
+    expect(result.unreadCount).toBe(0);
   });
 
   it("returns 0 when all conversations are fully read", async () => {
@@ -534,7 +534,7 @@ describe("getUnreadCount", () => {
 
     const result = await messageService.getUnreadCount(userId);
 
-    expect(result.totalUnread).toBe(0);
+    expect(result.unreadCount).toBe(0);
   });
 
   it("excludes own messages from unread count", async () => {

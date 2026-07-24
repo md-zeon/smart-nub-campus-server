@@ -353,7 +353,7 @@ describe("deleteDiscussion", () => {
 
     expect(mockPrisma.discussion.update).toHaveBeenCalledWith({
       where: { id: DISCUSSION_ID },
-      data: { isDeleted: true },
+      data: { isDeleted: true, deletedAt: expect.any(Date) },
     });
     expect(result).toEqual({ message: "Discussion deleted successfully." });
   });
@@ -530,7 +530,7 @@ describe("deleteReply", () => {
     expect(result).toEqual({ message: "Reply deleted successfully." });
     expect(mockPrisma.discussionReply.update).toHaveBeenCalledWith({
       where: { id: REPLY_ID },
-      data: { isDeleted: true },
+      data: { isDeleted: true, deletedAt: expect.any(Date) },
     });
   });
 

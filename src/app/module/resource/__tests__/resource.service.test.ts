@@ -146,6 +146,7 @@ describe("resourceService", () => {
     });
 
     it("throws NOT_FOUND for missing resource", async () => {
+      (mockedPrisma.resource.findUnique as any).mockReset();
       (mockedPrisma.resource.findUnique as any).mockResolvedValue(null);
       await expect(resourceService.getResourceById("nonexistent")).rejects.toThrow("Resource not found.");
     });
@@ -168,8 +169,7 @@ describe("resourceService", () => {
   describe("updateResource", () => {
     it("updates own resource", async () => {
       (mockedPrisma.resource.findUnique as any).mockResolvedValue({ id: resourceId, uploaderId: userId });
-      (mockedPrisma.$transaction as any).mockImplementation(async (fn: any) => fn({ resource: { update: vi.fn().mockResolvedValue({}) }, resourceTag: { deleteMany: vi.fn() }, tag: { upsert: vi.fn() }, resourceTagCreate: { create: vi.fn() } }));
-      (mockedPrisma.resource.findUnique as any).mockResolvedValue({ id: resourceId });
+      (mockedPrisma.$transaction as any).mockImplementation(async (fn: any) => fn({ resource: { update: vi.fn().mockResolvedValue({}), findUnique: vi.fn().mockResolvedValue({ id: resourceId, title: "Updated" }) }, resourceTag: { deleteMany: vi.fn() }, tag: { upsert: vi.fn() } }));
 
       const result = await resourceService.updateResource(resourceId, { title: "Updated" }, userId);
       expect(result).toBeDefined();
@@ -207,12 +207,11 @@ describe("resourceService", () => {
   describe("toggleVote", () => {
     it("adds new upvote", async () => {
       (mockedPrisma.resource.findUnique as any)
-        .mockResolvedValueOnce({ id: resourceId, uploaderId: "owner" })
-        .mockResolvedValueOnce({ upvoteCount: 1, downvoteCount: 0 });
+        .mockResolvedValueOnce({ id: resourceId, uploaderId: "owner" });
       (mockedPrisma.resourceVote.findUnique as any).mockResolvedValue(null);
       (mockedPrisma.$transaction as any).mockImplementation(async (fn: any) => fn({
         resourceVote: { create: vi.fn() },
-        resource: { update: vi.fn() },
+        resource: { update: vi.fn(), findUnique: vi.fn().mockResolvedValue({ upvoteCount: 1, downvoteCount: 0 }) },
       }));
 
       const result = await resourceService.toggleVote(resourceId, userId, VoteType.UP);
@@ -221,12 +220,11 @@ describe("resourceService", () => {
 
     it("removes existing vote when same type", async () => {
       (mockedPrisma.resource.findUnique as any)
-        .mockResolvedValueOnce({ id: resourceId, uploaderId: "owner" })
-        .mockResolvedValueOnce({ upvoteCount: 0, downvoteCount: 0 });
+        .mockResolvedValueOnce({ id: resourceId, uploaderId: "owner" });
       (mockedPrisma.resourceVote.findUnique as any).mockResolvedValue({ id: "v1", type: VoteType.UP });
       (mockedPrisma.$transaction as any).mockImplementation(async (fn: any) => fn({
         resourceVote: { delete: vi.fn() },
-        resource: { update: vi.fn() },
+        resource: { update: vi.fn(), findUnique: vi.fn().mockResolvedValue({ upvoteCount: 0, downvoteCount: 0 }) },
       }));
 
       const result = await resourceService.toggleVote(resourceId, userId, VoteType.UP);

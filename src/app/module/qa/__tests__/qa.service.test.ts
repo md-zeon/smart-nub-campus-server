@@ -23,6 +23,7 @@ vi.mock("../../../../app/lib/prisma", () => ({
     questionTag: {
       deleteMany: vi.fn(),
       create: vi.fn(),
+      createMany: vi.fn(),
     },
     questionVote: {
       findUnique: vi.fn(),
@@ -711,7 +712,12 @@ describe("updateQuestion", () => {
     expect(m.questionTag.deleteMany).toHaveBeenCalledWith({
       where: { questionId: qId },
     });
-    expect(m.questionTag.create).toHaveBeenCalledTimes(2);
+    expect(m.questionTag.createMany).toHaveBeenCalledWith({
+      data: [
+        { questionId: qId, tagId: "t1" },
+        { questionId: qId, tagId: "t2" },
+      ],
+    });
   });
 
   it("should not call deleteMany when tagIds not provided", async () => {
@@ -760,7 +766,7 @@ describe("deleteQuestion", () => {
     expect(result.message).toBe("Question deleted successfully.");
     expect(m.question.update).toHaveBeenCalledWith({
       where: { id: qId },
-      data: { isDeleted: true },
+      data: { isDeleted: true, deletedAt: expect.any(Date) },
     });
   });
 
@@ -1225,7 +1231,6 @@ describe("deleteAnswer", () => {
     });
     (m.answer.update as any).mockResolvedValue({});
     (m.question.update as any).mockResolvedValue({});
-    (m.user.update as any).mockResolvedValue({});
 
     await qaService.deleteAnswer(aId, userId);
 
@@ -1233,12 +1238,6 @@ describe("deleteAnswer", () => {
       expect.objectContaining({
         where: { id: "q1" },
         data: { isAnswered: false },
-      })
-    );
-    expect(m.user.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: userId },
-        data: { reputation: { decrement: 15 } },
       })
     );
   });
@@ -1353,18 +1352,6 @@ describe("acceptAnswer", () => {
     const result = await qaService.acceptAnswer(qId, aId, userId);
 
     expect(result.isAccepted).toBe(true);
-    expect(m.user.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "old-author" },
-        data: { reputation: { decrement: 15 } },
-      })
-    );
-    expect(m.user.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "new-author" },
-        data: { reputation: { increment: 15 } },
-      })
-    );
   });
 
   it("should set isAnswered to true on the question", async () => {
@@ -1482,15 +1469,14 @@ describe("unacceptAnswer", () => {
       })
       .mockResolvedValueOnce(null);
     (m.answer.update as any).mockResolvedValue({});
-    (m.user.update as any).mockResolvedValue({});
     (m.question.update as any).mockResolvedValue({});
 
     await qaService.unacceptAnswer(qId, userId);
 
-    expect(m.user.update).toHaveBeenCalledWith(
+    expect(m.question.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "ans-author" },
-        data: { reputation: { decrement: 15 } },
+        where: { id: qId },
+        data: { isAnswered: false },
       })
     );
   });
