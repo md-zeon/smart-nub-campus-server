@@ -3,13 +3,20 @@ import {
   OnboardingStepValue,
   UserRole,
   VerificationStatus,
+  Gender,
 } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { auth } from "../../lib/auth";
 import { prisma } from "../../lib/prisma";
 import { parseStudentId } from "../../utils/student-id";
 
-const createAccount = async (onboardingStepId: string, password: string) => {
+const createAccount = async (
+  onboardingStepId: string,
+  password: string,
+  gender?: Gender,
+  image?: string,
+  imagePublicId?: string,
+) => {
   // 1. Load onboarding step with verification request
   const onboardingStep = await prisma.onboardingStep.findUnique({
     where: { id: onboardingStepId },
@@ -67,6 +74,9 @@ const createAccount = async (onboardingStepId: string, password: string) => {
       email: verificationRequest.email,
       password,
       role: UserRole.STUDENT,
+      gender,
+      image,
+      imagePublicId,
     },
   });
 
@@ -121,42 +131,31 @@ const createAccount = async (onboardingStepId: string, password: string) => {
   // fetch Verification Request Data for response
   const verificationRequestData = await prisma.verificationRequest.findUnique({
     where: { email: verificationRequest.email },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      studentId: true,
-      dateOfBirth: true,
-      status: true,
-      note: true,
-    },
   });
 
   return {
+    currentStep: OnboardingStepValue.VERIFY_EMAIL,
+    verificationRequest: verificationRequestData,
     user: {
       userId: authUser.id,
       name: authUser.name,
       email: authUser.email,
       role: UserRole.STUDENT,
     },
-    verificationRequest: verificationRequestData,
-    currentStep: OnboardingStepValue.VERIFY_EMAIL,
   };
 };
 
 const getEmailByStudentId = async (id: string) => {
-  const student = await prisma.student.findUnique({
+  const verificationRequest = await prisma.verificationRequest.findUnique({
     where: { studentId: id },
-    select: { user: { select: { email: true } } },
+    select: { email: true },
   });
 
-  if (!student || !student.user) {
-    throw new AppError(
-      status.NOT_FOUND,
-      "Student with this ID does not exist.",
-    );
+  if (!verificationRequest) {
+    throw new AppError(status.NOT_FOUND, "Student ID not found.");
   }
-  return { email: student.user.email };
+
+  return { email: verificationRequest.email };
 };
 
 export const accountService = {

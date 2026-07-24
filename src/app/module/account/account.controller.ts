@@ -15,8 +15,14 @@ const createAccount = catchAsync(async (req, res) => {
     });
   }
 
-  const { password } = req.body;
-  const result = await accountService.createAccount(onboardingStepId, password);
+  const { password, gender, image, imagePublicId } = req.body;
+  const result = await accountService.createAccount(
+    onboardingStepId,
+    password,
+    gender,
+    image,
+    imagePublicId,
+  );
 
   sendResponse(res, {
     httpStatusCode: status.CREATED,
