@@ -602,6 +602,15 @@ const getComments = async (resourceId: string, page = 1, limit = 20) => {
             user: {
               select: { id: true, name: true, image: true },
             },
+            replies: {
+              where: { isDeleted: false },
+              include: {
+                user: {
+                  select: { id: true, name: true, image: true },
+                },
+              },
+              orderBy: { createdAt: "asc" },
+            },
           },
           orderBy: { createdAt: "asc" },
         },
