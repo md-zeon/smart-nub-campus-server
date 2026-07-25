@@ -19,6 +19,7 @@ import { notificationRoutes } from "../module/notification/notification.routes";
 import { adminRoutes } from "../module/admin/admin.routes";
 import { settingsRoutes } from "../module/settings/settings.routes";
 import { authRoutes } from "../module/auth/auth.routes";
+import { tagRoutes } from "../module/tag/tag.routes";
 import { auth } from "../lib/auth";
 import { signUpRateLimiter } from "../middleware/rateLimit";
 
@@ -41,6 +42,7 @@ router.use("/account", accountRoutes);
 router.use("/identity", identityRoutes);
 router.use("/upload/onboarding", onboardingUploadRoutes);
 router.use("/upload", uploadRoutes);
+router.use("/tags", tagRoutes);
 router.use("/resources", resourceRoutes);
 router.use("/teams", teamRoutes);
 router.use("/discussions", discussionRoutes);
