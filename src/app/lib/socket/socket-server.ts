@@ -196,8 +196,13 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
 
   // ── Global error handler ───────────────────────────────────────────────
   io.engine.on("connection_error", (err) => {
-    console.error("[Socket.IO Engine] Connection error:", err.message);
+    console.error("[Socket.IO Engine] Connection error:", err.message, err);
   });
+
+  // Log namespace registration for diagnostics
+  console.log(
+    `[Socket.IO] Registered namespaces: [${[...io._nsps.keys()].join(", ")}]`,
+  );
 
   // Start heartbeat check to mark stale users offline
   presenceManager.startHeartbeatCheck(io);
