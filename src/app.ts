@@ -1,4 +1,4 @@
-import express, { Application, Request, Response } from "express";
+import express, { Application, NextFunction, Request, Response } from "express";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { IndexRoutes } from "./app/routes";
@@ -16,8 +16,12 @@ import ENVVARS from "./config/env";
 
 const app: Application = express();
 
-// Security headers
-app.use(helmet());
+// Security headers — exclude Socket.IO paths so helmet CSP doesn't interfere
+// with the engine.io polling handshake at the HTTP transport level.
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.url.startsWith("/socket.io")) return next();
+  helmet()(req, res, next);
+});
 
 // Trust first proxy (required for correct req.ip behind reverse proxies)
 app.set("trust proxy", 1);

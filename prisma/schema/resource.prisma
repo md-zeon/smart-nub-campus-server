@@ -14,7 +14,7 @@ model ResourceCategory {
 model Resource {
   id                String             @id @default(uuid())
   title             String             @db.VarChar(200)
-  description       String?
+  description       String?            @db.Text
   fileUrl           String
   filePublicId      String?
   fileType          String

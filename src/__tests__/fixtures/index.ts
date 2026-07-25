@@ -245,7 +245,7 @@ export const mockEvent = {
   id: mockEventId,
   title: "Tech Talk 2024",
   description: "A talk about modern web development.",
-  location: "NSU Auditorium",
+  location: "NUB Auditorium",
   startTime: "2024-06-15T14:00:00.000Z",
   endTime: "2024-06-15T16:00:00.000Z",
   organizerId: mockUserId,

@@ -15,8 +15,9 @@ const createResourceSchema = z
     courseId: z.string().uuid("Invalid course ID"),
     categoryId: z.string().uuid("Invalid category ID"),
     tags: z
-      .array(z.string().trim().min(1))
-      .min(1, "At least one tag is required"),
+      .array(z.string().trim().min(1).max(50))
+      .min(1, "At least one tag is required")
+      .max(10, "At most 10 tags are allowed"),
   })
   .strict();
 
@@ -30,13 +31,13 @@ const updateResourceSchema = z
       .optional(),
     description: z.string().trim().optional(),
     categoryId: z.string().uuid("Invalid category ID").optional(),
-    tags: z.array(z.string().trim().min(1)).min(1).optional(),
+    tags: z.array(z.string().trim().min(1).max(50)).min(1).max(10).optional(),
   })
   .strict();
 
 const createCommentSchema = z
   .object({
-    content: z.string().trim().min(1, "Comment content is required"),
+    content: z.string().trim().min(1, "Comment content is required").max(5000, "Comment must be at most 5000 characters"),
     parentId: z.string().uuid("Invalid parent comment ID").optional(),
   })
   .strict();
@@ -53,7 +54,7 @@ const reportResourceSchema = z
       "MALWARE",
       "OTHER",
     ]),
-    description: z.string().trim().optional(),
+    description: z.string().trim().max(2000).optional(),
   })
   .strict();
 

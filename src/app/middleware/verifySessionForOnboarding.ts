@@ -56,7 +56,7 @@ const verifySessionForOnboarding = async (
       );
     }
 
-    req.user = user;
+    req.user = user as unknown as typeof req.user;
     req.session = {
       ...session.session,
       ipAddress: session.session.ipAddress ?? null,

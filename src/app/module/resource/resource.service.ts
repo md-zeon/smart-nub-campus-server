@@ -148,10 +148,12 @@ const listResources = async (query: ListResourcesQuery, userId?: string) => {
     tags,
     search,
     sort = "newest",
-    page = 1,
-    limit = 12,
+    page: rawPage = 1,
+    limit: rawLimit = 12,
   } = query;
 
+  const page = Math.max(1, Math.floor(Number(rawPage) || 1));
+  const limit = Math.min(100, Math.max(1, Math.floor(Number(rawLimit) || 12)));
   const skip = (page - 1) * limit;
   const take = limit;
 
@@ -506,16 +508,22 @@ const trackDownload = async (resourceId: string, userId: string) => {
     throw new AppError(status.NOT_FOUND, "Resource not found.");
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.resourceDownload.create({
-      data: { resourceId, userId },
-    });
-
-    await tx.resource.update({
-      where: { id: resourceId },
-      data: { downloadCount: { increment: 1 } },
-    });
+  const existing = await prisma.resourceDownload.findFirst({
+    where: { resourceId, userId },
   });
+
+  if (!existing) {
+    await prisma.$transaction(async (tx) => {
+      await tx.resourceDownload.create({
+        data: { resourceId, userId },
+      });
+
+      await tx.resource.update({
+        where: { id: resourceId },
+        data: { downloadCount: { increment: 1 } },
+      });
+    });
+  }
 
   return { fileUrl: resource.fileUrl, filePublicId: resource.filePublicId };
 };
@@ -601,6 +609,15 @@ const getComments = async (resourceId: string, page = 1, limit = 20) => {
           include: {
             user: {
               select: { id: true, name: true, image: true },
+            },
+            replies: {
+              where: { isDeleted: false },
+              include: {
+                user: {
+                  select: { id: true, name: true, image: true },
+                },
+              },
+              orderBy: { createdAt: "asc" },
             },
           },
           orderBy: { createdAt: "asc" },
@@ -720,13 +737,21 @@ const reviewReport = async (
     throw new AppError(status.BAD_REQUEST, "Only pending reports can be reviewed.");
   }
 
-  const updated = await prisma.resourceReport.update({
-    where: { id },
-    data: {
-      status: reviewStatus,
-      reviewedById,
-      reviewedAt: new Date(),
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    const reportUpdate = await tx.resourceReport.update({
+      where: { id },
+      data: {
+        status: reviewStatus,
+        reviewedById,
+        reviewedAt: new Date(),
+      },
+    });
+
+    if (reviewStatus === "ACTION_TAKEN") {
+      await softDelete(tx.resource, report.resourceId);
+    }
+
+    return reportUpdate;
   });
 
   // Notify the reporter that their report was reviewed (non-blocking)
@@ -738,6 +763,23 @@ const reviewReport = async (
       message: `Your report has been ${reviewStatus.toLowerCase().replace(/_/g, " ")}.`,
       link: `/resources/${report.resourceId}`,
     }).catch(() => {});
+  }
+
+  // Notify the resource owner if action was taken (non-blocking)
+  if (reviewStatus === "ACTION_TAKEN") {
+    const resource = await prisma.resource.findUnique({
+      where: { id: report.resourceId },
+      select: { uploaderId: true },
+    });
+    if (resource && resource.uploaderId !== reviewedById) {
+      notificationService.createNotification({
+        userId: resource.uploaderId,
+        type: "RESOURCE_REPORT_REVIEWED",
+        title: "Resource Actioned",
+        message: "Your resource has been actioned following a report review.",
+        link: `/resources/${report.resourceId}`,
+      }).catch(() => {});
+    }
   }
 
   return updated;
