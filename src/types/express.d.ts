@@ -1,9 +1,10 @@
-import { Admin, Session, Student, User } from "../generated/prisma/client";
+import { Admin, Session, Student } from "../generated/prisma/client";
+import { RequestUser } from "../app/module/identity/identity.interface";
 
 declare global {
   namespace Express {
     interface Request {
-      user: User;
+      user: RequestUser;
       session: Session;
       student?: Student;
       admin?: Admin;
