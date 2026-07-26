@@ -54,7 +54,7 @@ export function createMailService(provider: MailProvider) {
 
     await send({
       to: data.email,
-      subject: `Your verification code: ${data.otp} - Smart NUB Campus`,
+      subject: "Verify your email - Smart NUB Campus",
       html,
     });
   };
@@ -64,7 +64,7 @@ export function createMailService(provider: MailProvider) {
 
     await send({
       to: data.email,
-      subject: `Your reset code: ${data.otp} - Smart NUB Campus`,
+      subject: "Reset your password - Smart NUB Campus",
       html,
     });
   };
