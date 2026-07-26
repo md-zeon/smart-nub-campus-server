@@ -53,6 +53,9 @@ export class UploadService {
       return await this.provider.upload(file, { context, type });
     } catch (error) {
       console.error("Upload failed:", error);
+      if (error instanceof Error && error.name === "TimeoutError") {
+        throw new AppError(status.REQUEST_TIMEOUT, "Upload timed out. Please try with a smaller file.");
+      }
       throw new AppError(status.INTERNAL_SERVER_ERROR, "Failed to upload file");
     }
   }
