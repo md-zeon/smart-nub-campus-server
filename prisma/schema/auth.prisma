@@ -70,6 +70,7 @@ model User {
 
     // Notification relations (Phase 9)
     notifications                 Notification[]
+    notificationsSent             Notification[]      @relation("NotificationSender")
 
     // Audit log relations (Phase 10)
     auditLogs                     AuditLog[]

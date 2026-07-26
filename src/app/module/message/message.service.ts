@@ -417,6 +417,7 @@ const sendMessage = async (
       for (const p of participants) {
         notificationService.createNotification({
           userId: p.userId,
+          senderId: userId,
           type: "MESSAGE",
           title: "New Message",
           message: `You have a new message.`,

@@ -311,6 +311,7 @@ const toggleRsvp = async (eventId: string, userId: string) => {
     try {
       await notificationService.createNotification({
         userId: event.organizerId,
+        senderId: userId,
         type: "EVENT_REMINDER",
         title: "New RSVP",
         message: `Someone RSVP'd to your event "${event.title}".`,

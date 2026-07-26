@@ -295,6 +295,7 @@ const applyToTeam = async (
 
   notificationService.createNotification({
     userId: teamRequest.creatorId,
+    senderId: userId,
     type: "TEAM_APPLICATION",
     title: "Team Application",
     message: `Someone applied to your team request.`,
@@ -414,6 +415,7 @@ const reviewApplication = async (
 
   notificationService.createNotification({
     userId: application.applicantId,
+    senderId: userId,
     type: reviewStatus === "ACCEPTED" ? "TEAM_APPLICATION_ACCEPTED" : "TEAM_APPLICATION_REJECTED",
     title: reviewStatus === "ACCEPTED" ? "Application Accepted" : "Application Rejected",
     message: reviewStatus === "ACCEPTED"

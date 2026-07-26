@@ -176,6 +176,7 @@ const sendConnectionRequest = async (
     });
     notificationService.createNotification({
       userId: data.receiverId,
+      senderId: userId,
       type: "CONNECTION_REQUEST",
       title: "New Connection Request",
       message: `Someone sent you a connection request.`,
@@ -205,6 +206,7 @@ const sendConnectionRequest = async (
 
   notificationService.createNotification({
     userId: data.receiverId,
+    senderId: userId,
     type: "CONNECTION_REQUEST",
     title: "New Connection Request",
     message: `Someone sent you a connection request.`,
@@ -256,6 +258,7 @@ const acceptConnection = async (connectionId: string, userId: string) => {
 
   notificationService.createNotification({
     userId: connection.requesterId,
+    senderId: userId,
     type: "CONNECTION_ACCEPTED",
     title: "Connection Accepted",
     message: `Your connection request was accepted.`,

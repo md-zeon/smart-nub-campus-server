@@ -391,6 +391,7 @@ const createAnswer = async (
   if (question.authorId !== userId) {
     notificationService.createNotification({
       userId: question.authorId,
+      senderId: userId,
       type: "QUESTION_ANSWER",
       title: "New Answer",
       message: `Someone answered your question.`,
@@ -555,6 +556,7 @@ const acceptAnswer = async (
 
   notificationService.createNotification({
     userId: answer.authorId,
+    senderId: userId,
     type: "QUESTION_ACCEPTED",
     title: "Answer Accepted",
     message: `Your answer was accepted.`,
