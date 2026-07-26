@@ -11,7 +11,7 @@ const updateProfileSchema = z
     websiteUrl: z.string().url().optional(),
     location: z.string().trim().max(100).optional(),
     phoneNumber: z.string().trim().max(20).optional(),
-    currentSemester: z.number().int().min(1).max(16).optional(),
+    currentSemester: z.number().int().min(1).max(12).optional(),
     batchYear: z.number().int().min(2000).max(2030).optional(),
   })
   .strict();
