@@ -98,6 +98,34 @@ const deleteNotification = catchAsync(async (req, res) => {
   });
 });
 
+const bulkMarkAsRead = catchAsync(async (req, res) => {
+  const { ids } = req.body as { ids: string[] };
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new AppError(status.BAD_REQUEST, "ids must be a non-empty array.");
+  }
+  const result = await notificationService.bulkMarkAsRead(ids, req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: `${result.updatedCount} notification(s) marked as read.`,
+    data: result,
+  });
+});
+
+const bulkDelete = catchAsync(async (req, res) => {
+  const { ids } = req.body as { ids: string[] };
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new AppError(status.BAD_REQUEST, "ids must be a non-empty array.");
+  }
+  const result = await notificationService.bulkDelete(ids, req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: `${result.deletedCount} notification(s) deleted.`,
+    data: result,
+  });
+});
+
 export const notificationController = {
   createNotification,
   getNotifications,
@@ -106,4 +134,6 @@ export const notificationController = {
   markAsRead,
   markAllAsRead,
   deleteNotification,
+  bulkMarkAsRead,
+  bulkDelete,
 };

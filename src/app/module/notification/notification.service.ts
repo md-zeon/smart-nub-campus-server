@@ -174,6 +174,35 @@ const deleteNotification = async (notificationId: string, userId: string) => {
   return { deleted: true };
 };
 
+/**
+ * Bulk mark notifications as read.
+ */
+const bulkMarkAsRead = async (ids: string[], userId: string) => {
+  const result = await prisma.notification.updateMany({
+    where: {
+      id: { in: ids },
+      userId,
+    },
+    data: { isRead: true },
+  });
+
+  return { updatedCount: result.count };
+};
+
+/**
+ * Bulk delete notifications.
+ */
+const bulkDelete = async (ids: string[], userId: string) => {
+  const result = await prisma.notification.deleteMany({
+    where: {
+      id: { in: ids },
+      userId,
+    },
+  });
+
+  return { deletedCount: result.count };
+};
+
 export const notificationService = {
   createNotification,
   getNotifications,
@@ -182,4 +211,6 @@ export const notificationService = {
   markAsRead,
   markAllAsRead,
   deleteNotification,
+  bulkMarkAsRead,
+  bulkDelete,
 };

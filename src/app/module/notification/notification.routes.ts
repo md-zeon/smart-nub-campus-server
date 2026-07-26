@@ -13,6 +13,10 @@ router.get("/recent", verifySession, notificationController.getRecentNotificatio
 // Get paginated notifications
 router.get("/", verifySession, notificationController.getNotifications);
 
+// Bulk operations (must be above /:id routes to avoid param match)
+router.patch("/bulk/read", verifySession, notificationController.bulkMarkAsRead);
+router.delete("/bulk", verifySession, notificationController.bulkDelete);
+
 // Mark all notifications as read (must be above /:id/read to avoid param match)
 router.patch("/read-all", verifySession, notificationController.markAllAsRead);
 
