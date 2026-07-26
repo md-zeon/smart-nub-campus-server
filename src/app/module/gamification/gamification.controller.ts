@@ -154,6 +154,28 @@ const getMyBadges = catchAsync(async (req, res) => {
   });
 });
 
+const getUserBadgesById = catchAsync(async (req, res) => {
+  const userId = req.params.userId as string;
+  const userBadges = await gamificationService.getUserBadges(userId);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "User badges retrieved successfully.",
+    data: userBadges,
+  });
+});
+
+const getProfileStats = catchAsync(async (req, res) => {
+  const userId = req.params.userId as string;
+  const stats = await gamificationService.getProfileStats(userId);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Profile stats retrieved successfully.",
+    data: stats,
+  });
+});
+
 export const gamificationController = {
   awardPoints,
   getLeaderboard,
@@ -166,4 +188,6 @@ export const gamificationController = {
   getReputationHistory,
   getMyReputationHistory,
   getMyBadges,
+  getUserBadgesById,
+  getProfileStats,
 };

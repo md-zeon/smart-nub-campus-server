@@ -20,6 +20,12 @@ router.get("/history/me", verifySession, gamificationController.getMyReputationH
 // My badges
 router.get("/badges/me", verifySession, gamificationController.getMyBadges);
 
+// Get badges for a specific user
+router.get("/badges/:userId", verifySession, gamificationController.getUserBadgesById);
+
+// Get profile stats for a specific user
+router.get("/stats/:userId", verifySession, gamificationController.getProfileStats);
+
 // Get points for a specific user
 router.get("/points/:userId", verifySession, gamificationController.getUserPoints);
 

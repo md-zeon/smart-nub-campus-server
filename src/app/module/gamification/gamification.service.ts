@@ -506,6 +506,35 @@ const getUserBadges = async (userId: string) => {
   });
 };
 
+/**
+ * Get public profile stats for a user (resources, discussions, questions, answers, points, connections).
+ */
+const getProfileStats = async (userId: string) => {
+  const [resourcesUploaded, discussionsCreated, questionsAsked, answersAccepted, totalPoints, connectionCount] =
+    await Promise.all([
+      prisma.resource.count({ where: { uploaderId: userId, isDeleted: false } }),
+      prisma.discussion.count({ where: { authorId: userId, isDeleted: false } }),
+      prisma.question.count({ where: { authorId: userId, isDeleted: false } }),
+      prisma.answer.count({ where: { authorId: userId, isAccepted: true, isDeleted: false } }),
+      prisma.reputationPoint.aggregate({ where: { userId }, _sum: { points: true } }),
+      prisma.connection.count({
+        where: {
+          status: "ACCEPTED",
+          OR: [{ requesterId: userId }, { receiverId: userId }],
+        },
+      }),
+    ]);
+
+  return {
+    resourcesUploaded,
+    discussionsCreated,
+    questionsAsked,
+    answersAccepted,
+    totalPoints: Math.max(totalPoints._sum.points ?? 0, 0),
+    connectionCount,
+  };
+};
+
 export const gamificationService = {
   awardPoints,
   getLeaderboard,
@@ -521,4 +550,5 @@ export const gamificationService = {
   adminAdjustPoints,
   getReputationHistory,
   getUserBadges,
+  getProfileStats,
 };

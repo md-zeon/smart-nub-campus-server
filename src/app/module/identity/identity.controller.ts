@@ -32,7 +32,8 @@ const getMyProfile = catchAsync(async (req: Request, res: Response) => {
 const getPublicProfile = catchAsync(async (req: Request, res: Response) => {
   const user = req.user as RequestUser;
   const { userId } = req.params;
-  const result = await identityService.getPublicProfile(user.id, userId as string);
+  const previewMode = req.query.preview === "true";
+  const result = await identityService.getPublicProfile(user.id, userId as string, previewMode);
 
   sendResponse(res, {
     httpStatusCode: status.OK,
