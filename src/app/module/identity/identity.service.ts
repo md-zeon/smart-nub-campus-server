@@ -98,9 +98,16 @@ const getPublicProfile = async (requesterId: string, targetUserId: string, previ
     throw new AppError(status.NOT_FOUND, "User not found.");
   }
 
-  const settings = user.settings;
+  const settings = user.settings ?? {
+    showProfile: "EVERYONE" as const,
+    showAcademicInfo: "EVERYONE" as const,
+    showSocialLinks: "EVERYONE" as const,
+    showSkills: "EVERYONE" as const,
+    showReputation: "EVERYONE" as const,
+    showBadges: "EVERYONE" as const,
+  };
 
-  if (!settings || settings.showProfile === "ONLY_ME") {
+  if (settings.showProfile === "ONLY_ME") {
     throw new AppError(status.NOT_FOUND, "User not found.");
   }
 
