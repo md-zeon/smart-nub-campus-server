@@ -205,6 +205,27 @@ const searchPeople = catchAsync(async (req, res) => {
   });
 });
 
+const getActiveUsers = catchAsync(async (req, res) => {
+  const limit = parseInt(req.query.limit as string) || 8;
+  const result = await connectionService.getActiveUsers(req.user.id, limit);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Active users retrieved successfully.",
+    data: result,
+  });
+});
+
+const getProfileCompleteness = catchAsync(async (req, res) => {
+  const result = await connectionService.getProfileCompleteness(req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Profile completeness retrieved successfully.",
+    data: result,
+  });
+});
+
 export const connectionController = {
   sendConnectionRequest,
   acceptConnection,
@@ -222,4 +243,6 @@ export const connectionController = {
   removeSkill,
   getUserSkills,
   searchPeople,
+  getActiveUsers,
+  getProfileCompleteness,
 };

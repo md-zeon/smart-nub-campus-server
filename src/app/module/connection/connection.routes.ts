@@ -69,4 +69,10 @@ router.post(
 // Remove a skill
 router.delete("/skills/:skillId", connectionController.removeSkill);
 
+// Get recently active users
+router.get("/active", connectionController.getActiveUsers);
+
+// Get profile completeness
+router.get("/profile-completeness", connectionController.getProfileCompleteness);
+
 export const connectionRoutes = router;

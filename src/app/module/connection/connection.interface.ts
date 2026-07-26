@@ -38,6 +38,7 @@ export interface ConnectionWithUser {
   status: "PENDING" | "ACCEPTED" | "REJECTED" | "BLOCKED";
   isFavorite: boolean;
   note?: string | null;
+  connectedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   otherUser: {

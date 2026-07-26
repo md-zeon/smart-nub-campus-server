@@ -60,6 +60,31 @@ const getBlockedUserIds = async (userId: string): Promise<string[]> => {
 };
 
 /**
+ * Helper: Get the count of mutual connections between two users.
+ */
+const getMutualConnectionCount = async (userId1: string, userId2: string): Promise<number> => {
+  const [conns1, conns2] = await Promise.all([
+    prisma.connection.findMany({
+      where: { status: "ACCEPTED", OR: [{ requesterId: userId1 }, { receiverId: userId1 }] },
+      select: { requesterId: true, receiverId: true },
+    }),
+    prisma.connection.findMany({
+      where: { status: "ACCEPTED", OR: [{ requesterId: userId2 }, { receiverId: userId2 }] },
+      select: { requesterId: true, receiverId: true },
+    }),
+  ]);
+
+  const ids1 = new Set(conns1.map((c) => c.requesterId === userId1 ? c.receiverId : c.requesterId));
+  const ids2 = new Set(conns2.map((c) => c.requesterId === userId2 ? c.receiverId : c.requesterId));
+
+  let count = 0;
+  for (const id of ids1) {
+    if (ids2.has(id)) count++;
+  }
+  return count;
+};
+
+/**
  * Helper: Build the other-user include fragment for connection queries.
  */
 const buildOtherUserInclude = () => ({
@@ -92,6 +117,7 @@ const formatConnection = (connection: Record<string, unknown>, userId: string): 
     receiverId: string;
     status: string;
     isFavorite: boolean;
+    connectedAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
     requester: Record<string, unknown>;
@@ -105,6 +131,7 @@ const formatConnection = (connection: Record<string, unknown>, userId: string): 
     status: conn.status as ConnectionWithUser["status"],
     isFavorite: conn.isFavorite,
     note: (conn as Record<string, unknown>).note as string | null | undefined ?? null,
+    connectedAt: conn.connectedAt,
     createdAt: conn.createdAt,
     updatedAt: conn.updatedAt,
     otherUser: otherUser as ConnectionWithUser["otherUser"],
@@ -138,6 +165,70 @@ const sendConnectionRequest = async (
       status.FORBIDDEN,
       "You cannot send a connection request to this user.",
     );
+  }
+
+  // Enforce receiver's connection request policy
+  const receiverSettings = await prisma.userSettings.findUnique({
+    where: { userId: data.receiverId },
+  });
+
+  if (receiverSettings) {
+    const policy = receiverSettings.connectionRequestPolicy;
+
+    if (policy === "NOBODY") {
+      throw new AppError(
+        status.FORBIDDEN,
+        "This user does not accept connection requests.",
+      );
+    }
+
+    if (policy === "SAME_DEPARTMENT" || policy === "SAME_BATCH" || policy === "MUTUAL_CONNECTIONS") {
+      const [sender, receiver] = await Promise.all([
+        prisma.user.findUnique({
+          where: { id: userId },
+          include: {
+            student: { select: { department: true, admissionYear: true, admissionSemester: true } },
+            profile: { select: { currentSemester: true, batchYear: true } },
+          },
+        }),
+        prisma.user.findUnique({
+          where: { id: data.receiverId },
+          include: {
+            student: { select: { department: true, admissionYear: true, admissionSemester: true } },
+            profile: { select: { currentSemester: true, batchYear: true } },
+          },
+        }),
+      ]);
+
+      if (policy === "SAME_DEPARTMENT") {
+        if (sender?.student?.department !== receiver?.student?.department) {
+          throw new AppError(
+            status.FORBIDDEN,
+            "This user only accepts requests from their department.",
+          );
+        }
+      }
+
+      if (policy === "SAME_BATCH") {
+        if (sender?.student?.admissionYear !== receiver?.student?.admissionYear ||
+            sender?.student?.admissionSemester !== receiver?.student?.admissionSemester) {
+          throw new AppError(
+            status.FORBIDDEN,
+            "This user only accepts requests from their batch.",
+          );
+        }
+      }
+
+      if (policy === "MUTUAL_CONNECTIONS") {
+        const mutualCount = await getMutualConnectionCount(userId, data.receiverId);
+        if (mutualCount === 0) {
+          throw new AppError(
+            status.FORBIDDEN,
+            "This user only accepts requests from people with mutual connections.",
+          );
+        }
+      }
+    }
   }
 
   // Check for existing connection (either direction)
@@ -180,7 +271,7 @@ const sendConnectionRequest = async (
       type: "CONNECTION_REQUEST",
       title: "New Connection Request",
       message: `Someone sent you a connection request.`,
-      link: "/connections",
+      link: "/my-network",
     }).catch(() => {});
     try {
       const io = getSocketServer();
@@ -253,7 +344,7 @@ const acceptConnection = async (connectionId: string, userId: string) => {
 
   const updated = await prisma.connection.update({
     where: { id: connectionId },
-    data: { status: "ACCEPTED" },
+    data: { status: "ACCEPTED", connectedAt: new Date() },
   });
 
   notificationService.createNotification({
@@ -1090,6 +1181,71 @@ const searchPeople = async (query: SearchPeopleQuery, userId: string) => {
   };
 };
 
+/**
+ * Get recently active users (for "Active on Campus" section).
+ */
+const getActiveUsers = async (userId: string, limit = 8) => {
+  const blockedIds = await getBlockedUserIds(userId);
+
+  const users = await prisma.user.findMany({
+    where: {
+      isDeleted: false,
+      id: { notIn: [...blockedIds, userId] },
+      role: "STUDENT",
+    },
+    orderBy: { updatedAt: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      name: true,
+      image: true,
+      student: { select: { department: true } },
+      profile: { select: { currentSemester: true } },
+      updatedAt: true,
+    },
+  });
+
+  return users.map((u) => ({
+    id: u.id,
+    name: u.name,
+    image: u.image,
+    department: u.student?.department ?? null,
+    currentSemester: u.profile?.currentSemester ?? null,
+    lastActiveAt: u.updatedAt,
+  }));
+};
+
+/**
+ * Get profile completeness for the current user.
+ */
+const getProfileCompleteness = async (userId: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      student: { select: { department: true, admissionYear: true, admissionSemester: true } },
+      profile: { select: { bio: true, currentSemester: true, batchYear: true } },
+      userSkills: { select: { id: true } },
+    },
+  });
+
+  if (!user) return { percentage: 0, missingFields: [] as string[] };
+
+  const fields = [
+    { name: "Name", filled: !!user.name },
+    { name: "Profile Image", filled: !!user.image },
+    { name: "Department", filled: !!user.student?.department },
+    { name: "Current Semester", filled: !!user.profile?.currentSemester },
+    { name: "Bio", filled: !!user.profile?.bio },
+    { name: "Skills", filled: (user.userSkills?.length ?? 0) > 0 },
+  ];
+
+  const filledCount = fields.filter((f) => f.filled).length;
+  const percentage = Math.round((filledCount / fields.length) * 100);
+  const missingFields = fields.filter((f) => !f.filled).map((f) => f.name);
+
+  return { percentage, missingFields };
+};
+
 export const connectionService = {
   sendConnectionRequest,
   acceptConnection,
@@ -1107,4 +1263,6 @@ export const connectionService = {
   getUserSkills,
   searchPeople,
   getBlockedUsers,
+  getActiveUsers,
+  getProfileCompleteness,
 };
