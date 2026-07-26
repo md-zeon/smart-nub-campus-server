@@ -3,6 +3,7 @@ import { z } from "zod";
 const updateProfileSchema = z
   .object({
     bio: z.string().trim().max(500).optional(),
+    image: z.string().url().optional(),
     coverImage: z.string().url().optional(),
     githubUrl: z.string().url().optional(),
     linkedinUrl: z.string().url().optional(),
