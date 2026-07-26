@@ -7,6 +7,9 @@ const router: Router = Router();
 // Get unread notification count
 router.get("/unread-count", verifySession, notificationController.getUnreadCount);
 
+// Get recent notifications (for dropdown preview)
+router.get("/recent", verifySession, notificationController.getRecentNotifications);
+
 // Get paginated notifications
 router.get("/", verifySession, notificationController.getNotifications);
 
@@ -18,6 +21,13 @@ router.patch(
   "/:id/read",
   verifySession,
   notificationController.markAsRead,
+);
+
+// Delete a single notification
+router.delete(
+  "/:id",
+  verifySession,
+  notificationController.deleteNotification,
 );
 
 export const notificationRoutes = router;

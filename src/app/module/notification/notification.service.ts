@@ -1,3 +1,4 @@
+import { Prisma } from "../../../generated/prisma/client";
 import { prisma } from "../../lib/prisma";
 import { getSocketServer } from "../../lib/socket/socket-server";
 import { buildPaginationQuery, calculatePaginationMeta } from "../../utils/pagination";
@@ -11,10 +12,17 @@ const createNotification = async (input: CreateNotificationInput) => {
   const notification = await prisma.notification.create({
     data: {
       userId: input.userId,
+      senderId: input.senderId ?? null,
       type: input.type,
       title: input.title,
       message: input.message,
       link: input.link ?? null,
+      metadata: (input.metadata as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+    },
+    include: {
+      sender: {
+        select: { id: true, name: true, image: true },
+      },
     },
   });
 
@@ -23,11 +31,16 @@ const createNotification = async (input: CreateNotificationInput) => {
     io.to(`user:${input.userId}`).emit("notification:new", {
       id: notification.id,
       userId: notification.userId,
+      senderId: notification.senderId,
+      sender: notification.sender
+        ? { id: notification.sender.id, name: notification.sender.name, image: notification.sender.image }
+        : undefined,
       type: notification.type,
       title: notification.title,
       message: notification.message,
       link: notification.link,
       isRead: notification.isRead,
+      metadata: notification.metadata as Record<string, unknown> | undefined,
       createdAt: notification.createdAt.toISOString(),
     });
   } catch {
@@ -41,12 +54,15 @@ const createNotification = async (input: CreateNotificationInput) => {
  * Get paginated notifications for a user.
  */
 const getNotifications = async (userId: string, query: NotificationListQuery) => {
-  const { page = 1, limit = 20, unreadOnly = false } = query;
+  const { page = 1, limit = 20, unreadOnly = false, type } = query;
   const { skip, take } = buildPaginationQuery({ page, limit, sortBy: "createdAt", sortOrder: "desc" });
 
   const where: Record<string, unknown> = { userId };
   if (unreadOnly) {
     where.isRead = false;
+  }
+  if (type) {
+    where.type = type;
   }
 
   const [notifications, total] = await prisma.$transaction([
@@ -55,6 +71,11 @@ const getNotifications = async (userId: string, query: NotificationListQuery) =>
       skip,
       take,
       orderBy: { createdAt: "desc" },
+      include: {
+        sender: {
+          select: { id: true, name: true, image: true },
+        },
+      },
     }),
     prisma.notification.count({ where }),
   ]);
@@ -63,6 +84,24 @@ const getNotifications = async (userId: string, query: NotificationListQuery) =>
     data: notifications,
     meta: calculatePaginationMeta(total, page, limit),
   };
+};
+
+/**
+ * Get the most recent notifications for the dropdown preview.
+ */
+const getRecentNotifications = async (userId: string, limit = 5) => {
+  const notifications = await prisma.notification.findMany({
+    where: { userId },
+    take: limit,
+    orderBy: { createdAt: "desc" },
+    include: {
+      sender: {
+        select: { id: true, name: true, image: true },
+      },
+    },
+  });
+
+  return notifications;
 };
 
 /**
@@ -112,10 +151,35 @@ const markAllAsRead = async (userId: string) => {
   return { updatedCount: result.count };
 };
 
+/**
+ * Delete a single notification.
+ */
+const deleteNotification = async (notificationId: string, userId: string) => {
+  const notification = await prisma.notification.findUnique({
+    where: { id: notificationId },
+  });
+
+  if (!notification) {
+    return null;
+  }
+
+  if (notification.userId !== userId) {
+    return null;
+  }
+
+  await prisma.notification.delete({
+    where: { id: notificationId },
+  });
+
+  return { deleted: true };
+};
+
 export const notificationService = {
   createNotification,
   getNotifications,
+  getRecentNotifications,
   getUnreadCount,
   markAsRead,
   markAllAsRead,
+  deleteNotification,
 };

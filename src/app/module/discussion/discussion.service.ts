@@ -475,6 +475,7 @@ const createReply = async (
   if (discussion.authorId !== userId) {
     notificationService.createNotification({
       userId: discussion.authorId,
+      senderId: userId,
       type: "DISCUSSION_REPLY",
       title: "New Reply",
       message: `Someone replied to a discussion.`,

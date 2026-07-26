@@ -8,10 +8,12 @@ import { NotificationListQuery } from "./notification.interface";
 const createNotification = catchAsync(async (req, res) => {
   const result = await notificationService.createNotification({
     userId: req.body.userId,
+    senderId: req.body.senderId,
     type: req.body.type,
     title: req.body.title,
     message: req.body.message,
     link: req.body.link,
+    metadata: req.body.metadata,
   });
   sendResponse(res, {
     httpStatusCode: status.CREATED,
@@ -26,12 +28,24 @@ const getNotifications = catchAsync(async (req, res) => {
     page: parseInt(req.query.page as string) || 1,
     limit: parseInt(req.query.limit as string) || 20,
     unreadOnly: req.query.unreadOnly === "true",
+    type: req.query.type as NotificationListQuery["type"],
   };
   const result = await notificationService.getNotifications(req.user.id, query);
   sendResponse(res, {
     httpStatusCode: status.OK,
     success: true,
     message: "Notifications retrieved successfully.",
+    data: result,
+  });
+});
+
+const getRecentNotifications = catchAsync(async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit as string) || 5, 10);
+  const result = await notificationService.getRecentNotifications(req.user.id, limit);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Recent notifications retrieved successfully.",
     data: result,
   });
 });
@@ -70,10 +84,26 @@ const markAllAsRead = catchAsync(async (req, res) => {
   });
 });
 
+const deleteNotification = catchAsync(async (req, res) => {
+  const notificationId = req.params.id as string;
+  const result = await notificationService.deleteNotification(notificationId, req.user.id);
+  if (!result) {
+    throw new AppError(status.NOT_FOUND, "Notification not found or unauthorized.");
+  }
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Notification deleted.",
+    data: result,
+  });
+});
+
 export const notificationController = {
   createNotification,
   getNotifications,
+  getRecentNotifications,
   getUnreadCount,
   markAsRead,
   markAllAsRead,
+  deleteNotification,
 };

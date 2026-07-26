@@ -455,6 +455,7 @@ const toggleVote = async (
   if (type === VoteType.UP && userId !== ownerId) {
     notificationService.createNotification({
       userId: ownerId,
+      senderId: userId,
       type: "RESOURCE_UPVOTE",
       title: "Resource Upvoted",
       message: `Someone upvoted your resource.`,
@@ -569,6 +570,7 @@ const addComment = async (
   if (userId !== resource.uploaderId) {
     notificationService.createNotification({
       userId: resource.uploaderId,
+      senderId: userId,
       type: "RESOURCE_COMMENT",
       title: "New Comment",
       message: `Someone commented on your resource.`,
@@ -758,6 +760,7 @@ const reviewReport = async (
   if (report.userId !== reviewedById) {
     notificationService.createNotification({
       userId: report.userId,
+      senderId: reviewedById,
       type: "RESOURCE_REPORT_REVIEWED",
       title: "Report Reviewed",
       message: `Your report has been ${reviewStatus.toLowerCase().replace(/_/g, " ")}.`,
@@ -774,6 +777,7 @@ const reviewReport = async (
     if (resource && resource.uploaderId !== reviewedById) {
       notificationService.createNotification({
         userId: resource.uploaderId,
+        senderId: reviewedById,
         type: "RESOURCE_REPORT_REVIEWED",
         title: "Resource Actioned",
         message: "Your resource has been actioned following a report review.",
