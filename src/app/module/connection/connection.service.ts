@@ -1205,14 +1205,59 @@ const getActiveUsers = async (userId: string, limit = 8) => {
     },
   });
 
-  return users.map((u) => ({
-    id: u.id,
-    name: u.name,
-    image: u.image,
-    department: u.student?.department ?? null,
-    currentSemester: u.profile?.currentSemester ?? null,
-    lastActiveAt: u.updatedAt,
-  }));
+  const userIds = users.map((u) => u.id);
+
+  const connections = await prisma.connection.findMany({
+    where: {
+      OR: [
+        { requesterId: userId, receiverId: { in: userIds } },
+        { receiverId: userId, requesterId: { in: userIds } },
+      ],
+    },
+    select: {
+      requesterId: true,
+      receiverId: true,
+      status: true,
+    },
+  });
+
+  const connectionMap = new Map<string, string>();
+  for (const conn of connections) {
+    const otherId =
+      conn.requesterId === userId ? conn.receiverId : conn.requesterId;
+    connectionMap.set(otherId, conn.status);
+  }
+
+  return users.map((u) => {
+    const status = connectionMap.get(u.id) ?? "NONE";
+    let connectionStatus:
+      | "NONE"
+      | "CONNECTED"
+      | "PENDING_OUTGOING"
+      | "PENDING_INCOMING" = "NONE";
+    if (status === "ACCEPTED") {
+      connectionStatus = "CONNECTED";
+    } else if (status === "PENDING") {
+      connectionStatus =
+        connections.find(
+          (c) =>
+            (c.requesterId === userId && c.receiverId === u.id) ||
+            (c.receiverId === userId && c.requesterId === u.id),
+        )?.requesterId === userId
+          ? "PENDING_OUTGOING"
+          : "PENDING_INCOMING";
+    }
+
+    return {
+      id: u.id,
+      name: u.name,
+      image: u.image,
+      department: u.student?.department ?? null,
+      currentSemester: u.profile?.currentSemester ?? null,
+      lastActiveAt: u.updatedAt,
+      connectionStatus,
+    };
+  });
 };
 
 /**
