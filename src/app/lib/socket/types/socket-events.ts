@@ -10,14 +10,26 @@
 // Keeping them here lets us compile without pulling in Prisma or DB types.
 // ---------------------------------------------------------------------------
 
-/** Minimal message shape used in messaging events. */
+/** Message shape used in messaging events. */
 export interface Message {
   id: string;
   conversationId: string;
   senderId: string;
   content: string;
   type: MessageType;
+  fileUrl?: string;
+  filePublicId?: string;
+  fileName?: string;
+  fileSize?: number;
+  isEdited?: boolean;
+  isForwarded?: boolean;
   replyToId?: string;
+  replyTo?: {
+    id: string;
+    content: string;
+    senderId: string;
+    sender: { id: string; name: string };
+  } | null;
   createdAt: string;
 }
 
@@ -110,6 +122,10 @@ export interface SocketEvents {
     content: string;
     type: MessageType;
     replyToId?: string;
+    fileUrl?: string;
+    filePublicId?: string;
+    fileName?: string;
+    fileSize?: number;
   };
 
   /** Mark a message as read. */

@@ -1161,6 +1161,16 @@ const deleteMessage = async (
     },
   });
 
+  // Clean up Cloudinary file if present
+  if (message.filePublicId) {
+    try {
+      const { cloudinaryProvider } = await import("../../lib/upload/cloudinary");
+      await cloudinaryProvider.delete(message.filePublicId);
+    } catch (err) {
+      console.error("Failed to delete Cloudinary file:", err);
+    }
+  }
+
   return { message: "Message deleted successfully." };
 };
 
@@ -1191,18 +1201,23 @@ const addReaction = async (
     throw new AppError(status.NOT_FOUND, "Message not found in this conversation.");
   }
 
-  // Check if reaction already exists - toggle it
-  const existing = await prisma.messageReaction.findUnique({
-    where: {
-      messageId_userId_emoji: { messageId, userId, emoji },
-    },
+  // One reaction per user per message — remove any existing reaction first
+  const existingForUser = await prisma.messageReaction.findFirst({
+    where: { messageId, userId },
   });
 
-  if (existing) {
+  if (existingForUser) {
+    // Same emoji → toggle (remove it)
+    if (existingForUser.emoji === emoji) {
+      await prisma.messageReaction.delete({
+        where: { id: existingForUser.id },
+      });
+      return { id: existingForUser.id, userId, emoji, createdAt: existingForUser.createdAt };
+    }
+    // Different emoji → remove old, replace with new
     await prisma.messageReaction.delete({
-      where: { id: existing.id },
+      where: { id: existingForUser.id },
     });
-    return { id: existing.id, userId, emoji, createdAt: existing.createdAt };
   }
 
   const reaction = await prisma.messageReaction.create({

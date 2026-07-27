@@ -30,6 +30,7 @@ export const UPLOAD_CONFIG = {
     "events",
     "posts",
     "uploads",
+    "messages",
   ] as const,
 } as const;
 

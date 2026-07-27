@@ -102,6 +102,10 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
             content: data.content,
             type: data.type?.toUpperCase() as "TEXT" | "IMAGE" | "FILE" | undefined,
             replyToId: data.replyToId,
+            fileUrl: data.fileUrl,
+            filePublicId: data.filePublicId,
+            fileName: data.fileName,
+            fileSize: data.fileSize,
           },
           userId,
         );
@@ -113,7 +117,14 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
           senderId: message.senderId,
           content: message.content,
           type: message.type.toLowerCase(),
+          fileUrl: message.fileUrl ?? undefined,
+          filePublicId: message.filePublicId ?? undefined,
+          fileName: message.fileName ?? undefined,
+          fileSize: message.fileSize ?? undefined,
+          isEdited: message.isEdited,
+          isForwarded: message.isForwarded,
           replyToId: message.replyToId ?? undefined,
+          replyTo: message.replyTo ?? undefined,
           createdAt: message.createdAt.toISOString(),
         });
       } catch {
