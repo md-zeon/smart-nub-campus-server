@@ -955,6 +955,12 @@ const reviewReport = async (
 
     if (reviewStatus === "ACTION_TAKEN") {
       await softDelete(tx.resource, report.resourceId);
+    } else {
+      // Decrement reportCount for DISMISSED / REVIEWED
+      await tx.resource.update({
+        where: { id: report.resourceId },
+        data: { reportCount: { decrement: 1 } },
+      });
     }
 
     return reportUpdate;
