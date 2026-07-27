@@ -28,6 +28,7 @@ export interface ListResourcesQuery {
   sort?: "newest" | "popular" | "downloads";
   page?: number;
   limit?: number;
+  tab?: "bookmarks" | "uploads";
 }
 
 /**

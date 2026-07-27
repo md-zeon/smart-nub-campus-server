@@ -17,14 +17,22 @@ import {
 /**
  * Helper: Get the other user in a connection based on the current user's ID.
  */
-const getOtherUserId = (connection: { requesterId: string; receiverId: string }, userId: string) => {
-  return connection.requesterId === userId ? connection.receiverId : connection.requesterId;
+const getOtherUserId = (
+  connection: { requesterId: string; receiverId: string },
+  userId: string,
+) => {
+  return connection.requesterId === userId
+    ? connection.receiverId
+    : connection.requesterId;
 };
 
 /**
  * Helper: Check if two users are blocked (either direction).
  */
-const areUsersBlocked = async (userId1: string, userId2: string): Promise<boolean> => {
+const areUsersBlocked = async (
+  userId1: string,
+  userId2: string,
+): Promise<boolean> => {
   const block = await prisma.blockedUser.findFirst({
     where: {
       OR: [
@@ -62,20 +70,37 @@ const getBlockedUserIds = async (userId: string): Promise<string[]> => {
 /**
  * Helper: Get the count of mutual connections between two users.
  */
-const getMutualConnectionCount = async (userId1: string, userId2: string): Promise<number> => {
+const getMutualConnectionCount = async (
+  userId1: string,
+  userId2: string,
+): Promise<number> => {
   const [conns1, conns2] = await Promise.all([
     prisma.connection.findMany({
-      where: { status: "ACCEPTED", OR: [{ requesterId: userId1 }, { receiverId: userId1 }] },
+      where: {
+        status: "ACCEPTED",
+        OR: [{ requesterId: userId1 }, { receiverId: userId1 }],
+      },
       select: { requesterId: true, receiverId: true },
     }),
     prisma.connection.findMany({
-      where: { status: "ACCEPTED", OR: [{ requesterId: userId2 }, { receiverId: userId2 }] },
+      where: {
+        status: "ACCEPTED",
+        OR: [{ requesterId: userId2 }, { receiverId: userId2 }],
+      },
       select: { requesterId: true, receiverId: true },
     }),
   ]);
 
-  const ids1 = new Set(conns1.map((c) => c.requesterId === userId1 ? c.receiverId : c.requesterId));
-  const ids2 = new Set(conns2.map((c) => c.requesterId === userId2 ? c.receiverId : c.requesterId));
+  const ids1 = new Set(
+    conns1.map((c) =>
+      c.requesterId === userId1 ? c.receiverId : c.requesterId,
+    ),
+  );
+  const ids2 = new Set(
+    conns2.map((c) =>
+      c.requesterId === userId2 ? c.receiverId : c.requesterId,
+    ),
+  );
 
   let count = 0;
   for (const id of ids1) {
@@ -110,7 +135,10 @@ const buildOtherUserInclude = () => ({
 /**
  * Helper: Format a connection record with the other user's info.
  */
-const formatConnection = (connection: Record<string, unknown>, userId: string): ConnectionWithUser => {
+const formatConnection = (
+  connection: Record<string, unknown>,
+  userId: string,
+): ConnectionWithUser => {
   const conn = connection as {
     id: string;
     requesterId: string;
@@ -123,14 +151,17 @@ const formatConnection = (connection: Record<string, unknown>, userId: string): 
     requester: Record<string, unknown>;
     receiver: Record<string, unknown>;
   };
-  const otherUser = conn.requesterId === userId ? conn.receiver : conn.requester;
+  const otherUser =
+    conn.requesterId === userId ? conn.receiver : conn.requester;
   return {
     id: conn.id,
     requesterId: conn.requesterId,
     receiverId: conn.receiverId,
     status: conn.status as ConnectionWithUser["status"],
     isFavorite: conn.isFavorite,
-    note: (conn as Record<string, unknown>).note as string | null | undefined ?? null,
+    note:
+      ((conn as Record<string, unknown>).note as string | null | undefined) ??
+      null,
     connectedAt: conn.connectedAt,
     createdAt: conn.createdAt,
     updatedAt: conn.updatedAt,
@@ -147,7 +178,10 @@ const sendConnectionRequest = async (
   userId: string,
 ) => {
   if (data.receiverId === userId) {
-    throw new AppError(status.BAD_REQUEST, "You cannot send a connection request to yourself.");
+    throw new AppError(
+      status.BAD_REQUEST,
+      "You cannot send a connection request to yourself.",
+    );
   }
 
   // Check if receiver exists
@@ -182,19 +216,35 @@ const sendConnectionRequest = async (
       );
     }
 
-    if (policy === "SAME_DEPARTMENT" || policy === "SAME_BATCH" || policy === "MUTUAL_CONNECTIONS") {
+    if (
+      policy === "SAME_DEPARTMENT" ||
+      policy === "SAME_BATCH" ||
+      policy === "MUTUAL_CONNECTIONS"
+    ) {
       const [sender, receiver] = await Promise.all([
         prisma.user.findUnique({
           where: { id: userId },
           include: {
-            student: { select: { department: true, admissionYear: true, admissionSemester: true } },
+            student: {
+              select: {
+                department: true,
+                admissionYear: true,
+                admissionSemester: true,
+              },
+            },
             profile: { select: { currentSemester: true, batchYear: true } },
           },
         }),
         prisma.user.findUnique({
           where: { id: data.receiverId },
           include: {
-            student: { select: { department: true, admissionYear: true, admissionSemester: true } },
+            student: {
+              select: {
+                department: true,
+                admissionYear: true,
+                admissionSemester: true,
+              },
+            },
             profile: { select: { currentSemester: true, batchYear: true } },
           },
         }),
@@ -210,8 +260,11 @@ const sendConnectionRequest = async (
       }
 
       if (policy === "SAME_BATCH") {
-        if (sender?.student?.admissionYear !== receiver?.student?.admissionYear ||
-            sender?.student?.admissionSemester !== receiver?.student?.admissionSemester) {
+        if (
+          sender?.student?.admissionYear !== receiver?.student?.admissionYear ||
+          sender?.student?.admissionSemester !==
+            receiver?.student?.admissionSemester
+        ) {
           throw new AppError(
             status.FORBIDDEN,
             "This user only accepts requests from their batch.",
@@ -220,7 +273,10 @@ const sendConnectionRequest = async (
       }
 
       if (policy === "MUTUAL_CONNECTIONS") {
-        const mutualCount = await getMutualConnectionCount(userId, data.receiverId);
+        const mutualCount = await getMutualConnectionCount(
+          userId,
+          data.receiverId,
+        );
         if (mutualCount === 0) {
           throw new AppError(
             status.FORBIDDEN,
@@ -265,14 +321,16 @@ const sendConnectionRequest = async (
         note: data.note ?? null,
       },
     });
-    notificationService.createNotification({
-      userId: data.receiverId,
-      senderId: userId,
-      type: "CONNECTION_REQUEST",
-      title: "New Connection Request",
-      message: `Someone sent you a connection request.`,
-      link: "/my-network",
-    }).catch(() => {});
+    notificationService
+      .createNotification({
+        userId: data.receiverId,
+        senderId: userId,
+        type: "CONNECTION_REQUEST",
+        title: "New Connection Request",
+        message: `Someone sent you a connection request.`,
+        link: "/my-network",
+      })
+      .catch(() => {});
     try {
       const io = getSocketServer();
       io.to(`user:${data.receiverId}`).emit("connection:request", {
@@ -282,7 +340,9 @@ const sendConnectionRequest = async (
         status: updated.status,
         createdAt: updated.createdAt.toISOString(),
       });
-    } catch { /* Socket.IO may not be initialized */ }
+    } catch {
+      /* Socket.IO may not be initialized */
+    }
     return updated;
   }
 
@@ -295,14 +355,16 @@ const sendConnectionRequest = async (
     },
   });
 
-  notificationService.createNotification({
-    userId: data.receiverId,
-    senderId: userId,
-    type: "CONNECTION_REQUEST",
-    title: "New Connection Request",
-    message: `Someone sent you a connection request.`,
-    link: "/connections",
-  }).catch(() => {});
+  notificationService
+    .createNotification({
+      userId: data.receiverId,
+      senderId: userId,
+      type: "CONNECTION_REQUEST",
+      title: "New Connection Request",
+      message: `Someone sent you a connection request.`,
+      link: "/my-network",
+    })
+    .catch(() => {});
   try {
     const io = getSocketServer();
     io.to(`user:${data.receiverId}`).emit("connection:request", {
@@ -312,7 +374,9 @@ const sendConnectionRequest = async (
       status: connection.status,
       createdAt: connection.createdAt.toISOString(),
     });
-  } catch { /* Socket.IO may not be initialized */ }
+  } catch {
+    /* Socket.IO may not be initialized */
+  }
   return connection;
 };
 
@@ -347,14 +411,16 @@ const acceptConnection = async (connectionId: string, userId: string) => {
     data: { status: "ACCEPTED", connectedAt: new Date() },
   });
 
-  notificationService.createNotification({
-    userId: connection.requesterId,
-    senderId: userId,
-    type: "CONNECTION_ACCEPTED",
-    title: "Connection Accepted",
-    message: `Your connection request was accepted.`,
-    link: "/connections",
-  }).catch(() => {});
+  notificationService
+    .createNotification({
+      userId: connection.requesterId,
+      senderId: userId,
+      type: "CONNECTION_ACCEPTED",
+      title: "Connection Accepted",
+      message: `Your connection request was accepted.`,
+      link: "/my-network",
+    })
+    .catch(() => {});
   try {
     const io = getSocketServer();
     io.to(`user:${connection.requesterId}`).emit("connection:accepted", {
@@ -364,7 +430,9 @@ const acceptConnection = async (connectionId: string, userId: string) => {
       status: updated.status,
       createdAt: updated.createdAt.toISOString(),
     });
-  } catch { /* Socket.IO may not be initialized */ }
+  } catch {
+    /* Socket.IO may not be initialized */
+  }
 
   return updated;
 };
@@ -538,10 +606,7 @@ const removeConnection = async (connectionId: string, userId: string) => {
     throw new AppError(status.NOT_FOUND, "Connection not found.");
   }
 
-  if (
-    connection.requesterId !== userId &&
-    connection.receiverId !== userId
-  ) {
+  if (connection.requesterId !== userId && connection.receiverId !== userId) {
     throw new AppError(
       status.FORBIDDEN,
       "You are not part of this connection.",
@@ -574,7 +639,9 @@ const removeConnection = async (connectionId: string, userId: string) => {
       connectionId,
       removedBy: userId,
     });
-  } catch { /* Socket.IO may not be initialized */ }
+  } catch {
+    /* Socket.IO may not be initialized */
+  }
 
   return { message: "Connection removed successfully." };
 };
@@ -582,7 +649,10 @@ const removeConnection = async (connectionId: string, userId: string) => {
 /**
  * Get the current user's accepted connections with optional filters.
  */
-const getMyConnections = async (userId: string, query: GetMyConnectionsQuery) => {
+const getMyConnections = async (
+  userId: string,
+  query: GetMyConnectionsQuery,
+) => {
   const { filter = "ALL", page = 1, limit = 20 } = query;
   const skip = (page - 1) * limit;
 
@@ -639,7 +709,9 @@ const getMyConnections = async (userId: string, query: GetMyConnectionsQuery) =>
 
   // Apply semester-based filters
   if (
-    (filter === "SENIORS" || filter === "JUNIORS" || filter === "SAME_SEMESTER") &&
+    (filter === "SENIORS" ||
+      filter === "JUNIORS" ||
+      filter === "SAME_SEMESTER") &&
     currentUser?.profile?.currentSemester
   ) {
     filteredConnections = connections.filter((conn) => {
@@ -776,10 +848,7 @@ const toggleFavorite = async (connectionId: string, userId: string) => {
     throw new AppError(status.NOT_FOUND, "Connection not found.");
   }
 
-  if (
-    connection.requesterId !== userId &&
-    connection.receiverId !== userId
-  ) {
+  if (connection.requesterId !== userId && connection.receiverId !== userId) {
     throw new AppError(
       status.FORBIDDEN,
       "You are not part of this connection.",
@@ -883,10 +952,7 @@ const getSuggestedPeople = async (userId: string) => {
       continue;
     }
 
-    mutualCountMap.set(
-      candidateId,
-      (mutualCountMap.get(candidateId) ?? 0) + 1,
-    );
+    mutualCountMap.set(candidateId, (mutualCountMap.get(candidateId) ?? 0) + 1);
   }
 
   if (mutualCountMap.size === 0) {
@@ -936,7 +1002,8 @@ const getSuggestedPeople = async (userId: string) => {
       if (
         currentUser?.profile?.currentSemester &&
         candidate.profile?.currentSemester &&
-        currentUser.profile.currentSemester === candidate.profile.currentSemester
+        currentUser.profile.currentSemester ===
+          candidate.profile.currentSemester
       ) {
         score += 1;
       }
@@ -1043,7 +1110,14 @@ const getUserSkills = async (userId: string) => {
  * Excludes blocked users.
  */
 const searchPeople = async (query: SearchPeopleQuery, userId: string) => {
-  const { query: searchQuery, department, semester, skills, page = 1, limit = 20 } = query;
+  const {
+    query: searchQuery,
+    department,
+    semester,
+    skills,
+    page = 1,
+    limit = 20,
+  } = query;
   const skip = (page - 1) * limit;
 
   const blockedIds = await getBlockedUserIds(userId);
@@ -1159,8 +1233,11 @@ const searchPeople = async (query: SearchPeopleQuery, userId: string) => {
 
   const data = users.map((u) => {
     const conn = connectionByUserId.get(u.id);
-    let connectionStatus: "NONE" | "CONNECTED" | "PENDING_INCOMING" | "PENDING_OUTGOING" =
-      "NONE";
+    let connectionStatus:
+      | "NONE"
+      | "CONNECTED"
+      | "PENDING_INCOMING"
+      | "PENDING_OUTGOING" = "NONE";
     if (conn) {
       if (conn.status === "ACCEPTED") connectionStatus = "CONNECTED";
       else if (conn.status === "PENDING") {
@@ -1267,8 +1344,16 @@ const getProfileCompleteness = async (userId: string) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
-      student: { select: { department: true, admissionYear: true, admissionSemester: true } },
-      profile: { select: { bio: true, currentSemester: true, batchYear: true } },
+      student: {
+        select: {
+          department: true,
+          admissionYear: true,
+          admissionSemester: true,
+        },
+      },
+      profile: {
+        select: { bio: true, currentSemester: true, batchYear: true },
+      },
       userSkills: { select: { id: true } },
     },
   });

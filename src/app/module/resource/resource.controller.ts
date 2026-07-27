@@ -35,6 +35,7 @@ const listResources = catchAsync(async (req, res) => {
     sort: (req.query.sort as ListResourcesQuery["sort"]) || "newest",
     page: parseInt(req.query.page as string) || 1,
     limit: parseInt(req.query.limit as string) || 12,
+    tab: (req.query.tab as ListResourcesQuery["tab"]) || undefined,
   };
 
   const result = await resourceService.listResources(query, req.user.id);

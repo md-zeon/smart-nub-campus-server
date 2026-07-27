@@ -24,6 +24,7 @@ const getLeaderboard = catchAsync(async (req, res) => {
   const query: LeaderboardQuery = {
     page: parseInt(req.query.page as string) || 1,
     limit: parseInt(req.query.limit as string) || 10,
+    role: req.query.role as "STUDENT" | "ADMIN" | undefined,
   };
   const result = await gamificationService.getLeaderboard(query);
   sendResponse(res, {

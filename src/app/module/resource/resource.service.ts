@@ -161,6 +161,7 @@ const listResources = async (query: ListResourcesQuery, userId?: string) => {
     sort = "newest",
     page: rawPage = 1,
     limit: rawLimit = 12,
+    tab,
   } = query;
 
   const page = Math.max(1, Math.floor(Number(rawPage) || 1));
@@ -169,6 +170,12 @@ const listResources = async (query: ListResourcesQuery, userId?: string) => {
   const take = limit;
 
   const where: Record<string, unknown> = { isDeleted: false };
+
+  if (tab === "bookmarks" && userId) {
+    where.resourceBookmarks = { some: { userId } };
+  } else if (tab === "uploads" && userId) {
+    where.uploaderId = userId;
+  }
 
   if (courseId) where.courseId = courseId;
   if (categoryId) where.categoryId = categoryId;

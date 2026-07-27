@@ -47,8 +47,13 @@ const awardPoints = async (input: AwardPointsInput) => {
  * Get the leaderboard — top users by total reputation points.
  */
 const getLeaderboard = async (query: LeaderboardQuery) => {
-  const { page = 1, limit = 10 } = query;
+  const { page = 1, limit = 10, role } = query;
   const { skip, take } = buildPaginationQuery({ page, limit, sortBy: "totalPoints", sortOrder: "desc" });
+
+  const userWhere: { isDeleted: boolean; role?: "STUDENT" | "ADMIN" } = { isDeleted: false };
+  if (role) {
+    userWhere.role = role;
+  }
 
   // Aggregate total points per user, excluding negative floor
   const aggregated = await prisma.reputationPoint.groupBy({
@@ -59,14 +64,10 @@ const getLeaderboard = async (query: LeaderboardQuery) => {
     take,
   });
 
-  const totalUsers = await prisma.reputationPoint.groupBy({
-    by: ["userId"],
-  });
-
-  // Fetch user details for the leaderboard entries
+  // Fetch user details for the leaderboard entries (filtered by role)
   const userIds = aggregated.map((entry) => entry.userId);
   const users = await prisma.user.findMany({
-    where: { id: { in: userIds }, isDeleted: false },
+    where: { id: { in: userIds }, ...userWhere },
     select: {
       id: true,
       name: true,
@@ -86,7 +87,7 @@ const getLeaderboard = async (query: LeaderboardQuery) => {
 
   return {
     data: leaderboard,
-    meta: calculatePaginationMeta(totalUsers.length, page, limit),
+    meta: calculatePaginationMeta(users.length, page, limit),
   };
 };
 

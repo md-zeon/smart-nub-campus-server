@@ -50,6 +50,7 @@ export interface AdminAdjustPointsInput {
 export interface LeaderboardQuery {
   page?: number;
   limit?: number;
+  role?: "STUDENT" | "ADMIN";
 }
 
 export interface ReputationHistoryQuery {
