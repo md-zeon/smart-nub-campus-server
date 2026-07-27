@@ -62,6 +62,20 @@ enum TeamRequestStatus {
   CLOSED
 }
 
+enum DifficultyLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum MeetingPreference {
+  ONLINE
+  IN_PERSON
+  HYBRID
+  FLEXIBLE
+}
+
 enum ApplicationStatus {
   PENDING
   ACCEPTED

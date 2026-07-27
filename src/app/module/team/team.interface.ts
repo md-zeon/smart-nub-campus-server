@@ -1,4 +1,4 @@
-import { ApplicationStatus, TeamRequestStatus } from "../../../generated/prisma/enums";
+import { ApplicationStatus, DifficultyLevel, MeetingPreference, TeamRequestStatus } from "../../../generated/prisma/enums";
 
 export interface CreateTeamRequestInput {
   title: string;
@@ -7,6 +7,9 @@ export interface CreateTeamRequestInput {
   projectName?: string;
   deadline?: string;
   category?: string;
+  difficulty?: DifficultyLevel;
+  meetingPreference?: MeetingPreference;
+  contactInfo?: string;
   skillTagIds: string[];
 }
 
@@ -18,6 +21,9 @@ export interface UpdateTeamRequestInput {
   projectName?: string;
   deadline?: string;
   category?: string;
+  difficulty?: DifficultyLevel;
+  meetingPreference?: MeetingPreference;
+  contactInfo?: string;
   skillTagIds?: string[];
 }
 
@@ -32,10 +38,28 @@ export interface ReviewApplicationInput {
 export interface ListTeamRequestsQuery {
   status?: TeamRequestStatus;
   category?: string;
+  difficulty?: DifficultyLevel;
+  meetingPreference?: MeetingPreference;
   skill?: string;
   search?: string;
-  sort?: "newest" | "oldest" | "popular";
+  sort?: "newest" | "deadline" | "applications";
   page?: number;
   limit?: number;
   excludeOwn?: boolean;
+  bookmarked?: boolean;
+}
+
+export interface TeamBookmarkInput {
+  teamRequestId: string;
+}
+
+export interface TeamCategoryCount {
+  category: string;
+  count: number;
+}
+
+export interface TeamPopularSkill {
+  tagId: string;
+  name: string;
+  count: number;
 }

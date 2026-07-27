@@ -183,6 +183,15 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
       presenceManager.touchHeartbeat(userId);
     });
 
+    // ── Team room join/leave ──────────────────────────────────────────────
+    socket.on("team:join", (data) => {
+      roomManager.joinRoom(socket, `team:${data.teamRequestId}`);
+    });
+
+    socket.on("team:leave", (data) => {
+      roomManager.leaveRoom(socket, `team:${data.teamRequestId}`);
+    });
+
     // ── Disconnect ────────────────────────────────────────────────────────
     socket.on("disconnect", (reason) => {
       connectionManager.removeConnection(userId, socket.id);

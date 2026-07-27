@@ -149,6 +149,12 @@ export interface SocketEvents {
   /** Heartbeat to keep presence alive. */
   "presence:heartbeat": Record<string, never>;
 
+  /** Join a team room for real-time updates. */
+  "team:join": { teamRequestId: string };
+
+  /** Leave a team room. */
+  "team:leave": { teamRequestId: string };
+
   // ── Server → Client ──────────────────────────────────────────────────────
 
   /** New message in a conversation. */
@@ -265,6 +271,8 @@ export type ClientEvents = keyof Pick<
   | "conversation:join"
   | "conversation:leave"
   | "presence:heartbeat"
+  | "team:join"
+  | "team:leave"
 >;
 
 /** Extract only server → client event names. */

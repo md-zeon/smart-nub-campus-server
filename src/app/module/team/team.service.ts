@@ -9,6 +9,8 @@ import {
   CreateTeamRequestInput,
   ListTeamRequestsQuery,
   ReviewApplicationInput,
+  TeamCategoryCount,
+  TeamPopularSkill,
   UpdateTeamRequestInput,
 } from "./team.interface";
 
@@ -18,7 +20,6 @@ import {
  */
 const createTeamRequest = async (data: CreateTeamRequestInput, userId: string) => {
   const teamRequest = await prisma.$transaction(async (tx) => {
-    // Create the team request with skills and initial member
     const created = await tx.teamRequest.create({
       data: {
         title: data.title,
@@ -27,6 +28,9 @@ const createTeamRequest = async (data: CreateTeamRequestInput, userId: string) =
         projectName: data.projectName ?? null,
         deadline: data.deadline ? new Date(data.deadline) : null,
         category: data.category ?? null,
+        difficulty: data.difficulty ?? null,
+        meetingPreference: data.meetingPreference ?? "FLEXIBLE",
+        contactInfo: data.contactInfo ?? null,
         creatorId: userId,
         teamRequestSkills: {
           create: data.skillTagIds.map((tagId) => ({ tagId })),
@@ -56,8 +60,9 @@ const createTeamRequest = async (data: CreateTeamRequestInput, userId: string) =
 
 /**
  * Gets a single team request by ID with skills, members, and application count.
+ * Increments viewCount and checks if user has bookmarked.
  */
-const getTeamRequest = async (id: string) => {
+const getTeamRequest = async (id: string, userId?: string) => {
   const teamRequest = await prisma.teamRequest.findUnique({
     where: { id, isDeleted: false },
     include: {
@@ -66,6 +71,12 @@ const getTeamRequest = async (id: string) => {
         include: {
           user: { select: { id: true, name: true, email: true, image: true } },
         },
+      },
+      teamApplications: {
+        include: {
+          applicant: { select: { id: true, name: true, email: true, image: true } },
+        },
+        orderBy: { createdAt: "desc" },
       },
       creator: { select: { id: true, name: true, email: true, image: true } },
       _count: { select: { teamApplications: true } },
@@ -76,7 +87,22 @@ const getTeamRequest = async (id: string) => {
     throw new AppError(status.NOT_FOUND, "Team request not found.");
   }
 
-  return teamRequest;
+  // Increment view count (fire and forget)
+  prisma.teamRequest.update({
+    where: { id },
+    data: { viewCount: { increment: 1 } },
+  }).catch(() => {});
+
+  // Check if user has bookmarked
+  let isBookmarked = false;
+  if (userId) {
+    const bookmark = await prisma.teamBookmark.findUnique({
+      where: { teamRequestId_userId: { teamRequestId: id, userId } },
+    });
+    isBookmarked = !!bookmark;
+  }
+
+  return { ...teamRequest, isBookmarked };
 };
 
 /**
@@ -87,12 +113,15 @@ const listTeamRequests = async (query: ListTeamRequestsQuery, userId?: string) =
   const {
     status: filterStatus,
     category,
+    difficulty,
+    meetingPreference,
     skill,
     search,
     sort = "newest",
     page = 1,
     limit = 12,
     excludeOwn = false,
+    bookmarked = false,
   } = query;
 
   const skip = (page - 1) * limit;
@@ -116,10 +145,27 @@ const listTeamRequests = async (query: ListTeamRequestsQuery, userId?: string) =
     where.category = category;
   }
 
+  // Filter by difficulty
+  if (difficulty) {
+    where.difficulty = difficulty;
+  }
+
+  // Filter by meeting preference
+  if (meetingPreference) {
+    where.meetingPreference = meetingPreference;
+  }
+
   // Filter by skill tag
   if (skill) {
     where.teamRequestSkills = {
       some: { tag: { slug: skill } },
+    };
+  }
+
+  // Filter by bookmarked
+  if (bookmarked && userId) {
+    where.teamBookmarks = {
+      some: { userId },
     };
   }
 
@@ -132,13 +178,13 @@ const listTeamRequests = async (query: ListTeamRequestsQuery, userId?: string) =
   }
 
   // Sort options
-  let orderBy: Record<string, string>;
+  let orderBy: Record<string, unknown>;
   switch (sort) {
-    case "oldest":
-      orderBy = { createdAt: "asc" };
+    case "deadline":
+      orderBy = { deadline: "asc" };
       break;
-    case "popular":
-      orderBy = { currentMemberCount: "desc" };
+    case "applications":
+      orderBy = { teamApplications: { _count: "desc" } };
       break;
     case "newest":
     default:
@@ -155,14 +201,33 @@ const listTeamRequests = async (query: ListTeamRequestsQuery, userId?: string) =
       include: {
         teamRequestSkills: { include: { tag: { select: { id: true, name: true, slug: true } } } },
         creator: { select: { id: true, name: true, image: true } },
+        teamMembers: { select: { userId: true } },
+        ...(userId
+          ? {
+              teamBookmarks: { where: { userId }, select: { id: true } },
+              teamApplications: { where: { applicantId: userId, status: { not: "WITHDRAWN" } }, select: { id: true, status: true } },
+            }
+          : {}),
         _count: { select: { teamApplications: true, teamMembers: true } },
       },
     }),
     prisma.teamRequest.count({ where }),
   ]);
 
+  const mapped = teamRequests.map((t) => {
+    const { teamBookmarks, teamApplications, ...rest } = t as typeof t & {
+      teamBookmarks?: { id: string }[];
+      teamApplications?: { id: string; status: string }[];
+    };
+    return {
+      ...rest,
+      isBookmarked: (teamBookmarks?.length ?? 0) > 0,
+      hasApplied: (teamApplications?.length ?? 0) > 0,
+    };
+  });
+
   return {
-    data: teamRequests,
+    data: mapped,
     meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
   };
 };
@@ -196,6 +261,9 @@ const updateTeamRequest = async (
   if (data.projectName !== undefined) updateData.projectName = data.projectName;
   if (data.deadline !== undefined) updateData.deadline = data.deadline ? new Date(data.deadline) : null;
   if (data.category !== undefined) updateData.category = data.category;
+  if (data.difficulty !== undefined) updateData.difficulty = data.difficulty;
+  if (data.meetingPreference !== undefined) updateData.meetingPreference = data.meetingPreference;
+  if (data.contactInfo !== undefined) updateData.contactInfo = data.contactInfo;
 
   return prisma.$transaction(async (tx) => {
     // Update the team request
@@ -302,10 +370,10 @@ const applyToTeam = async (
     link: `/teams/${teamRequestId}`,
   }).catch(() => {});
 
-  // Broadcast new application to connected clients (non-blocking)
+  // Broadcast new application to team room (non-blocking)
   try {
     const io = getSocketServer();
-    io.emit("team:application", {
+    io.to(`team:${teamRequestId}`).emit("team:application", {
       teamRequestId,
       application: {
         id: application.id,
@@ -424,10 +492,10 @@ const reviewApplication = async (
     link: `/teams/${teamRequestId}`,
   }).catch(() => {});
 
-  // Broadcast application review result to connected clients (non-blocking)
+  // Broadcast application review result to team room (non-blocking)
   try {
     const io = getSocketServer();
-    io.emit("team:application", {
+    io.to(`team:${teamRequestId}`).emit("team:application", {
       teamRequestId,
       application: {
         id: result.id,
@@ -605,6 +673,157 @@ const removeMember = async (
   return result;
 };
 
+/**
+ * Gets category counts for sidebar display.
+ */
+const getCategoryCounts = async (): Promise<TeamCategoryCount[]> => {
+  const counts = await prisma.teamRequest.groupBy({
+    by: ["category"],
+    where: { isDeleted: false, status: "OPEN" },
+    _count: { category: true },
+    orderBy: { _count: { category: "desc" } },
+  });
+
+  return counts
+    .filter((c) => c.category !== null)
+    .map((c) => ({
+      category: c.category!,
+      count: c._count.category,
+    }));
+};
+
+/**
+ * Gets popular skills across all team requests.
+ */
+const getPopularSkills = async (): Promise<TeamPopularSkill[]> => {
+  const skills = await prisma.teamRequestSkill.groupBy({
+    by: ["tagId"],
+    where: {
+      teamRequest: { isDeleted: false, status: "OPEN" },
+    },
+    _count: { tagId: true },
+    orderBy: { _count: { tagId: "desc" } },
+    take: 20,
+  });
+
+  const tagIds = skills.map((s) => s.tagId);
+  const tags = await prisma.tag.findMany({
+    where: { id: { in: tagIds } },
+    select: { id: true, name: true },
+  });
+
+  const tagMap = new Map(tags.map((t) => [t.id, t.name]));
+
+  return skills.map((s) => ({
+    tagId: s.tagId,
+    name: tagMap.get(s.tagId) || "Unknown",
+    count: s._count.tagId,
+  }));
+};
+
+/**
+ * Gets teams created by the current user.
+ */
+const getMyTeams = async (userId: string) => {
+  const teams = await prisma.teamRequest.findMany({
+    where: { creatorId: userId, isDeleted: false },
+    include: {
+      teamRequestSkills: { include: { tag: { select: { id: true, name: true, slug: true } } } },
+      _count: { select: { teamApplications: true, teamMembers: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return teams;
+};
+
+/**
+ * Gets applications made by the current user.
+ */
+const getMyApplications = async (userId: string) => {
+  const applications = await prisma.teamApplication.findMany({
+    where: { applicantId: userId },
+    include: {
+      teamRequest: {
+        include: {
+          teamRequestSkills: { include: { tag: { select: { id: true, name: true, slug: true } } } },
+          creator: { select: { id: true, name: true, image: true } },
+          _count: { select: { teamMembers: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return applications;
+};
+
+/**
+ * Gets applications for a team. Only the creator can view.
+ */
+const getTeamApplications = async (teamRequestId: string, userId: string) => {
+  const teamRequest = await prisma.teamRequest.findUnique({
+    where: { id: teamRequestId, isDeleted: false },
+  });
+
+  if (!teamRequest) {
+    throw new AppError(status.NOT_FOUND, "Team request not found.");
+  }
+
+  if (teamRequest.creatorId !== userId) {
+    throw new AppError(status.FORBIDDEN, "Only the team creator can view applications.");
+  }
+
+  const applications = await prisma.teamApplication.findMany({
+    where: { teamRequestId },
+    include: {
+      applicant: { select: { id: true, name: true, email: true, image: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return applications;
+};
+
+/**
+ * Toggles bookmark for a team request.
+ */
+const toggleBookmark = async (teamRequestId: string, userId: string) => {
+  const teamRequest = await prisma.teamRequest.findUnique({
+    where: { id: teamRequestId, isDeleted: false },
+  });
+
+  if (!teamRequest) {
+    throw new AppError(status.NOT_FOUND, "Team request not found.");
+  }
+
+  const existingBookmark = await prisma.teamBookmark.findUnique({
+    where: { teamRequestId_userId: { teamRequestId, userId } },
+  });
+
+  if (existingBookmark) {
+    // Remove bookmark
+    await prisma.$transaction([
+      prisma.teamBookmark.delete({ where: { id: existingBookmark.id } }),
+      prisma.teamRequest.update({
+        where: { id: teamRequestId },
+        data: { bookmarkCount: { decrement: 1 } },
+      }),
+    ]);
+    return { message: "Bookmark removed.", bookmarked: false };
+  } else {
+    // Add bookmark
+    await prisma.$transaction([
+      prisma.teamBookmark.create({ data: { teamRequestId, userId } }),
+      prisma.teamRequest.update({
+        where: { id: teamRequestId },
+        data: { bookmarkCount: { increment: 1 } },
+      }),
+    ]);
+    return { message: "Team bookmarked.", bookmarked: true };
+  }
+};
+
 export const teamService = {
   createTeamRequest,
   getTeamRequest,
@@ -617,4 +836,10 @@ export const teamService = {
   getTeamMembers,
   leaveTeam,
   removeMember,
+  getCategoryCounts,
+  getPopularSkills,
+  getMyTeams,
+  getMyApplications,
+  getTeamApplications,
+  toggleBookmark,
 };

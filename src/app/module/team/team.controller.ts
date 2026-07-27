@@ -16,7 +16,7 @@ const createTeamRequest = catchAsync(async (req, res) => {
 
 const getTeamRequest = catchAsync(async (req, res) => {
   const id = req.params.id as string;
-  const result = await teamService.getTeamRequest(id);
+  const result = await teamService.getTeamRequest(id, req.user.id);
   sendResponse(res, {
     httpStatusCode: status.OK,
     success: true,
@@ -29,12 +29,15 @@ const listTeamRequests = catchAsync(async (req, res) => {
   const query: ListTeamRequestsQuery = {
     status: req.query.status as ListTeamRequestsQuery["status"],
     category: req.query.category as string | undefined,
+    difficulty: req.query.difficulty as ListTeamRequestsQuery["difficulty"],
+    meetingPreference: req.query.meetingPreference as ListTeamRequestsQuery["meetingPreference"],
     skill: req.query.skill as string | undefined,
     search: req.query.search as string | undefined,
     sort: (req.query.sort as ListTeamRequestsQuery["sort"]) || "newest",
     page: parseInt(req.query.page as string) || 1,
     limit: parseInt(req.query.limit as string) || 12,
     excludeOwn: req.query.excludeOwn === "true",
+    bookmarked: req.query.bookmarked === "true",
   };
 
   const result = await teamService.listTeamRequests(query, req.user.id);
@@ -141,6 +144,68 @@ const removeMember = catchAsync(async (req, res) => {
   });
 });
 
+const getCategoryCounts = catchAsync(async (req, res) => {
+  const result = await teamService.getCategoryCounts();
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Category counts retrieved successfully.",
+    data: result,
+  });
+});
+
+const getPopularSkills = catchAsync(async (req, res) => {
+  const result = await teamService.getPopularSkills();
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Popular skills retrieved successfully.",
+    data: result,
+  });
+});
+
+const getMyTeams = catchAsync(async (req, res) => {
+  const result = await teamService.getMyTeams(req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "My teams retrieved successfully.",
+    data: result,
+  });
+});
+
+const getMyApplications = catchAsync(async (req, res) => {
+  const result = await teamService.getMyApplications(req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "My applications retrieved successfully.",
+    data: result,
+  });
+});
+
+const getTeamApplications = catchAsync(async (req, res) => {
+  const teamRequestId = req.params.id as string;
+  const result = await teamService.getTeamApplications(teamRequestId, req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Team applications retrieved successfully.",
+    data: result,
+  });
+});
+
+const toggleBookmark = catchAsync(async (req, res) => {
+  const teamRequestId = req.params.id as string;
+  const result = await teamService.toggleBookmark(teamRequestId, req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: result.message,
+    data: { bookmarked: result.bookmarked },
+  });
+});
+
 export const teamController = {
   createTeamRequest,
   getTeamRequest,
@@ -153,4 +218,10 @@ export const teamController = {
   getTeamMembers,
   leaveTeam,
   removeMember,
+  getCategoryCounts,
+  getPopularSkills,
+  getMyTeams,
+  getMyApplications,
+  getTeamApplications,
+  toggleBookmark,
 };

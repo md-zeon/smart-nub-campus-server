@@ -19,6 +19,18 @@ router.post(
 // List all team requests
 router.get("/", verifySession, teamController.listTeamRequests);
 
+// Get category counts (must be before :id routes)
+router.get("/categories/counts", verifySession, teamController.getCategoryCounts);
+
+// Get popular skills (must be before :id routes)
+router.get("/skills/popular", verifySession, teamController.getPopularSkills);
+
+// Get teams created by current user (must be before :id routes)
+router.get("/my-teams", verifySession, teamController.getMyTeams);
+
+// Get applications made by current user (must be before :id routes)
+router.get("/my-applications", verifySession, teamController.getMyApplications);
+
 // Withdraw own application (must be before :id routes)
 router.delete(
   "/:id/applications/withdraw",
@@ -55,6 +67,12 @@ router.put(
   validateRequest(teamValidation.reviewApplicationSchema),
   teamController.reviewApplication,
 );
+
+// Get applications for a team
+router.get("/:id/applications", verifySession, teamController.getTeamApplications);
+
+// Toggle bookmark for a team
+router.post("/:id/bookmark", verifySession, teamController.toggleBookmark);
 
 // Get a single team request
 router.get("/:id", verifySession, teamController.getTeamRequest);

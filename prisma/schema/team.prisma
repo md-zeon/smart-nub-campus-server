@@ -10,9 +10,15 @@ model TeamRequest {
   creatorId          String
   creator            User               @relation(fields: [creatorId], references: [id], onDelete: Restrict)
   category           String?
+  difficulty         DifficultyLevel?
+  meetingPreference  MeetingPreference  @default(FLEXIBLE)
+  contactInfo        String?            @db.VarChar(500)
+  viewCount          Int                @default(0)
+  bookmarkCount      Int                @default(0)
   teamRequestSkills  TeamRequestSkill[]
   teamApplications   TeamApplication[]
   teamMembers        TeamMember[]
+  teamBookmarks      TeamBookmark[]
   isDeleted          Boolean            @default(false)
   deletedAt          DateTime?
   createdAt          DateTime           @default(now())
@@ -22,6 +28,8 @@ model TeamRequest {
   @@index([status])
   @@index([deadline])
   @@index([createdAt(sort: Desc)])
+  @@index([category])
+  @@index([difficulty])
   @@map("team_requests")
 }
 
@@ -71,4 +79,18 @@ model TeamMember {
   @@index([teamRequestId])
   @@index([userId])
   @@map("team_members")
+}
+
+model TeamBookmark {
+  id            String      @id @default(uuid())
+  teamRequestId String
+  teamRequest   TeamRequest @relation(fields: [teamRequestId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  @@unique([teamRequestId, userId])
+  @@index([teamRequestId])
+  @@index([userId])
+  @@map("team_bookmarks")
 }
