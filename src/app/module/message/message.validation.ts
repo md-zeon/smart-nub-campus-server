@@ -16,6 +16,20 @@ const sendMessageSchema = z
     filePublicId: z.string().optional(),
     fileName: z.string().optional(),
     fileSize: z.number().int().positive().optional(),
+    isForwarded: z.boolean().optional(),
+    forwardedFromId: z.string().optional(),
+  })
+  .strict();
+
+const editMessageSchema = z
+  .object({
+    content: z.string().min(1, "Message content is required").max(5000, "Message content too long"),
+  })
+  .strict();
+
+const reactionSchema = z
+  .object({
+    emoji: z.string().min(1, "Emoji is required").max(16, "Emoji too long"),
   })
   .strict();
 
@@ -50,6 +64,7 @@ const addMemberSchema = z
 const getMessagesQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1).optional(),
   limit: z.coerce.number().int().positive().max(50).default(20).optional(),
+  search: z.string().max(200).optional(),
 });
 
 const getConversationsQuerySchema = z.object({
@@ -57,12 +72,22 @@ const getConversationsQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(50).default(20).optional(),
 });
 
+const updateConversationSettingsSchema = z
+  .object({
+    isPinned: z.boolean().optional(),
+    isMuted: z.boolean().optional(),
+  })
+  .strict();
+
 export const messageValidation = {
   createConversationSchema,
   sendMessageSchema,
+  editMessageSchema,
+  reactionSchema,
   createGroupSchema,
   updateGroupSchema,
   addMemberSchema,
   getMessagesQuerySchema,
   getConversationsQuerySchema,
+  updateConversationSettingsSchema,
 };

@@ -10,6 +10,8 @@ export interface SendMessageInput {
   filePublicId?: string;
   fileName?: string;
   fileSize?: number;
+  isForwarded?: boolean;
+  forwardedFromId?: string;
 }
 
 export interface CreateGroupInput {
@@ -36,12 +38,15 @@ export interface GetConversationsQuery {
 export interface GetMessagesQuery {
   page?: number;
   limit?: number;
+  search?: string;
 }
 
 export interface ConversationParticipantInfo {
   id: string;
   userId: string;
   isAdmin: boolean;
+  isMuted: boolean;
+  isPinned: boolean;
   user: {
     id: string;
     name: string;
@@ -74,6 +79,13 @@ export interface ConversationWithDetails {
   unreadCount: number;
 }
 
+export interface MessageReactionInfo {
+  id: string;
+  userId: string;
+  emoji: string;
+  createdAt: Date;
+}
+
 export interface MessageWithSender {
   id: string;
   conversationId: string;
@@ -84,6 +96,9 @@ export interface MessageWithSender {
   filePublicId: string | null;
   fileName: string | null;
   fileSize: number | null;
+  isRead: boolean;
+  isEdited: boolean;
+  isForwarded: boolean;
   replyToId: string | null;
   isDeleted: boolean;
   createdAt: Date;
@@ -102,4 +117,5 @@ export interface MessageWithSender {
       name: string;
     };
   } | null;
+  reactions?: MessageReactionInfo[];
 }

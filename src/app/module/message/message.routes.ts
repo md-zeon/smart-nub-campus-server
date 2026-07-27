@@ -32,6 +32,13 @@ router.post(
 // Get a single conversation by ID
 router.get("/conversations/:id", messageController.getConversation);
 
+// Update conversation settings (pin, mute)
+router.put(
+  "/conversations/:id/settings",
+  validateRequest(messageValidation.updateConversationSettingsSchema),
+  messageController.updateConversationSettings,
+);
+
 // Send a message in a conversation
 router.post(
   "/conversations/:id/messages",
@@ -43,6 +50,32 @@ router.post(
 router.get(
   "/conversations/:id/messages",
   messageController.getMessages,
+);
+
+// Edit a message
+router.put(
+  "/conversations/:id/messages/:messageId",
+  validateRequest(messageValidation.editMessageSchema),
+  messageController.editMessage,
+);
+
+// Delete a message (soft delete)
+router.delete(
+  "/conversations/:id/messages/:messageId",
+  messageController.deleteMessage,
+);
+
+// Add/toggle reaction on a message
+router.post(
+  "/conversations/:id/messages/:messageId/reactions",
+  validateRequest(messageValidation.reactionSchema),
+  messageController.addReaction,
+);
+
+// Forward a message to another conversation
+router.post(
+  "/conversations/:id/messages/forward",
+  messageController.forwardMessage,
 );
 
 // Mark all messages in a conversation as read

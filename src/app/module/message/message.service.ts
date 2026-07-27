@@ -11,6 +11,7 @@ import {
   GetMessagesQuery,
   ConversationWithDetails,
   MessageWithSender,
+  MessageReactionInfo,
 } from "./message.interface";
 
 /**
@@ -45,7 +46,15 @@ const findOrCreateConversation = async (
     },
     include: {
       conversationParticipants: {
-        include: {
+        select: {
+          id: true,
+          conversationId: true,
+          userId: true,
+          lastReadAt: true,
+          isAdmin: true,
+          isMuted: true,
+          isPinned: true,
+          joinedAt: true,
           user: {
             select: {
               id: true,
@@ -115,7 +124,15 @@ const findOrCreateConversation = async (
     },
     include: {
       conversationParticipants: {
-        include: {
+        select: {
+          id: true,
+          conversationId: true,
+          userId: true,
+          lastReadAt: true,
+          isAdmin: true,
+          isMuted: true,
+          isPinned: true,
+          joinedAt: true,
           user: {
             select: {
               id: true,
@@ -173,7 +190,15 @@ const getConversations = async (
       orderBy: { lastMessageAt: { sort: "desc", nulls: "last" } },
       include: {
         conversationParticipants: {
-          include: {
+          select: {
+            id: true,
+            conversationId: true,
+            userId: true,
+            lastReadAt: true,
+            isAdmin: true,
+            isMuted: true,
+            isPinned: true,
+            joinedAt: true,
             user: {
               select: {
                 id: true,
@@ -269,7 +294,15 @@ const getConversation = async (
     where: { id: conversationId },
     include: {
       conversationParticipants: {
-        include: {
+        select: {
+          id: true,
+          conversationId: true,
+          userId: true,
+          lastReadAt: true,
+          isAdmin: true,
+          isMuted: true,
+          isPinned: true,
+          joinedAt: true,
           user: {
             select: {
               id: true,
@@ -373,8 +406,26 @@ const sendMessage = async (
         filePublicId: data.filePublicId,
         fileName: data.fileName,
         fileSize: data.fileSize,
+        isForwarded: data.isForwarded ?? false,
+        forwardedFromId: data.forwardedFromId,
       },
-      include: {
+      select: {
+        id: true,
+        conversationId: true,
+        senderId: true,
+        content: true,
+        type: true,
+        fileUrl: true,
+        filePublicId: true,
+        fileName: true,
+        fileSize: true,
+        isRead: true,
+        isEdited: true,
+        isForwarded: true,
+        replyToId: true,
+        isDeleted: true,
+        createdAt: true,
+        updatedAt: true,
         sender: {
           select: {
             id: true,
@@ -395,6 +446,7 @@ const sendMessage = async (
             },
           },
         },
+        reactions: true,
       },
     });
 
@@ -438,7 +490,7 @@ const getMessages = async (
   userId: string,
   query: GetMessagesQuery,
 ) => {
-  const { page = 1, limit = 20 } = query;
+  const { page = 1, limit = 20, search } = query;
   const skip = (page - 1) * limit;
 
   // Check if user is a participant
@@ -458,6 +510,9 @@ const getMessages = async (
   const where: Prisma.MessageWhereInput = {
     conversationId,
     isDeleted: false,
+    ...(search
+      ? { content: { contains: search, mode: "insensitive" as const } }
+      : {}),
   };
 
   const [messages, total] = await prisma.$transaction([
@@ -487,6 +542,7 @@ const getMessages = async (
             },
           },
         },
+        reactions: true,
       },
     }),
     prisma.message.count({ where }),
@@ -623,7 +679,15 @@ const createGroup = async (
     },
     include: {
       conversationParticipants: {
-        include: {
+        select: {
+          id: true,
+          conversationId: true,
+          userId: true,
+          lastReadAt: true,
+          isAdmin: true,
+          isMuted: true,
+          isPinned: true,
+          joinedAt: true,
           user: {
             select: {
               id: true,
@@ -684,7 +748,15 @@ const updateGroup = async (
     },
     include: {
       conversationParticipants: {
-        include: {
+        select: {
+          id: true,
+          conversationId: true,
+          userId: true,
+          lastReadAt: true,
+          isAdmin: true,
+          isMuted: true,
+          isPinned: true,
+          joinedAt: true,
           user: {
             select: {
               id: true,
@@ -966,6 +1038,306 @@ const getConversationUnread = async (
   return { unreadCount };
 };
 
+/**
+ * Edit a message. Only the sender can edit their own message.
+ */
+const editMessage = async (
+  conversationId: string,
+  messageId: string,
+  userId: string,
+  content: string,
+): Promise<MessageWithSender> => {
+  const participant = await prisma.conversationParticipant.findUnique({
+    where: {
+      conversationId_userId: { conversationId, userId },
+    },
+  });
+
+  if (!participant) {
+    throw new AppError(status.FORBIDDEN, "You are not a participant in this conversation.");
+  }
+
+  const message = await prisma.message.findUnique({
+    where: { id: messageId },
+  });
+
+  if (!message) {
+    throw new AppError(status.NOT_FOUND, "Message not found.");
+  }
+
+  if (message.senderId !== userId) {
+    throw new AppError(status.FORBIDDEN, "You can only edit your own messages.");
+  }
+
+  if (message.isDeleted) {
+    throw new AppError(status.BAD_REQUEST, "Cannot edit a deleted message.");
+  }
+
+  const updated = await prisma.message.update({
+    where: { id: messageId },
+    data: {
+      content,
+      isEdited: true,
+      editedAt: new Date(),
+    },
+    select: {
+      id: true,
+      conversationId: true,
+      senderId: true,
+      content: true,
+      type: true,
+      fileUrl: true,
+      filePublicId: true,
+      fileName: true,
+      fileSize: true,
+      isRead: true,
+      isEdited: true,
+      isForwarded: true,
+      replyToId: true,
+      isDeleted: true,
+      createdAt: true,
+      updatedAt: true,
+      sender: {
+        select: { id: true, name: true, image: true },
+      },
+      replyTo: {
+        select: {
+          id: true,
+          content: true,
+          senderId: true,
+          sender: { select: { id: true, name: true } },
+        },
+      },
+      reactions: true,
+    },
+  });
+
+  return updated;
+};
+
+/**
+ * Soft-delete a message. Only the sender or group admins can delete.
+ */
+const deleteMessage = async (
+  conversationId: string,
+  messageId: string,
+  userId: string,
+): Promise<{ message: string }> => {
+  const participant = await prisma.conversationParticipant.findUnique({
+    where: {
+      conversationId_userId: { conversationId, userId },
+    },
+  });
+
+  if (!participant) {
+    throw new AppError(status.FORBIDDEN, "You are not a participant in this conversation.");
+  }
+
+  const message = await prisma.message.findUnique({
+    where: { id: messageId },
+  });
+
+  if (!message) {
+    throw new AppError(status.NOT_FOUND, "Message not found.");
+  }
+
+  if (message.isDeleted) {
+    throw new AppError(status.BAD_REQUEST, "Message is already deleted.");
+  }
+
+  // Only sender or group admin can delete
+  const isSender = message.senderId === userId;
+  const isAdmin = participant.isAdmin;
+  if (!isSender && !isAdmin) {
+    throw new AppError(status.FORBIDDEN, "You can only delete your own messages.");
+  }
+
+  await prisma.message.update({
+    where: { id: messageId },
+    data: {
+      isDeleted: true,
+      deletedAt: new Date(),
+      content: "This message was deleted.",
+    },
+  });
+
+  return { message: "Message deleted successfully." };
+};
+
+/**
+ * Add or toggle a reaction on a message.
+ */
+const addReaction = async (
+  conversationId: string,
+  messageId: string,
+  userId: string,
+  emoji: string,
+): Promise<MessageReactionInfo> => {
+  const participant = await prisma.conversationParticipant.findUnique({
+    where: {
+      conversationId_userId: { conversationId, userId },
+    },
+  });
+
+  if (!participant) {
+    throw new AppError(status.FORBIDDEN, "You are not a participant in this conversation.");
+  }
+
+  const message = await prisma.message.findUnique({
+    where: { id: messageId },
+  });
+
+  if (!message || message.conversationId !== conversationId) {
+    throw new AppError(status.NOT_FOUND, "Message not found in this conversation.");
+  }
+
+  // Check if reaction already exists - toggle it
+  const existing = await prisma.messageReaction.findUnique({
+    where: {
+      messageId_userId_emoji: { messageId, userId, emoji },
+    },
+  });
+
+  if (existing) {
+    await prisma.messageReaction.delete({
+      where: { id: existing.id },
+    });
+    return { id: existing.id, userId, emoji, createdAt: existing.createdAt };
+  }
+
+  const reaction = await prisma.messageReaction.create({
+    data: { messageId, userId, emoji },
+  });
+
+  return reaction;
+};
+
+/**
+ * Forward a message to another conversation.
+ */
+const forwardMessage = async (
+  sourceConversationId: string,
+  targetConversationId: string,
+  messageId: string,
+  userId: string,
+): Promise<MessageWithSender> => {
+  // Verify source message exists and user has access
+  const sourceParticipant = await prisma.conversationParticipant.findUnique({
+    where: {
+      conversationId_userId: { conversationId: sourceConversationId, userId },
+    },
+  });
+
+  if (!sourceParticipant) {
+    throw new AppError(status.FORBIDDEN, "You are not a participant in the source conversation.");
+  }
+
+  const originalMessage = await prisma.message.findUnique({
+    where: { id: messageId },
+  });
+
+  if (!originalMessage || originalMessage.conversationId !== sourceConversationId) {
+    throw new AppError(status.NOT_FOUND, "Original message not found.");
+  }
+
+  // Verify target conversation access
+  const targetParticipant = await prisma.conversationParticipant.findUnique({
+    where: {
+      conversationId_userId: { conversationId: targetConversationId, userId },
+    },
+  });
+
+  if (!targetParticipant) {
+    throw new AppError(status.FORBIDDEN, "You are not a participant in the target conversation.");
+  }
+
+  // Create forwarded message
+  const newMessage = await prisma.$transaction(async (tx) => {
+    const msg = await tx.message.create({
+      data: {
+        conversationId: targetConversationId,
+        senderId: userId,
+        content: originalMessage.content,
+        type: originalMessage.type,
+        fileUrl: originalMessage.fileUrl,
+        filePublicId: originalMessage.filePublicId,
+        fileName: originalMessage.fileName,
+        fileSize: originalMessage.fileSize,
+        isForwarded: true,
+        forwardedFromId: originalMessage.id,
+      },
+      select: {
+        id: true,
+        conversationId: true,
+        senderId: true,
+        content: true,
+        type: true,
+        fileUrl: true,
+        filePublicId: true,
+        fileName: true,
+        fileSize: true,
+        isRead: true,
+        isEdited: true,
+        isForwarded: true,
+        replyToId: true,
+        isDeleted: true,
+        createdAt: true,
+        updatedAt: true,
+        sender: { select: { id: true, name: true, image: true } },
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            senderId: true,
+            sender: { select: { id: true, name: true } },
+          },
+        },
+        reactions: true,
+      },
+    });
+
+    await tx.conversation.update({
+      where: { id: targetConversationId },
+      data: { lastMessageAt: new Date() },
+    });
+
+    return msg;
+  });
+
+  return newMessage;
+};
+
+/**
+ * Update conversation settings (pin, mute) for the current user.
+ */
+const updateConversationSettings = async (
+  conversationId: string,
+  userId: string,
+  settings: { isPinned?: boolean; isMuted?: boolean },
+): Promise<{ message: string }> => {
+  const participant = await prisma.conversationParticipant.findUnique({
+    where: {
+      conversationId_userId: { conversationId, userId },
+    },
+  });
+
+  if (!participant) {
+    throw new AppError(status.FORBIDDEN, "You are not a participant in this conversation.");
+  }
+
+  await prisma.conversationParticipant.update({
+    where: {
+      conversationId_userId: { conversationId, userId },
+    },
+    data: {
+      ...(settings.isPinned !== undefined && { isPinned: settings.isPinned }),
+      ...(settings.isMuted !== undefined && { isMuted: settings.isMuted }),
+    },
+  });
+
+  return { message: "Conversation settings updated." };
+};
+
 export const messageService = {
   findOrCreateConversation,
   getConversations,
@@ -981,4 +1353,9 @@ export const messageService = {
   leaveGroup,
   getUnreadCount,
   getConversationUnread,
+  editMessage,
+  deleteMessage,
+  addReaction,
+  forwardMessage,
+  updateConversationSettings,
 };

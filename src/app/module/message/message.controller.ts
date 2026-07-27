@@ -83,6 +83,7 @@ const getMessages = catchAsync(async (req, res) => {
   const query: GetMessagesQuery = {
     page: parseInt(req.query.page as string) || 1,
     limit: parseInt(req.query.limit as string) || 20,
+    search: (req.query.search as string) || undefined,
   };
   const result = await messageService.getMessages(
     conversationId,
@@ -229,6 +230,102 @@ const getConversationUnread = catchAsync(async (req, res) => {
   });
 });
 
+/**
+ * Edit a message.
+ */
+const editMessage = catchAsync(async (req, res) => {
+  const conversationId = req.params.id as string;
+  const messageId = req.params.messageId as string;
+  const result = await messageService.editMessage(
+    conversationId,
+    messageId,
+    req.user.id,
+    req.body.content,
+  );
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Message edited successfully.",
+    data: result,
+  });
+});
+
+/**
+ * Delete a message (soft delete).
+ */
+const deleteMessage = catchAsync(async (req, res) => {
+  const conversationId = req.params.id as string;
+  const messageId = req.params.messageId as string;
+  const result = await messageService.deleteMessage(
+    conversationId,
+    messageId,
+    req.user.id,
+  );
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: result.message,
+    data: null,
+  });
+});
+
+/**
+ * Add or toggle a reaction on a message.
+ */
+const addReaction = catchAsync(async (req, res) => {
+  const conversationId = req.params.id as string;
+  const messageId = req.params.messageId as string;
+  const result = await messageService.addReaction(
+    conversationId,
+    messageId,
+    req.user.id,
+    req.body.emoji,
+  );
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Reaction updated.",
+    data: result,
+  });
+});
+
+/**
+ * Forward a message to another conversation.
+ */
+const forwardMessage = catchAsync(async (req, res) => {
+  const sourceConversationId = req.params.id as string;
+  const result = await messageService.forwardMessage(
+    sourceConversationId,
+    req.body.targetConversationId,
+    req.body.messageId,
+    req.user.id,
+  );
+  sendResponse(res, {
+    httpStatusCode: status.CREATED,
+    success: true,
+    message: "Message forwarded successfully.",
+    data: result,
+  });
+});
+
+/**
+ * Update conversation settings (pin, mute).
+ */
+const updateConversationSettings = catchAsync(async (req, res) => {
+  const conversationId = req.params.id as string;
+  const result = await messageService.updateConversationSettings(
+    conversationId,
+    req.user.id,
+    req.body,
+  );
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: result.message,
+    data: null,
+  });
+});
+
 export const messageController = {
   createConversation,
   getConversations,
@@ -243,4 +340,9 @@ export const messageController = {
   leaveGroup,
   getUnreadCount,
   getConversationUnread,
+  editMessage,
+  deleteMessage,
+  addReaction,
+  forwardMessage,
+  updateConversationSettings,
 };
