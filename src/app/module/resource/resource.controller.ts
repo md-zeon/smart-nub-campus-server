@@ -148,7 +148,7 @@ const getComments = catchAsync(async (req, res) => {
   const id = req.params.id as string;
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 20;
-  const result = await resourceService.getComments(id, page, limit);
+  const result = await resourceService.getComments(id, page, limit, req.user.id);
   sendResponse(res, {
     httpStatusCode: status.OK,
     success: true,
@@ -212,6 +212,30 @@ const reviewReport = catchAsync(async (req, res) => {
   });
 });
 
+const toggleCommentVote = catchAsync(async (req, res) => {
+  const commentId = req.params.commentId as string;
+  const { type } = req.body;
+  const voteType = type === "DOWN" ? "DOWN" : "UP";
+  const result = await resourceService.toggleCommentVote(commentId, req.user.id, voteType as never);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: `Vote ${result.action} successfully.`,
+    data: result,
+  });
+});
+
+const editComment = catchAsync(async (req, res) => {
+  const commentId = req.params.commentId as string;
+  const result = await resourceService.editComment(commentId, req.user.id, req.body);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Comment updated successfully.",
+    data: result,
+  });
+});
+
 export const resourceController = {
   createResource,
   getResourceById,
@@ -230,4 +254,6 @@ export const resourceController = {
   reportResource,
   getReports,
   reviewReport,
+  toggleCommentVote,
+  editComment,
 };

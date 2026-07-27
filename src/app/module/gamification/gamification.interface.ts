@@ -22,6 +22,10 @@ export const POINT_VALUES: Record<ReputationEvent, number> = {
   CONTENT_REMOVED: 0,
   ADMIN_ADJUSTMENT: 0,
   VOTE_REVERSAL: 0,
+  COMMENT_UPLOADED: 2,
+  COMMENT_UPVOTED_RECEIVED: 1,
+  COMMENT_DOWNVOTED_RECEIVED: -1,
+  COMMENT_DOWNVOTED_GIVEN: -1,
 };
 
 /** Anti-abuse: maximum reciprocal votes within the time window */

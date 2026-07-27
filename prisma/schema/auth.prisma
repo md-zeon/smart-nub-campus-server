@@ -30,6 +30,7 @@ model User {
   resourceDownloads            ResourceDownload[]
   resourceReports              ResourceReport[]
   comments                     Comment[]
+  commentVotes                 CommentVote[]
   teamRequests                 TeamRequest[]
   teamApplications             TeamApplication[]
   teamMembers                  TeamMember[]

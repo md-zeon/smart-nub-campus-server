@@ -66,6 +66,20 @@ router.post(
   resourceController.addComment,
 );
 
+router.patch(
+  "/comments/:commentId",
+  verifySession,
+  validateRequest(resourceValidation.editCommentSchema),
+  resourceController.editComment,
+);
+
+router.post(
+  "/comments/:commentId/upvote",
+  verifySession,
+  validateRequest(resourceValidation.voteSchema),
+  resourceController.toggleCommentVote,
+);
+
 router.post(
   "/:id/report",
   verifySession,

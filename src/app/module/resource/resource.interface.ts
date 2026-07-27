@@ -66,3 +66,13 @@ export interface ToggleVoteResult {
 export interface ToggleBookmarkResult {
   action: "added" | "removed";
 }
+
+export interface ToggleCommentVoteResult {
+  action: "added" | "updated" | "removed";
+  upvoteCount: number;
+  downvoteCount: number;
+}
+
+export interface EditCommentInput {
+  content: string;
+}

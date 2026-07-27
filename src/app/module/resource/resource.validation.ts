@@ -37,7 +37,7 @@ const updateResourceSchema = z
 
 const createCommentSchema = z
   .object({
-    content: z.string().trim().min(1, "Comment content is required").max(5000, "Comment must be at most 5000 characters"),
+    content: z.string().trim().min(1, "Comment content is required").max(10000, "Comment must be at most 10000 characters"),
     parentId: z.string().uuid("Invalid parent comment ID").optional(),
   })
   .strict();
@@ -64,10 +64,24 @@ const reviewReportSchema = z
   })
   .strict();
 
+const voteSchema = z
+  .object({
+    type: z.enum(["UP", "DOWN"]),
+  })
+  .strict();
+
+const editCommentSchema = z
+  .object({
+    content: z.string().trim().min(1, "Comment content is required").max(10000, "Comment must be at most 10000 characters"),
+  })
+  .strict();
+
 export const resourceValidation = {
   createResourceSchema,
   updateResourceSchema,
   createCommentSchema,
   reportResourceSchema,
   reviewReportSchema,
+  voteSchema,
+  editCommentSchema,
 };

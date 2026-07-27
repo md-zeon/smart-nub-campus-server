@@ -1,4 +1,5 @@
 import status from "http-status";
+import sanitizeHtml from "sanitize-html";
 import { VoteType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
@@ -14,14 +15,24 @@ import {
   ReviewReportInput,
   ToggleVoteResult,
   ToggleBookmarkResult,
+  ToggleCommentVoteResult,
+  EditCommentInput,
   UpdateResourceInput,
 } from "./resource.interface";
+
+const sanitizeOptions: sanitizeHtml.IOptions = {
+  allowedTags: ["p", "br", "strong", "em", "u", "s", "code", "pre", "blockquote", "ul", "ol", "li", "a", "h1", "h2", "h3", "hr"],
+  allowedAttributes: {
+    a: ["href", "target", "rel"],
+  },
+  allowedSchemes: ["http", "https", "mailto"],
+};
 
 const createResource = async (data: CreateResourceInput, userId: string) => {
   const resource = await prisma.resource.create({
     data: {
       title: data.title,
-      description: data.description,
+      description: data.description ? sanitizeHtml(data.description, sanitizeOptions) : null,
       fileUrl: data.fileUrl,
       filePublicId: data.filePublicId ?? null,
       fileType: data.fileType,
@@ -260,7 +271,7 @@ const updateResource = async (
 
   const updateData: Record<string, unknown> = {};
   if (data.title !== undefined) updateData.title = data.title;
-  if (data.description !== undefined) updateData.description = data.description;
+  if (data.description !== undefined) updateData.description = data.description ? sanitizeHtml(data.description, sanitizeOptions) : null;
   if (data.categoryId !== undefined) updateData.categoryId = data.categoryId;
 
   return prisma.$transaction(async (tx) => {
@@ -554,7 +565,7 @@ const addComment = async (
 
   const comment = await prisma.comment.create({
     data: {
-      content: data.content,
+      content: sanitizeHtml(data.content, sanitizeOptions),
       resourceId,
       userId,
       parentId: data.parentId ?? null,
@@ -578,10 +589,20 @@ const addComment = async (
     }).catch(() => {});
   }
 
+  // Award reputation points for commenting (non-blocking)
+  gamificationService
+    .awardPoints({
+      userId,
+      event: "COMMENT_UPLOADED",
+      reason: "Posted a comment",
+      source: `COMMENT:${comment.id}`,
+    })
+    .catch(() => {});
+
   return comment;
 };
 
-const getComments = async (resourceId: string, page = 1, limit = 20) => {
+const getComments = async (resourceId: string, page = 1, limit = 20, userId?: string) => {
   const resource = await prisma.resource.findUnique({
     where: { id: resourceId, isDeleted: false },
   });
@@ -630,8 +651,39 @@ const getComments = async (resourceId: string, page = 1, limit = 20) => {
     prisma.comment.count({ where }),
   ]);
 
+  // Fetch user votes for all visible comments if user is logged in
+  let userVoteMap = new Map<string, "UP" | "DOWN">();
+  if (userId) {
+    const commentIds = comments.flatMap((c) => [
+      c.id,
+      ...(c.replies?.map((r) => r.id) ?? []),
+      ...(c.replies?.flatMap((r) => r.replies?.map((rr) => rr.id) ?? []) ?? []),
+    ]);
+
+    const userVotes = await prisma.commentVote.findMany({
+      where: { commentId: { in: commentIds }, userId },
+      select: { commentId: true, type: true },
+    });
+
+    userVoteMap = new Map(userVotes.map((v) => [v.commentId, v.type]));
+  }
+
+  // Attach userVote to each comment
+  const enrichComment = (comment: Record<string, unknown>) => ({
+    ...comment,
+    userVote: userVoteMap.get(comment.id as string) ?? null,
+  });
+
+  const enrichedComments = comments.map((c) => ({
+    ...enrichComment(c as unknown as Record<string, unknown>),
+    replies: c.replies?.map((r) => ({
+      ...enrichComment(r as unknown as Record<string, unknown>),
+      replies: r.replies?.map((rr) => enrichComment(rr as unknown as Record<string, unknown>)),
+    })),
+  }));
+
   return {
-    comments,
+    comments: enrichedComments,
     meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
   };
 };
@@ -652,6 +704,158 @@ const deleteComment = async (id: string, userId: string) => {
   await softDelete(prisma.comment, id);
 
   return { message: "Comment deleted successfully." };
+};
+
+const toggleCommentVote = async (
+  commentId: string,
+  userId: string,
+  type: VoteType,
+): Promise<ToggleCommentVoteResult> => {
+  const comment = await prisma.comment.findUnique({
+    where: { id: commentId, isDeleted: false },
+  });
+
+  if (!comment) {
+    throw new AppError(status.NOT_FOUND, "Comment not found.");
+  }
+
+  const existingVote = await prisma.commentVote.findUnique({
+    where: { commentId_userId: { commentId, userId } },
+  });
+
+  const awardVote = (voteType: VoteType) => {
+    if (userId === comment.userId) return Promise.resolve();
+    return voteType === VoteType.UP
+      ? gamificationService.handleUpvote(userId, comment.userId, "COMMENT", commentId)
+      : gamificationService.handleDownvote(userId, comment.userId, "COMMENT", commentId);
+  };
+  const reverseVote = (voteType: VoteType) => {
+    if (userId === comment.userId) return Promise.resolve();
+    return gamificationService.handleVoteReversal(
+      userId,
+      comment.userId,
+      "COMMENT",
+      commentId,
+      voteType === VoteType.UP ? "UP" : "DOWN",
+    );
+  };
+
+  if (existingVote) {
+    if (existingVote.type === type) {
+      const counts = await prisma.$transaction(async (tx) => {
+        await tx.commentVote.delete({ where: { id: existingVote.id } });
+
+        const decrementField = type === VoteType.UP ? "upvoteCount" : "downvoteCount";
+        await tx.comment.update({
+          where: { id: commentId },
+          data: { [decrementField]: { decrement: 1 } },
+        });
+
+        return tx.comment.findUnique({
+          where: { id: commentId },
+          select: { upvoteCount: true, downvoteCount: true },
+        });
+      });
+
+      await reverseVote(existingVote.type).catch(() => {});
+
+      return {
+        action: "removed",
+        upvoteCount: counts!.upvoteCount,
+        downvoteCount: counts!.downvoteCount,
+      };
+    }
+
+    const counts = await prisma.$transaction(async (tx) => {
+      await tx.commentVote.update({
+        where: { id: existingVote.id },
+        data: { type },
+      });
+
+      if (type === VoteType.UP) {
+        await tx.comment.update({
+          where: { id: commentId },
+          data: {
+            upvoteCount: { increment: 1 },
+            downvoteCount: { decrement: 1 },
+          },
+        });
+      } else {
+        await tx.comment.update({
+          where: { id: commentId },
+          data: {
+            upvoteCount: { decrement: 1 },
+            downvoteCount: { increment: 1 },
+          },
+        });
+      }
+
+      return tx.comment.findUnique({
+        where: { id: commentId },
+        select: { upvoteCount: true, downvoteCount: true },
+      });
+    });
+
+    await reverseVote(existingVote.type).catch(() => {});
+    await awardVote(type).catch(() => {});
+
+    return {
+      action: "updated",
+      upvoteCount: counts!.upvoteCount,
+      downvoteCount: counts!.downvoteCount,
+    };
+  }
+
+  const counts = await prisma.$transaction(async (tx) => {
+    await tx.commentVote.create({
+      data: { commentId, userId, type },
+    });
+
+    const incrementField = type === VoteType.UP ? "upvoteCount" : "downvoteCount";
+    await tx.comment.update({
+      where: { id: commentId },
+      data: { [incrementField]: { increment: 1 } },
+    });
+
+    return tx.comment.findUnique({
+      where: { id: commentId },
+      select: { upvoteCount: true, downvoteCount: true },
+    });
+  });
+
+  await awardVote(type).catch(() => {});
+
+  return {
+    action: "added",
+    upvoteCount: counts!.upvoteCount,
+    downvoteCount: counts!.downvoteCount,
+  };
+};
+
+const editComment = async (id: string, userId: string, data: EditCommentInput) => {
+  const comment = await prisma.comment.findUnique({
+    where: { id, isDeleted: false },
+  });
+
+  if (!comment) {
+    throw new AppError(status.NOT_FOUND, "Comment not found.");
+  }
+
+  if (comment.userId !== userId) {
+    throw new AppError(status.FORBIDDEN, "You can only edit your own comments.");
+  }
+
+  const updated = await prisma.comment.update({
+    where: { id },
+    data: { content: sanitizeHtml(data.content, sanitizeOptions) },
+    include: {
+      user: {
+        select: { id: true, name: true, image: true },
+      },
+    },
+  });
+
+  return updated;
 };
 
 const reportResource = async (
@@ -828,6 +1032,8 @@ export const resourceService = {
   addComment,
   getComments,
   deleteComment,
+  toggleCommentVote,
+  editComment,
   reportResource,
   getReports,
   reviewReport,

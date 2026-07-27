@@ -143,21 +143,39 @@ model ResourceDownload {
 }
 
 model Comment {
-  id         String    @id @default(uuid())
-  content    String    @db.Text
-  resourceId String
-  resource   Resource  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parentId   String?
-  parent     Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies    Comment[] @relation("CommentReplies")
-  isDeleted  Boolean   @default(false)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id            String        @id @default(uuid())
+  content       String        @db.Text
+  resourceId    String
+  resource      Resource      @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentId      String?
+  parent        Comment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       Comment[]     @relation("CommentReplies")
+  upvoteCount   Int           @default(0)
+  downvoteCount Int           @default(0)
+  commentVotes  CommentVote[]
+  isDeleted     Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   @@index([resourceId])
   @@index([userId])
   @@index([parentId])
   @@map("comments")
+}
+
+model CommentVote {
+  id        String   @id @default(uuid())
+  commentId String
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      VoteType
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@index([userId])
+  @@map("comment_votes")
 }
