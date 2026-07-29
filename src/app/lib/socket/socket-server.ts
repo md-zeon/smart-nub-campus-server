@@ -192,6 +192,32 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
       roomManager.leaveRoom(socket, `team:${data.teamRequestId}`);
     });
 
+    // ── Discussion room join/leave ─────────────────────────────────────────
+    socket.on("discussion:join", (data) => {
+      roomManager.joinRoom(socket, `discussion:${data.discussionId}`);
+    });
+
+    socket.on("discussion:leave", (data) => {
+      roomManager.leaveRoom(socket, `discussion:${data.discussionId}`);
+    });
+
+    // ── Discussion typing indicators ───────────────────────────────────────
+    socket.on("discussion:typing:start", (data) => {
+      socket.to(`discussion:${data.discussionId}`).emit("typing:update", {
+        conversationId: data.discussionId,
+        userId,
+        isTyping: true,
+      });
+    });
+
+    socket.on("discussion:typing:stop", (data) => {
+      socket.to(`discussion:${data.discussionId}`).emit("typing:update", {
+        conversationId: data.discussionId,
+        userId,
+        isTyping: false,
+      });
+    });
+
     // ── Disconnect ────────────────────────────────────────────────────────
     socket.on("disconnect", (reason) => {
       connectionManager.removeConnection(userId, socket.id);

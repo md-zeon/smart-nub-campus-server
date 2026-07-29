@@ -97,6 +97,12 @@ router.patch(
 );
 router.delete("/question-categories/:id", adminController.deleteQuestionCategory);
 
+// --- Discussion Management ---
+router.get("/discussions", adminController.listDiscussions);
+router.delete("/discussions/:id", adminController.deleteDiscussion);
+router.put("/discussions/:id/pin", adminController.togglePin);
+router.put("/discussions/:id/lock", adminController.toggleLock);
+
 // --- Audit Log ---
 router.get("/audit-log", adminController.listAuditLogs);
 router.get("/audit-log/:id", adminController.getAuditLogById);

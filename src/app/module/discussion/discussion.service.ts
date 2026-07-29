@@ -209,6 +209,7 @@ const getDiscussion = async (id: string, userId?: string) => {
   return {
     ...discussion,
     viewCount: discussion.viewCount + 1,
+    solutionReplyId: discussion.solutionReplyId,
     userVote,
     isBookmarked,
   };
@@ -493,10 +494,10 @@ const createReply = async (
     })
     .catch(() => {});
 
-  // Broadcast new reply to all connected clients (non-blocking)
+  // Broadcast new reply to discussion room (non-blocking)
   try {
     const io = getSocketServer();
-    io.emit("discussion:reply", {
+    io.to(`discussion:${discussionId}`).emit("discussion:reply:new", {
       discussionId,
       reply: {
         id: reply.id,
@@ -504,8 +505,14 @@ const createReply = async (
         authorId: reply.authorId,
         author: reply.author,
         parentId: reply.parentId,
+        isEdited: false,
         createdAt: reply.createdAt,
       },
+    });
+    // Also update reply count on the list page
+    io.emit("discussion:reply", {
+      discussionId,
+      replyCount: discussion.replyCount + 1,
     });
   } catch {
     // Non-critical: ignore socket failures
@@ -1005,6 +1012,143 @@ const getMyReplies = async (userId: string, page = 1, limit = 12) => {
 };
 
 /**
+ * Updates a reply's content. Only the reply author can edit.
+ * Marks the reply as edited.
+ */
+const updateReply = async (
+  replyId: string,
+  data: import("./discussion.interface").UpdateReplyInput,
+  userId: string,
+) => {
+  const reply = await prisma.discussionReply.findUnique({
+    where: { id: replyId, isDeleted: false },
+  });
+
+  if (!reply) {
+    throw new AppError(status.NOT_FOUND, "Reply not found.");
+  }
+
+  if (reply.authorId !== userId) {
+    throw new AppError(status.FORBIDDEN, "You can only edit your own replies.");
+  }
+
+  const updated = await prisma.discussionReply.update({
+    where: { id: replyId },
+    data: {
+      content: data.content,
+      isEdited: true,
+    },
+    include: {
+      author: { select: { id: true, name: true, email: true, image: true } },
+    },
+  });
+
+  return updated;
+};
+
+/**
+ * Accepts a reply as the solution to the discussion.
+ * Only the discussion author can accept. Sets solutionReplyId on the discussion
+ * and toggles isSolved. If the same reply is accepted again, it un-accepts.
+ */
+const acceptAnswer = async (discussionId: string, replyId: string, userId: string) => {
+  const discussion = await prisma.discussion.findUnique({
+    where: { id: discussionId, isDeleted: false },
+  });
+
+  if (!discussion) {
+    throw new AppError(status.NOT_FOUND, "Discussion not found.");
+  }
+
+  if (discussion.authorId !== userId) {
+    throw new AppError(status.FORBIDDEN, "Only the author can accept an answer.");
+  }
+
+  const reply = await prisma.discussionReply.findUnique({
+    where: { id: replyId, discussionId, isDeleted: false },
+  });
+
+  if (!reply) {
+    throw new AppError(status.NOT_FOUND, "Reply not found in this discussion.");
+  }
+
+  // Toggle: if same reply is already accepted, un-accept
+  if (discussion.solutionReplyId === replyId) {
+    await prisma.discussion.update({
+      where: { id: discussionId },
+      data: { solutionReplyId: null, isSolved: false },
+    });
+    return { message: "Solution unmarked.", isSolved: false, solutionReplyId: null };
+  }
+
+  await prisma.discussion.update({
+    where: { id: discussionId },
+    data: { solutionReplyId: replyId, isSolved: true },
+  });
+
+  // Notify the reply author (skip self)
+  if (reply.authorId !== userId) {
+    notificationService.createNotification({
+      userId: reply.authorId,
+      senderId: userId,
+      type: "DISCUSSION_REPLY",
+      title: "Answer Accepted",
+      message: `Your reply was accepted as the solution.`,
+      link: `/discussions/${discussionId}`,
+    }).catch(() => {});
+  }
+
+  // Award reputation points for having the accepted answer
+  gamificationService
+    .awardPoints({
+      userId: reply.authorId,
+      event: "ANSWER_ACCEPTED",
+      reason: `Reply accepted as solution in discussion`,
+      source: `DISCUSSION:${discussionId}`,
+    })
+    .catch(() => {});
+
+  return { message: "Answer accepted.", isSolved: true, solutionReplyId: replyId };
+};
+
+/**
+ * Reports a reply for moderation.
+ * One report per user per reply.
+ */
+const reportReply = async (
+  replyId: string,
+  data: import("./discussion.interface").ReportReplyInput,
+  userId: string,
+) => {
+  const reply = await prisma.discussionReply.findUnique({
+    where: { id: replyId, isDeleted: false },
+  });
+
+  if (!reply) {
+    throw new AppError(status.NOT_FOUND, "Reply not found.");
+  }
+
+  const existing = await prisma.discussionReport.findUnique({
+    where: { replyId_userId: { replyId, userId } },
+  });
+
+  if (existing) {
+    throw new AppError(status.BAD_REQUEST, "You have already reported this reply.");
+  }
+
+  const report = await prisma.discussionReport.create({
+    data: {
+      replyId,
+      userId,
+      reason: data.reason,
+      details: data.details ?? null,
+    },
+  });
+
+  return report;
+};
+
+/**
  * Lists replies for a discussion with pagination and sorting.
  * Returns top-level replies with nested children (1 level).
  */
@@ -1088,6 +1232,30 @@ const listReplies = async (
   };
 };
 
+/**
+ * Lists all discussion reports (admin).
+ */
+const listReports = async (page = 1, limit = 20) => {
+  const skip = (page - 1) * limit;
+  const [reports, total] = await prisma.$transaction([
+    prisma.discussionReport.findMany({
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        reply: {
+          include: {
+            author: { select: { id: true, name: true, image: true } },
+          },
+        },
+        user: { select: { id: true, name: true, image: true } },
+      },
+    }),
+    prisma.discussionReport.count(),
+  ]);
+  return { data: reports, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+};
+
 export const discussionService = {
   createDiscussion,
   getDiscussion,
@@ -1096,6 +1264,9 @@ export const discussionService = {
   deleteDiscussion,
   createReply,
   deleteReply,
+  updateReply,
+  acceptAnswer,
+  reportReply,
   voteDiscussion,
   voteReply,
   bookmarkDiscussion,
@@ -1110,4 +1281,5 @@ export const discussionService = {
   getMyDiscussions,
   getMyReplies,
   listReplies,
+  listReports,
 };

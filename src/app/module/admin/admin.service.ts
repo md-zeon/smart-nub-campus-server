@@ -7,6 +7,7 @@ import {
   ListUsersQuery,
   ListResourcesQuery,
   ListAuditLogsQuery,
+  ListDiscussionsQuery,
   CreateAuditLogInput,
   DashboardChartsQuery,
   ChartBucket,
@@ -622,6 +623,103 @@ const createQuestionCategory = questionCategory.create;
 const updateQuestionCategory = questionCategory.update;
 const deleteQuestionCategory = questionCategory.delete;
 
+// --- Discussion Management ---
+const listDiscussions = async (query: ListDiscussionsQuery) => {
+  const { search, status, sort = "newest", page = 1, limit = 20 } = query;
+  const skip = (page - 1) * limit;
+
+  const where: Record<string, unknown> = { isDeleted: false };
+
+  if (search) {
+    where.OR = [
+      { title: { contains: search, mode: "insensitive" } },
+      { content: { contains: search, mode: "insensitive" } },
+    ];
+  }
+  if (status === "pinned") where.isPinned = true;
+  if (status === "locked") where.isLocked = true;
+  if (status === "solved") where.isSolved = true;
+
+  const orderBy: Record<string, unknown> =
+    sort === "oldest"
+      ? { createdAt: "asc" }
+      : sort === "popular"
+        ? { upvoteCount: "desc" }
+        : sort === "replies"
+          ? { replyCount: "desc" }
+          : { createdAt: "desc" };
+
+  const [discussions, total] = await prisma.$transaction([
+    prisma.discussion.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy,
+      include: {
+        author: { select: { id: true, name: true, email: true } },
+        category: { select: { id: true, name: true, slug: true } },
+        course: { select: { id: true, code: true, name: true } },
+      },
+    }),
+    prisma.discussion.count({ where }),
+  ]);
+
+  return {
+    data: discussions,
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  };
+};
+
+const deleteDiscussion = async (id: string) => {
+  const discussion = await prisma.discussion.findUnique({
+    where: { id, isDeleted: false },
+  });
+
+  if (!discussion) {
+    throw new AppError(status.NOT_FOUND, "Discussion not found.");
+  }
+
+  await softDelete(prisma.discussion, id);
+
+  return { message: "Discussion deleted successfully." };
+};
+
+const togglePin = async (id: string) => {
+  const discussion = await prisma.discussion.findUnique({
+    where: { id, isDeleted: false },
+  });
+
+  if (!discussion) {
+    throw new AppError(status.NOT_FOUND, "Discussion not found.");
+  }
+
+  const updated = await prisma.discussion.update({
+    where: { id },
+    data: { isPinned: !discussion.isPinned },
+    select: { isPinned: true },
+  });
+
+  return updated;
+};
+
+const toggleLock = async (id: string) => {
+  const discussion = await prisma.discussion.findUnique({
+    where: { id, isDeleted: false },
+  });
+
+  if (!discussion) {
+    throw new AppError(status.NOT_FOUND, "Discussion not found.");
+  }
+
+  const updated = await prisma.discussion.update({
+    where: { id },
+    data: { isLocked: !discussion.isLocked },
+    select: { isLocked: true },
+  });
+
+  return updated;
+};
+
 // --- Audit Log ---
 const listAuditLogs = async (query: ListAuditLogsQuery) => {
   const {
@@ -717,6 +815,10 @@ export const adminService = {
   createQuestionCategory,
   updateQuestionCategory,
   deleteQuestionCategory,
+  listDiscussions,
+  deleteDiscussion,
+  togglePin,
+  toggleLock,
   listAuditLogs,
   getAuditLogById,
 };

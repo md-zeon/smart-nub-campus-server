@@ -89,6 +89,39 @@ const deleteReply = catchAsync(async (req, res) => {
   });
 });
 
+const updateReply = catchAsync(async (req, res) => {
+  const replyId = req.params.replyId as string;
+  const result = await discussionService.updateReply(replyId, req.body, req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Reply updated successfully.",
+    data: result,
+  });
+});
+
+const acceptAnswer = catchAsync(async (req, res) => {
+  const id = req.params.id as string;
+  const result = await discussionService.acceptAnswer(id, req.body.replyId, req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: result.message,
+    data: result,
+  });
+});
+
+const reportReply = catchAsync(async (req, res) => {
+  const replyId = req.params.replyId as string;
+  const result = await discussionService.reportReply(replyId, req.body, req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.CREATED,
+    success: true,
+    message: "Reply reported successfully.",
+    data: result,
+  });
+});
+
 const voteDiscussion = catchAsync(async (req, res) => {
   const id = req.params.id as string;
   const result = await discussionService.voteDiscussion(id, req.user.id, req.body);
@@ -255,6 +288,9 @@ export const discussionController = {
   deleteDiscussion,
   createReply,
   deleteReply,
+  updateReply,
+  acceptAnswer,
+  reportReply,
   voteDiscussion,
   voteReply,
   bookmarkDiscussion,

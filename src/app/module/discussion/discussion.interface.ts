@@ -23,6 +23,15 @@ export interface CreateReplyInput {
   parentId?: string;
 }
 
+export interface UpdateReplyInput {
+  content: string;
+}
+
+export interface ReportReplyInput {
+  reason: string;
+  details?: string;
+}
+
 export interface VoteInput {
   type: VoteType;
 }

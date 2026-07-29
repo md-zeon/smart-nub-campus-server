@@ -120,7 +120,49 @@ eventRegistry.register({
 eventRegistry.register({
   name: "discussion:reply",
   direction: "server-to-client",
-  description: "New reply in a discussion",
+  description: "Reply count update in a discussion",
+});
+
+eventRegistry.register({
+  name: "discussion:reply:new",
+  direction: "server-to-client",
+  description: "New reply posted in a discussion room",
+});
+
+eventRegistry.register({
+  name: "discussion:vote:update",
+  direction: "server-to-client",
+  description: "Vote update on a discussion or reply",
+});
+
+eventRegistry.register({
+  name: "discussion:reply:edited",
+  direction: "server-to-client",
+  description: "Reply content edited",
+});
+
+eventRegistry.register({
+  name: "discussion:join",
+  direction: "client-to-server",
+  description: "Join a discussion room for real-time updates",
+});
+
+eventRegistry.register({
+  name: "discussion:leave",
+  direction: "client-to-server",
+  description: "Leave a discussion room",
+});
+
+eventRegistry.register({
+  name: "discussion:typing:start",
+  direction: "client-to-server",
+  description: "User started typing in a discussion reply",
+});
+
+eventRegistry.register({
+  name: "discussion:typing:stop",
+  direction: "client-to-server",
+  description: "User stopped typing in a discussion reply",
 });
 
 eventRegistry.register({

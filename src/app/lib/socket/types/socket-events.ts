@@ -54,7 +54,17 @@ export interface DiscussionReply {
   discussionId: string;
   authorId: string;
   content: string;
+  parentId?: string | null;
+  isEdited: boolean;
   createdAt: string;
+}
+
+/** Minimal discussion vote update shape. */
+export interface DiscussionVoteUpdate {
+  discussionId: string;
+  upvoteCount: number;
+  entityType: "discussion" | "reply";
+  replyId?: string;
 }
 
 /** Minimal resource shape. */
@@ -155,6 +165,18 @@ export interface SocketEvents {
   /** Leave a team room. */
   "team:leave": { teamRequestId: string };
 
+  /** Join a discussion room for real-time updates. */
+  "discussion:join": { discussionId: string };
+
+  /** Leave a discussion room. */
+  "discussion:leave": { discussionId: string };
+
+  /** User started typing in a discussion. */
+  "discussion:typing:start": { discussionId: string };
+
+  /** User stopped typing in a discussion. */
+  "discussion:typing:stop": { discussionId: string };
+
   // ── Server → Client ──────────────────────────────────────────────────────
 
   /** New message in a conversation. */
@@ -184,10 +206,27 @@ export interface SocketEvents {
   /** New notification for the connected user. */
   "notification:new": Notification;
 
-  /** New reply in a discussion. */
+  /** New reply count update for a discussion (list page). */
   "discussion:reply": {
     discussionId: string;
+    replyCount: number;
+  };
+
+  /** New reply posted in a discussion room. */
+  "discussion:reply:new": {
+    discussionId: string;
     reply: DiscussionReply;
+  };
+
+  /** Vote update on a discussion or reply. */
+  "discussion:vote:update": DiscussionVoteUpdate;
+
+  /** Reply updated (edited). */
+  "discussion:reply:edited": {
+    discussionId: string;
+    replyId: string;
+    content: string;
+    isEdited: boolean;
   };
 
   /** New resource uploaded. */
@@ -273,6 +312,10 @@ export type ClientEvents = keyof Pick<
   | "presence:heartbeat"
   | "team:join"
   | "team:leave"
+  | "discussion:join"
+  | "discussion:leave"
+  | "discussion:typing:start"
+  | "discussion:typing:stop"
 >;
 
 /** Extract only server → client event names. */
@@ -284,6 +327,9 @@ export type ServerEvents = keyof Pick<
   | "presence:update"
   | "notification:new"
   | "discussion:reply"
+  | "discussion:reply:new"
+  | "discussion:vote:update"
+  | "discussion:reply:edited"
   | "resource:new"
   | "team:application"
   | "qa:newQuestion"

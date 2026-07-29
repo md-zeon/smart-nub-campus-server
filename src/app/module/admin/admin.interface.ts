@@ -36,6 +36,14 @@ export interface CreateAuditLogInput {
   ipAddress?: string;
 }
 
+export interface ListDiscussionsQuery {
+  search?: string;
+  status?: "pinned" | "locked" | "solved";
+  sort?: "newest" | "oldest" | "popular" | "replies";
+  page?: number;
+  limit?: number;
+}
+
 export interface DashboardChartsQuery {
   days?: number;
 }

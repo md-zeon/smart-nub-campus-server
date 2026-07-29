@@ -20,6 +20,8 @@ model Discussion {
   author              User                 @relation(fields: [authorId], references: [id], onDelete: Restrict)
   courseId            String?
   course              Course?              @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  solutionReplyId     String?              @unique
+  solutionReply       DiscussionReply?     @relation("AcceptedSolution", fields: [solutionReplyId], references: [id], onDelete: SetNull)
   replyCount          Int                  @default(0)
   viewCount           Int                  @default(0)
   upvoteCount         Int                  @default(0)
@@ -55,8 +57,11 @@ model DiscussionReply {
   parentId             String?
   parent               DiscussionReply?      @relation("ReplyTree", fields: [parentId], references: [id], onDelete: Cascade)
   replies              DiscussionReply[]     @relation("ReplyTree")
+  solvedDiscussion     Discussion?           @relation("AcceptedSolution")
+  reports              DiscussionReport[]
   upvoteCount          Int                   @default(0)
   discussionReplyVotes DiscussionReplyVote[]
+  isEdited             Boolean               @default(false)
   isDeleted            Boolean               @default(false)
   deletedAt            DateTime?
   createdAt            DateTime              @default(now())
@@ -66,6 +71,22 @@ model DiscussionReply {
   @@index([authorId])
   @@index([parentId])
   @@map("discussion_replies")
+}
+
+model DiscussionReport {
+  id        String   @id @default(uuid())
+  replyId   String
+  reply     DiscussionReply @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason    String
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@unique([replyId, userId])
+  @@index([replyId])
+  @@index([userId])
+  @@map("discussion_reports")
 }
 
 model DiscussionVote {

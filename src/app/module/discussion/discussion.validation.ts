@@ -50,10 +50,32 @@ const listRepliesSchema = z.object({
   sort: z.enum(["upvotes", "newest", "oldest"]).optional().default("newest"),
 });
 
+const updateReplySchema = z
+  .object({
+    content: z.string().trim().min(1, "Reply content is required").max(10000, "Reply must be at most 10,000 characters"),
+  })
+  .strict();
+
+const reportReplySchema = z
+  .object({
+    reason: z.string().trim().min(1, "Reason is required").max(200, "Reason must be at most 200 characters"),
+    details: z.string().trim().max(1000, "Details must be at most 1,000 characters").optional(),
+  })
+  .strict();
+
+const acceptAnswerSchema = z
+  .object({
+    replyId: z.string().uuid("Invalid reply ID"),
+  })
+  .strict();
+
 export const discussionValidation = {
   createDiscussionSchema,
   updateDiscussionSchema,
   createReplySchema,
+  updateReplySchema,
+  reportReplySchema,
   voteSchema,
   listRepliesSchema,
+  acceptAnswerSchema,
 };

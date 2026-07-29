@@ -73,8 +73,32 @@ router.post(
   discussionController.createReply,
 );
 
+// Update a reply
+router.put(
+  "/:id/replies/:replyId",
+  verifySession,
+  validateRequest(discussionValidation.updateReplySchema),
+  discussionController.updateReply,
+);
+
 // Delete a reply
 router.delete("/:id/replies/:replyId", verifySession, discussionController.deleteReply);
+
+// Report a reply
+router.post(
+  "/:id/replies/:replyId/report",
+  verifySession,
+  validateRequest(discussionValidation.reportReplySchema),
+  discussionController.reportReply,
+);
+
+// Accept a reply as the solution
+router.put(
+  "/:id/accept",
+  verifySession,
+  validateRequest(discussionValidation.acceptAnswerSchema),
+  discussionController.acceptAnswer,
+);
 
 // Vote on a discussion
 router.post(

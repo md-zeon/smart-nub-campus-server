@@ -2,7 +2,7 @@ import status from "http-status";
 import catchAsync from "../../shared/catchAsync";
 import sendResponse from "../../shared/sendResponse";
 import { adminService } from "./admin.service";
-import { ListUsersQuery, ListResourcesQuery, ListAuditLogsQuery, DashboardChartsQuery } from "./admin.interface";
+import { ListUsersQuery, ListResourcesQuery, ListAuditLogsQuery, ListDiscussionsQuery, DashboardChartsQuery } from "./admin.interface";
 
 // --- Dashboard Stats ---
 const getDashboardStats = catchAsync(async (req, res) => {
@@ -529,6 +529,88 @@ const deleteQuestionCategory = catchAsync(async (req, res) => {
   });
 });
 
+// --- Discussion Management ---
+const listDiscussions = catchAsync(async (req, res) => {
+  const query: ListDiscussionsQuery = {
+    search: req.query.search as string | undefined,
+    status: req.query.status as ListDiscussionsQuery["status"],
+    sort: (req.query.sort as ListDiscussionsQuery["sort"]) || "newest",
+    page: parseInt(req.query.page as string) || 1,
+    limit: parseInt(req.query.limit as string) || 20,
+  };
+
+  const result = await adminService.listDiscussions(query);
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Discussions retrieved successfully.",
+    data: result,
+  });
+});
+
+const deleteDiscussion = catchAsync(async (req, res) => {
+  const id = req.params.id as string;
+  const result = await adminService.deleteDiscussion(id);
+
+  await adminService.createAuditLog({
+    adminUserId: req.user.id,
+    action: "DELETE_DISCUSSION",
+    targetType: "DISCUSSION",
+    targetId: id,
+    ipAddress: req.ip,
+  });
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: result.message,
+    data: null,
+  });
+});
+
+const togglePin = catchAsync(async (req, res) => {
+  const id = req.params.id as string;
+  const result = await adminService.togglePin(id);
+
+  await adminService.createAuditLog({
+    adminUserId: req.user.id,
+    action: result.isPinned ? "PIN_DISCUSSION" : "UNPIN_DISCUSSION",
+    targetType: "DISCUSSION",
+    targetId: id,
+    details: { isPinned: result.isPinned },
+    ipAddress: req.ip,
+  });
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: `Discussion ${result.isPinned ? "pinned" : "unpinned"} successfully.`,
+    data: result,
+  });
+});
+
+const toggleLock = catchAsync(async (req, res) => {
+  const id = req.params.id as string;
+  const result = await adminService.toggleLock(id);
+
+  await adminService.createAuditLog({
+    adminUserId: req.user.id,
+    action: result.isLocked ? "LOCK_DISCUSSION" : "UNLOCK_DISCUSSION",
+    targetType: "DISCUSSION",
+    targetId: id,
+    details: { isLocked: result.isLocked },
+    ipAddress: req.ip,
+  });
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: `Discussion ${result.isLocked ? "locked" : "unlocked"} successfully.`,
+    data: result,
+  });
+});
+
 // --- Audit Log ---
 const listAuditLogs = catchAsync(async (req, res) => {
   const query: ListAuditLogsQuery = {
@@ -593,6 +675,10 @@ export const adminController = {
   createQuestionCategory,
   updateQuestionCategory,
   deleteQuestionCategory,
+  listDiscussions,
+  deleteDiscussion,
+  togglePin,
+  toggleLock,
   listAuditLogs,
   getAuditLogById,
 };
