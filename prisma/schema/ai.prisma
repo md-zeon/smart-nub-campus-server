@@ -1,11 +1,13 @@
 model AIChatSession {
-  id         String      @id @default(uuid())
+  id         String         @id @default(uuid())
   userId     String
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   title      String?
+  metadata   Json?
   aiMessages AIMessage[]
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  attachments AIAttachment[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 
   @@index([userId])
   @@index([createdAt(sort: Desc)])
@@ -13,13 +15,16 @@ model AIChatSession {
 }
 
 model AIMessage {
-  id        String        @id @default(uuid())
-  sessionId String
-  session   AIChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  role      AIMessageRole
-  content   String        @db.Text
-  isHelpful Boolean?
-  createdAt DateTime      @default(now())
+  id           String        @id @default(uuid())
+  sessionId    String
+  session      AIChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role         AIMessageRole
+  content      String        @db.Text
+  model        String?
+  inputTokens  Int?
+  outputTokens Int?
+  isHelpful    Boolean?
+  createdAt    DateTime      @default(now())
 
   @@index([sessionId])
   @@index([createdAt])
@@ -42,4 +47,18 @@ model AIStudyStats {
   @@index([userId])
   @@index([weekStart])
   @@map("ai_study_stats")
+}
+
+model AIAttachment {
+  id        String        @id @default(uuid())
+  sessionId String
+  session   AIChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  fileName  String
+  fileUrl   String
+  fileType  String
+  fileSize  Int?
+  createdAt DateTime      @default(now())
+
+  @@index([sessionId])
+  @@map("ai_attachments")
 }

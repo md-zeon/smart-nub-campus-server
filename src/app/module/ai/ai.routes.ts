@@ -17,7 +17,6 @@ const router = Router();
 
 // --- Chat Session Routes ---
 
-// Create a new chat session
 router.post(
   "/sessions",
   verifySession,
@@ -25,18 +24,14 @@ router.post(
   aiController.createSession,
 );
 
-// Get all chat sessions for the user
 router.get("/sessions", verifySession, aiController.getSessions);
 
-// Get a single chat session with messages
 router.get("/sessions/:sessionId", verifySession, aiController.getSession);
 
-// Delete a chat session
 router.delete("/sessions/:sessionId", verifySession, aiController.deleteSession);
 
 // --- Message Routes ---
 
-// Send a message in a chat session
 router.post(
   "/sessions/:sessionId/messages",
   verifySession,
@@ -45,14 +40,20 @@ router.post(
   aiController.sendMessage,
 );
 
-// Get messages in a chat session
+router.post(
+  "/sessions/:sessionId/messages/stream",
+  verifySession,
+  aiChatRateLimiter,
+  validateRequest(sendMessageSchema),
+  aiController.streamMessage,
+);
+
 router.get(
   "/sessions/:sessionId/messages",
   verifySession,
   aiController.getMessages,
 );
 
-// Mark a message as helpful/unhelpful
 router.patch(
   "/messages/:messageId/helpful",
   verifySession,
@@ -62,15 +63,12 @@ router.patch(
 
 // --- Study Stats Routes ---
 
-// Get current week's study stats
 router.get("/stats", verifySession, aiController.getStudyStats);
 
-// Get study stats history
 router.get("/stats/history", verifySession, aiController.getStudyStatsHistory);
 
-// --- Placeholder Tool Routes ---
+// --- Tool Routes ---
 
-// Summarize PDF
 router.post(
   "/tools/summarize-pdf",
   verifySession,
@@ -79,7 +77,6 @@ router.post(
   aiController.summarizePdf,
 );
 
-// Generate Quiz
 router.post(
   "/tools/generate-quiz",
   verifySession,
@@ -88,7 +85,6 @@ router.post(
   aiController.generateQuiz,
 );
 
-// Generate Flashcards
 router.post(
   "/tools/generate-flashcards",
   verifySession,
@@ -97,7 +93,6 @@ router.post(
   aiController.generateFlashcards,
 );
 
-// Explain Code
 router.post(
   "/tools/explain-code",
   verifySession,

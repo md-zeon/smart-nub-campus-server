@@ -2,38 +2,32 @@ import status from "http-status";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
 import { Prisma } from "../../../generated/prisma/client";
+import { createProvider } from "../../lib/ai";
+import type { AIProvider, ChatMessage } from "../../lib/ai";
+import ENVVARS from "../../../config/env";
 
-/**
- * Calculate the Monday of the current week (or a given date's week).
- * Used for weekly study stats tracking.
- */
+const provider: AIProvider = createProvider({
+  apiKey: ENVVARS.AI_PROVIDER_API_KEY,
+  model: ENVVARS.AI_PROVIDER_MODEL,
+});
+
 const getWeekStart = (date: Date = new Date()): Date => {
   const d = new Date(date);
   const day = d.getUTCDay();
-  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1); // Monday
+  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
   d.setUTCDate(diff);
   d.setUTCHours(0, 0, 0, 0);
   return d;
 };
 
-/**
- * Mock AI response generator.
- * Returns a structured response identical to what a real LLM provider would return.
- * In production, this would be replaced with actual LLM API calls.
- */
-const generateMockAIResponse = (userMessage: string): string => {
-  const responses = [
-    `Great question! Based on your query about "${userMessage.slice(0, 50)}${userMessage.length > 50 ? "..." : ""}", here's what I can help with:\n\nI'm currently in MVP mode with simulated responses. In the future, I'll be powered by a real LLM to provide detailed, contextual answers to your academic questions.\n\nFor now, I recommend:\n1. Checking the Resources section for relevant materials\n2. Posting in Discussions for community help\n3. Using Q&A for specific academic questions`,
-    `Thanks for your message! I understand you're asking about: "${userMessage.slice(0, 50)}${userMessage.length > 50 ? "..." : ""}"\n\nAs an AI assistant in development, I'm designed to help with:\n- Explaining complex concepts\n- Summarizing study materials\n- Generating practice quizzes\n- Breaking down code snippets\n\nThis feature will be fully functional soon with real AI capabilities.`,
-    `I received your question! Here's my simulated response:\n\n"${userMessage.slice(0, 100)}${userMessage.length > 100 ? "..." : ""}"\n\nIn the production version, I'll analyze your query and provide comprehensive, accurate answers using advanced language models. Stay tuned for the full AI-powered experience!`,
-  ];
+const buildHistory = (
+  messages: Array<{ role: "USER" | "ASSISTANT"; content: string }>,
+): ChatMessage[] =>
+  messages.map((m) => ({
+    role: m.role === "USER" ? "user" : "model",
+    content: m.content,
+  }));
 
-  return responses[Math.floor(Math.random() * responses.length)];
-};
-
-/**
- * Create a new AI chat session for a user.
- */
 const createSession = async (userId: string, title?: string) => {
   const session = await prisma.aIChatSession.create({
     data: {
@@ -44,9 +38,6 @@ const createSession = async (userId: string, title?: string) => {
   return session;
 };
 
-/**
- * Get sessions for a user with pagination, ordered by most recent.
- */
 const getSessions = async (userId: string, page: number = 1, limit: number = 20) => {
   const skip = (page - 1) * limit;
 
@@ -78,9 +69,6 @@ const getSessions = async (userId: string, page: number = 1, limit: number = 20)
   };
 };
 
-/**
- * Get a single session by ID, verifying ownership.
- */
 const getSessionById = async (sessionId: string, userId: string) => {
   const session = await prisma.aIChatSession.findUnique({
     where: { id: sessionId },
@@ -98,9 +86,6 @@ const getSessionById = async (sessionId: string, userId: string) => {
   return session;
 };
 
-/**
- * Delete a session and its messages (hard delete via cascade).
- */
 const deleteSession = async (sessionId: string, userId: string) => {
   const session = await prisma.aIChatSession.findUnique({
     where: { id: sessionId },
@@ -117,12 +102,7 @@ const deleteSession = async (sessionId: string, userId: string) => {
   await prisma.aIChatSession.delete({ where: { id: sessionId } });
 };
 
-/**
- * Send a user message, generate a mock AI response, and update study stats.
- * Uses a transaction to ensure atomicity.
- */
 const sendMessage = async (sessionId: string, content: string, userId: string) => {
-  // Verify session exists and belongs to user
   const session = await prisma.aIChatSession.findUnique({
     where: { id: sessionId },
   });
@@ -135,13 +115,9 @@ const sendMessage = async (sessionId: string, content: string, userId: string) =
     throw new AppError(status.FORBIDDEN, "You do not have access to this session.");
   }
 
-  // Generate mock AI response
-  const aiResponseContent = generateMockAIResponse(content);
   const weekStart = getWeekStart();
 
-  // Create user message, AI response, and update stats in a transaction
   const [userMessage, aiMessage] = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    // Create user message
     const userMsg = await tx.aIMessage.create({
       data: {
         sessionId,
@@ -150,16 +126,26 @@ const sendMessage = async (sessionId: string, content: string, userId: string) =
       },
     });
 
-    // Create AI response
+    const pastMessages = await tx.aIMessage.findMany({
+      where: { sessionId },
+      orderBy: { createdAt: "asc" },
+      select: { role: true, content: true },
+    });
+
+    const history = buildHistory(pastMessages.slice(0, -1));
+
+    const aiResponseContent = await provider.chat(history, content);
+
+    const modelName = ENVVARS.AI_PROVIDER_MODEL;
     const aiMsg = await tx.aIMessage.create({
       data: {
         sessionId,
         role: "ASSISTANT",
         content: aiResponseContent,
+        model: modelName,
       },
     });
 
-    // Upsert weekly study stats (create or increment)
     await tx.aIStudyStats.upsert({
       where: {
         userId_weekStart: { userId, weekStart },
@@ -178,7 +164,6 @@ const sendMessage = async (sessionId: string, content: string, userId: string) =
       },
     });
 
-    // Update session title if it's the first message
     if (!session.title || session.title === "New Chat") {
       const truncatedTitle = content.length > 50 ? content.slice(0, 50) + "..." : content;
       await tx.aIChatSession.update({
@@ -193,16 +178,104 @@ const sendMessage = async (sessionId: string, content: string, userId: string) =
   return { userMessage, aiMessage };
 };
 
-/**
- * Get all messages in a session, paginated.
- */
+const sendMessageStream = async (
+  sessionId: string,
+  content: string,
+  userId: string,
+  onToken: (token: string) => void,
+  onDone: (aiMessage: { id: string; content: string; createdAt: Date }) => void,
+  onError: (error: Error) => void,
+) => {
+  const session = await prisma.aIChatSession.findUnique({
+    where: { id: sessionId },
+  });
+
+  if (!session) {
+    throw new AppError(status.NOT_FOUND, "Chat session not found.");
+  }
+
+  if (session.userId !== userId) {
+    throw new AppError(status.FORBIDDEN, "You do not have access to this session.");
+  }
+
+  const weekStart = getWeekStart();
+
+  const userMessage = await prisma.aIMessage.create({
+    data: {
+      sessionId,
+      role: "USER",
+      content,
+    },
+  });
+
+  const pastMessages = await prisma.aIMessage.findMany({
+    where: { sessionId },
+    orderBy: { createdAt: "asc" },
+    select: { role: true, content: true },
+  });
+
+  const history = buildHistory(pastMessages.filter((m) => m.role !== "USER" || m.content !== content));
+
+  const modelName = ENVVARS.AI_PROVIDER_MODEL;
+
+  await provider.chatStream(history, content, {
+    onToken: (token: string) => {
+      onToken(token);
+    },
+    onDone: async (fullContent: string) => {
+      const aiMessage = await prisma.aIMessage.create({
+        data: {
+          sessionId,
+          role: "ASSISTANT",
+          content: fullContent,
+          model: modelName,
+        },
+      });
+
+      await prisma.aIStudyStats.upsert({
+        where: {
+          userId_weekStart: { userId, weekStart },
+        },
+        create: {
+          userId,
+          weekStart,
+          questionsAsked: 1,
+          topicsExplored: 1,
+          timeSpentMinutes: 1,
+        },
+        update: {
+          questionsAsked: { increment: 1 },
+          topicsExplored: { increment: 1 },
+          timeSpentMinutes: { increment: 1 },
+        },
+      });
+
+      if (!session.title || session.title === "New Chat") {
+        const truncatedTitle = content.length > 50 ? content.slice(0, 50) + "..." : content;
+        await prisma.aIChatSession.update({
+          where: { id: sessionId },
+          data: { title: truncatedTitle },
+        });
+      }
+
+      onDone({
+        id: aiMessage.id,
+        content: aiMessage.content,
+        createdAt: aiMessage.createdAt,
+      });
+    },
+    onError: async (error: Error) => {
+      onError(error);
+    },
+  });
+};
+
 const getMessages = async (
   sessionId: string,
   userId: string,
   page: number = 1,
   limit: number = 50,
 ) => {
-  // Verify session access
   const session = await prisma.aIChatSession.findUnique({
     where: { id: sessionId },
   });
@@ -238,9 +311,6 @@ const getMessages = async (
   };
 };
 
-/**
- * Mark a message as helpful or unhelpful.
- */
 const markHelpful = async (messageId: string, isHelpful: boolean, userId: string) => {
   const message = await prisma.aIMessage.findUnique({
     where: { id: messageId },
@@ -263,9 +333,6 @@ const markHelpful = async (messageId: string, isHelpful: boolean, userId: string
   return updated;
 };
 
-/**
- * Get study stats for a user for a given week (defaults to current week).
- */
 const getStudyStats = async (userId: string, weekStart?: Date) => {
   const targetWeek = weekStart || getWeekStart();
 
@@ -288,9 +355,6 @@ const getStudyStats = async (userId: string, weekStart?: Date) => {
   };
 };
 
-/**
- * Get study stats for a user over multiple weeks.
- */
 const getStudyStatsHistory = async (userId: string, weeks: number = 4) => {
   const stats = await prisma.aIStudyStats.findMany({
     where: { userId },
@@ -301,106 +365,41 @@ const getStudyStatsHistory = async (userId: string, weeks: number = 4) => {
   return stats;
 };
 
-// --- Placeholder tool implementations ---
+const summarizePdf = async (userId: string, fileUrl: string) => {
+  const response = await fetch(fileUrl);
+  const text = await response.text();
 
-/**
- * Placeholder: PDF summarization endpoint.
- * Returns a structured stub for future LLM integration.
- */
-const summarizePdf = async (fileUrl: string) => {
-  return {
-    status: "placeholder",
-    message: "PDF summarization will be available soon. This endpoint is structured for future LLM integration.",
-    data: {
-      fileUrl,
-      summary: "This is a placeholder summary. In production, this would contain an AI-generated summary of the PDF content.",
-      keyPoints: [
-        "Placeholder key point 1",
-        "Placeholder key point 2",
-        "Placeholder key point 3",
-      ],
-    },
-  };
-};
-
-/**
- * Placeholder: Quiz generation endpoint.
- * Returns a structured stub for future LLM integration.
- */
-const generateQuiz = async (userId: string, content: string, numQuestions: number = 5) => {
-  const placeholderQuestions = Array.from({ length: numQuestions }, (_, i) => ({
-    question: `Placeholder question ${i + 1} based on the provided content`,
-    options: ["Option A", "Option B", "Option C", "Option D"],
-    correctAnswer: "Option A",
-  }));
+  const result = await provider.summarizeContent(text);
 
   const weekStart = getWeekStart();
-
-  // Increment quizzesGenerated stat
   await prisma.aIStudyStats.upsert({
-    where: {
-      userId_weekStart: { userId, weekStart },
-    },
-    create: {
-      userId,
-      weekStart,
-      questionsAsked: 0,
-      topicsExplored: 0,
-      timeSpentMinutes: 0,
-      quizzesGenerated: 1,
-    },
-    update: {
-      quizzesGenerated: { increment: 1 },
-    },
-  }).catch(() => {
-    // Silently fail — stats update is non-critical
-  });
+    where: { userId_weekStart: { userId, weekStart } },
+    create: { userId, weekStart, questionsAsked: 0, topicsExplored: 1, timeSpentMinutes: 1 },
+    update: { topicsExplored: { increment: 1 }, timeSpentMinutes: { increment: 1 } },
+  }).catch(() => {});
 
-  return {
-    status: "placeholder",
-    message: "Quiz generation will be available soon. This endpoint is structured for future LLM integration.",
-    data: {
-      questions: placeholderQuestions,
-      totalQuestions: numQuestions,
-    },
-  };
+  return result;
 };
 
-/**
- * Placeholder: Flashcard generation endpoint.
- * Returns a structured stub for future LLM integration.
- */
+const generateQuiz = async (userId: string, content: string, numQuestions: number = 5) => {
+  const result = await provider.generateQuiz(content, numQuestions);
+
+  const weekStart = getWeekStart();
+  await prisma.aIStudyStats.upsert({
+    where: { userId_weekStart: { userId, weekStart } },
+    create: { userId, weekStart, questionsAsked: 0, topicsExplored: 0, timeSpentMinutes: 0, quizzesGenerated: 1 },
+    update: { quizzesGenerated: { increment: 1 } },
+  }).catch(() => {});
+
+  return result;
+};
+
 const generateFlashcards = async (content: string, numCards: number = 10) => {
-  const placeholderCards = Array.from({ length: numCards }, (_, i) => ({
-    front: `Placeholder front ${i + 1}`,
-    back: `Placeholder back ${i + 1}`,
-  }));
-
-  return {
-    status: "placeholder",
-    message: "Flashcard generation will be available soon. This endpoint is structured for future LLM integration.",
-    data: {
-      cards: placeholderCards,
-      totalCards: numCards,
-    },
-  };
+  return provider.generateFlashcards(content, numCards);
 };
 
-/**
- * Placeholder: Code explanation endpoint.
- * Returns a structured stub for future LLM integration.
- */
 const explainCode = async (code: string, language?: string) => {
-  return {
-    status: "placeholder",
-    message: "Code explanation will be available soon. This endpoint is structured for future LLM integration.",
-    data: {
-      language: language || "auto-detected",
-      explanation: "This is a placeholder explanation. In production, this would contain a detailed AI-generated explanation of the code.",
-      complexity: "placeholder",
-      suggestions: ["Placeholder suggestion 1", "Placeholder suggestion 2"],
-    },
-  };
+  return provider.explainCode(code, language);
 };
 
 export default {
@@ -409,6 +408,7 @@ export default {
   getSessionById,
   deleteSession,
   sendMessage,
+  sendMessageStream,
   getMessages,
   markHelpful,
   getStudyStats,

@@ -1,8 +1,3 @@
-/**
- * AI module TypeScript interfaces.
- * Keep in sync with Prisma schema: prisma/schema/ai.prisma
- */
-
 export interface CreateSessionInput {
   userId: string;
   title?: string;
@@ -58,4 +53,10 @@ export interface SessionListResponse {
     total: number;
     totalPages: number;
   };
+}
+
+export interface StreamMessageResponse {
+  id: string;
+  content: string;
+  createdAt: Date;
 }
