@@ -7,6 +7,7 @@ import type { AIProvider, ChatMessage } from "../../lib/ai";
 import ENVVARS from "../../../config/env";
 
 const provider: AIProvider = createProvider({
+  provider: ENVVARS.AI_PROVIDER,
   apiKey: ENVVARS.AI_PROVIDER_API_KEY,
   model: ENVVARS.AI_PROVIDER_MODEL,
 });

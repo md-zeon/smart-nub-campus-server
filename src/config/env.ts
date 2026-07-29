@@ -32,7 +32,7 @@ interface EnvConfig {
   RESEND_API_KEY?: string;
   MAIL_FROM?: string;
   // AI provider
-  AI_PROVIDER: "gemini" | "openai" | "anthropic";
+  AI_PROVIDER: "gemini" | "openai" | "anthropic" | "groq";
   AI_PROVIDER_API_KEY: string;
   AI_PROVIDER_MODEL: string;
   // Mail provider selection
@@ -90,7 +90,7 @@ const loadEnvVariables = (): EnvConfig => {
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET as string,
     CLOUDINARY_FOLDER: process.env.CLOUDINARY_FOLDER as string | undefined,
     MAX_UPLOAD_SIZE_MB: process.env.MAX_UPLOAD_SIZE_MB as string | undefined,
-    AI_PROVIDER: (process.env.AI_PROVIDER as "gemini" | "openai" | "anthropic") || "gemini",
+    AI_PROVIDER: (process.env.AI_PROVIDER as "gemini" | "openai" | "anthropic" | "groq") || "gemini",
     AI_PROVIDER_API_KEY: process.env.AI_PROVIDER_API_KEY as string,
     AI_PROVIDER_MODEL: (process.env.AI_PROVIDER_MODEL as string) || "gemini-1.5-flash",
     // Mail provider credentials - optional, validated in provider constructors
