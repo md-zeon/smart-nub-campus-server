@@ -1,0 +1,64 @@
+model AIChatSession {
+  id         String         @id @default(uuid())
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String?
+  metadata   Json?
+  aiMessages AIMessage[]
+  attachments AIAttachment[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+  @@map("ai_chat_sessions")
+}
+
+model AIMessage {
+  id           String        @id @default(uuid())
+  sessionId    String
+  session      AIChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role         AIMessageRole
+  content      String        @db.Text
+  model        String?
+  inputTokens  Int?
+  outputTokens Int?
+  isHelpful    Boolean?
+  createdAt    DateTime      @default(now())
+
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("ai_messages")
+}
+
+model AIStudyStats {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStart        DateTime
+  questionsAsked   Int      @default(0)
+  timeSpentMinutes Int      @default(0)
+  topicsExplored   Int      @default(0)
+  quizzesGenerated Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, weekStart])
+  @@index([userId])
+  @@index([weekStart])
+  @@map("ai_study_stats")
+}
+
+model AIAttachment {
+  id        String        @id @default(uuid())
+  sessionId String
+  session   AIChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  fileName  String
+  fileUrl   String
+  fileType  String
+  fileSize  Int?
+  createdAt DateTime      @default(now())
+
+  @@index([sessionId])
+  @@map("ai_attachments")
+}

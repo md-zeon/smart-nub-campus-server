@@ -1,17 +1,22 @@
 model UserProfile {
-    id String @id @default(uuid())
-    userId String @unique
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    bio String?
-    coverImage String?
-    githubUrl String?
-    linkedinUrl String?
-    portfolioUrl String?
-    websiteUrl String?
+  bio          String?
+  coverImage   String?
+  githubUrl    String?
+  linkedinUrl  String?
+  portfolioUrl String?
+  websiteUrl   String?
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  location        String?
+  phoneNumber     String?
+  currentSemester Int?
+  batchYear       Int?
 
-    @@map("user_profiles")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_profiles")
 }

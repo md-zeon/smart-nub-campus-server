@@ -1,0 +1,139 @@
+import status from "http-status";
+import catchAsync from "../../shared/catchAsync";
+import sendResponse from "../../shared/sendResponse";
+import AppError from "../../errorHelpers/AppError";
+import { notificationService } from "./notification.service";
+import { NotificationListQuery } from "./notification.interface";
+
+const createNotification = catchAsync(async (req, res) => {
+  const result = await notificationService.createNotification({
+    userId: req.body.userId,
+    senderId: req.body.senderId,
+    type: req.body.type,
+    title: req.body.title,
+    message: req.body.message,
+    link: req.body.link,
+    metadata: req.body.metadata,
+  });
+  sendResponse(res, {
+    httpStatusCode: status.CREATED,
+    success: true,
+    message: "Notification created successfully.",
+    data: result,
+  });
+});
+
+const getNotifications = catchAsync(async (req, res) => {
+  const query: NotificationListQuery = {
+    page: parseInt(req.query.page as string) || 1,
+    limit: parseInt(req.query.limit as string) || 20,
+    unreadOnly: req.query.unreadOnly === "true",
+    type: req.query.type as NotificationListQuery["type"],
+  };
+  const result = await notificationService.getNotifications(req.user.id, query);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Notifications retrieved successfully.",
+    data: result,
+  });
+});
+
+const getRecentNotifications = catchAsync(async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit as string) || 5, 10);
+  const result = await notificationService.getRecentNotifications(req.user.id, limit);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Recent notifications retrieved successfully.",
+    data: result,
+  });
+});
+
+const getUnreadCount = catchAsync(async (req, res) => {
+  const result = await notificationService.getUnreadCount(req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Unread count retrieved successfully.",
+    data: result,
+  });
+});
+
+const markAsRead = catchAsync(async (req, res) => {
+  const notificationId = req.params.id as string;
+  const result = await notificationService.markAsRead(notificationId, req.user.id);
+  if (!result) {
+    throw new AppError(status.NOT_FOUND, "Notification not found or unauthorized.");
+  }
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Notification marked as read.",
+    data: result,
+  });
+});
+
+const markAllAsRead = catchAsync(async (req, res) => {
+  const result = await notificationService.markAllAsRead(req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "All notifications marked as read.",
+    data: result,
+  });
+});
+
+const deleteNotification = catchAsync(async (req, res) => {
+  const notificationId = req.params.id as string;
+  const result = await notificationService.deleteNotification(notificationId, req.user.id);
+  if (!result) {
+    throw new AppError(status.NOT_FOUND, "Notification not found or unauthorized.");
+  }
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Notification deleted.",
+    data: result,
+  });
+});
+
+const bulkMarkAsRead = catchAsync(async (req, res) => {
+  const { ids } = req.body as { ids: string[] };
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new AppError(status.BAD_REQUEST, "ids must be a non-empty array.");
+  }
+  const result = await notificationService.bulkMarkAsRead(ids, req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: `${result.updatedCount} notification(s) marked as read.`,
+    data: result,
+  });
+});
+
+const bulkDelete = catchAsync(async (req, res) => {
+  const { ids } = req.body as { ids: string[] };
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new AppError(status.BAD_REQUEST, "ids must be a non-empty array.");
+  }
+  const result = await notificationService.bulkDelete(ids, req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: `${result.deletedCount} notification(s) deleted.`,
+    data: result,
+  });
+});
+
+export const notificationController = {
+  createNotification,
+  getNotifications,
+  getRecentNotifications,
+  getUnreadCount,
+  markAsRead,
+  markAllAsRead,
+  deleteNotification,
+  bulkMarkAsRead,
+  bulkDelete,
+};

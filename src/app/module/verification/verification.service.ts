@@ -6,6 +6,7 @@ import {
 import AppError from "../../errorHelpers/AppError";
 import { mailService } from "../../lib/mail";
 import { prisma } from "../../lib/prisma";
+import { getSocketServer } from "../../lib/socket/socket-server";
 import { uploadService } from "../upload/upload.service";
 import {
   CreateVerificationRequestPayload,
@@ -314,6 +315,17 @@ const approveVerificationRequest = async (id: string, adminId: string) => {
     });
   }
 
+  try {
+    const io = getSocketServer();
+    io.emit("admin:review-update", {
+      type: "verification",
+      entityId: id,
+      status: "APPROVED",
+    });
+  } catch {
+    // Socket.IO may not be initialized in test environments
+  }
+
   return result;
 };
 
@@ -362,6 +374,17 @@ const rejectVerificationRequest = async (
       email: result.email,
       note,
     });
+  }
+
+  try {
+    const io = getSocketServer();
+    io.emit("admin:review-update", {
+      type: "verification",
+      entityId: id,
+      status: "REJECTED",
+    });
+  } catch {
+    // Socket.IO may not be initialized in test environments
   }
 
   return { verificationRequest: result, onboardingStep: request.onboardingStep };

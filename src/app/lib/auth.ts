@@ -27,6 +27,12 @@ export const auth = betterAuth({
           },
         });
 
+        if (user?.isDeleted) {
+          throw new APIError("FORBIDDEN", {
+            message: "Account not found.",
+          });
+        }
+
         if (user && !user.emailVerified) {
           throw new APIError("FORBIDDEN", {
             message: "Please verify your email.",
@@ -36,6 +42,18 @@ export const auth = betterAuth({
         if (user?.status === UserStatus.SUSPENDED) {
           throw new APIError("FORBIDDEN", {
             message: "Account suspended.",
+          });
+        }
+
+        if (user?.status === UserStatus.BANNED) {
+          throw new APIError("FORBIDDEN", {
+            message: "Account banned.",
+          });
+        }
+
+        if (user?.isDeactivated) {
+          throw new APIError("FORBIDDEN", {
+            message: "Account deactivated.",
           });
         }
 
@@ -106,6 +124,11 @@ export const auth = betterAuth({
         defaultValue: null,
       },
       gender: {
+        type: "string",
+        required: false,
+        defaultValue: null,
+      },
+      imagePublicId: {
         type: "string",
         required: false,
         defaultValue: null,

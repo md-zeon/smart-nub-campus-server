@@ -1,0 +1,1053 @@
+import status from "http-status";
+import sanitizeHtml from "sanitize-html";
+import { VoteType } from "../../../generated/prisma/enums";
+import AppError from "../../errorHelpers/AppError";
+import { prisma } from "../../lib/prisma";
+import { getSocketServer } from "../../lib/socket/socket-server";
+import { softDelete } from "../../shared/softDelete";
+import { gamificationService } from "../gamification/gamification.service";
+import { notificationService } from "../notification/notification.service";
+import {
+  CreateResourceInput,
+  CreateCommentInput,
+  ListResourcesQuery,
+  ReportResourceInput,
+  ReviewReportInput,
+  ToggleVoteResult,
+  ToggleBookmarkResult,
+  ToggleCommentVoteResult,
+  EditCommentInput,
+  UpdateResourceInput,
+} from "./resource.interface";
+
+const sanitizeOptions: sanitizeHtml.IOptions = {
+  allowedTags: ["p", "br", "strong", "em", "u", "s", "code", "pre", "blockquote", "ul", "ol", "li", "a", "h1", "h2", "h3", "hr"],
+  allowedAttributes: {
+    a: ["href", "target", "rel"],
+  },
+  allowedSchemes: ["http", "https", "mailto"],
+};
+
+const createResource = async (data: CreateResourceInput, userId: string) => {
+  const resource = await prisma.resource.create({
+    data: {
+      title: data.title,
+      description: data.description ? sanitizeHtml(data.description, sanitizeOptions) : null,
+      fileUrl: data.fileUrl,
+      filePublicId: data.filePublicId ?? null,
+      fileType: data.fileType,
+      fileSize: data.fileSize,
+      courseId: data.courseId,
+      categoryId: data.categoryId,
+      uploaderId: userId,
+      resourceTags: {
+        create: await Promise.all(
+          data.tags.map(async (tagName) => {
+            const slug = tagName.toLowerCase().replace(/\s+/g, "-");
+            const tag = await prisma.tag.upsert({
+              where: { slug },
+              update: {},
+              create: { name: tagName, slug },
+            });
+            return { tagId: tag.id };
+          }),
+        ),
+      },
+    },
+    include: {
+      course: true,
+      category: true,
+      uploader: {
+        select: { id: true, name: true, email: true, image: true },
+      },
+      resourceTags: { include: { tag: true } },
+    },
+  });
+
+  // Award reputation points for uploading a resource (non-blocking)
+  gamificationService
+    .awardPoints({
+      userId,
+      event: "RESOURCE_UPLOADED",
+      reason: `Uploaded resource: ${data.title}`,
+      source: `RESOURCE:${resource.id}`,
+    })
+    .catch(() => {
+      // Non-critical: ignore gamification failures
+    });
+
+  // Broadcast new resource to all connected clients (non-blocking)
+  try {
+    const io = getSocketServer();
+    io.emit("resource:new", {
+      id: resource.id,
+      title: resource.title,
+      description: resource.description,
+      fileUrl: resource.fileUrl,
+      fileType: resource.fileType,
+      fileSize: resource.fileSize,
+      courseId: resource.courseId,
+      categoryId: resource.categoryId,
+      uploaderId: userId,
+      createdAt: resource.createdAt.toISOString(),
+    });
+  } catch {
+    // Socket.IO may not be initialized in test environments
+  }
+
+  return resource;
+};
+
+const getResourceById = async (id: string, userId?: string) => {
+  const resource = await prisma.resource.findUnique({
+    where: { id, isDeleted: false },
+    include: {
+      course: true,
+      category: true,
+      uploader: {
+        select: { id: true, name: true, email: true, image: true },
+      },
+      resourceTags: { include: { tag: true } },
+      _count: {
+        select: {
+          resourceVotes: true,
+          comments: true,
+          resourceBookmarks: true,
+        },
+      },
+    },
+  });
+
+  if (!resource) {
+    throw new AppError(status.NOT_FOUND, "Resource not found.");
+  }
+
+  await prisma.resource.update({
+    where: { id },
+    data: { viewCount: { increment: 1 } },
+  });
+
+  let userVote: VoteType | null = null;
+  let isBookmarked = false;
+
+  if (userId) {
+    const vote = await prisma.resourceVote.findUnique({
+      where: { resourceId_userId: { resourceId: id, userId } },
+      select: { type: true },
+    });
+    userVote = vote?.type ?? null;
+
+    const bookmark = await prisma.resourceBookmark.findUnique({
+      where: { resourceId_userId: { resourceId: id, userId } },
+      select: { id: true },
+    });
+    isBookmarked = !!bookmark;
+  }
+
+  return {
+    ...resource,
+    viewCount: resource.viewCount + 1,
+    userVote,
+    isBookmarked,
+  };
+};
+
+const listResources = async (query: ListResourcesQuery, userId?: string) => {
+  const {
+    courseId,
+    categoryId,
+    tags,
+    search,
+    sort = "newest",
+    page: rawPage = 1,
+    limit: rawLimit = 12,
+    tab,
+  } = query;
+
+  const page = Math.max(1, Math.floor(Number(rawPage) || 1));
+  const limit = Math.min(100, Math.max(1, Math.floor(Number(rawLimit) || 12)));
+  const skip = (page - 1) * limit;
+  const take = limit;
+
+  const where: Record<string, unknown> = { isDeleted: false };
+
+  if (tab === "bookmarks" && userId) {
+    where.resourceBookmarks = { some: { userId } };
+  } else if (tab === "uploads" && userId) {
+    where.uploaderId = userId;
+  }
+
+  if (courseId) where.courseId = courseId;
+  if (categoryId) where.categoryId = categoryId;
+
+  if (tags && tags.length > 0) {
+    where.resourceTags = {
+      some: {
+        tag: { slug: { in: tags } },
+      },
+    };
+  }
+
+  if (search) {
+    where.OR = [
+      { title: { contains: search, mode: "insensitive" } },
+      { description: { contains: search, mode: "insensitive" } },
+    ];
+  }
+
+  let orderBy: Record<string, string>;
+  switch (sort) {
+    case "popular":
+      orderBy = { upvoteCount: "desc" };
+      break;
+    case "downloads":
+      orderBy = { downloadCount: "desc" };
+      break;
+    case "newest":
+    default:
+      orderBy = { createdAt: "desc" };
+      break;
+  }
+
+  const [resources, total] = await prisma.$transaction([
+    prisma.resource.findMany({
+      where,
+      skip,
+      take,
+      orderBy,
+      include: {
+        course: { select: { id: true, code: true, name: true } },
+        category: { select: { id: true, name: true, slug: true } },
+        uploader: {
+          select: { id: true, name: true, image: true },
+        },
+        resourceTags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
+      },
+    }),
+    prisma.resource.count({ where }),
+  ]);
+
+  let resourcesWithUserState = resources;
+
+  if (userId) {
+    const resourceIds = resources.map((r) => r.id);
+
+    const [votes, bookmarks] = await Promise.all([
+      prisma.resourceVote.findMany({
+        where: { resourceId: { in: resourceIds }, userId },
+        select: { resourceId: true, type: true },
+      }),
+      prisma.resourceBookmark.findMany({
+        where: { resourceId: { in: resourceIds }, userId },
+        select: { resourceId: true },
+      }),
+    ]);
+
+    const voteMap = new Map(votes.map((v) => [v.resourceId, v.type]));
+    const bookmarkSet = new Set(bookmarks.map((b) => b.resourceId));
+
+    resourcesWithUserState = resources.map((r) => ({
+      ...r,
+      userVote: voteMap.get(r.id) ?? null,
+      isBookmarked: bookmarkSet.has(r.id),
+    }));
+  }
+
+  return {
+    data: resourcesWithUserState,
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  };
+};
+
+const updateResource = async (
+  id: string,
+  data: UpdateResourceInput,
+  userId: string,
+) => {
+  const existing = await prisma.resource.findUnique({
+    where: { id, isDeleted: false },
+  });
+
+  if (!existing) {
+    throw new AppError(status.NOT_FOUND, "Resource not found.");
+  }
+
+  if (existing.uploaderId !== userId) {
+    throw new AppError(status.FORBIDDEN, "You can only edit your own resources.");
+  }
+
+  const updateData: Record<string, unknown> = {};
+  if (data.title !== undefined) updateData.title = data.title;
+  if (data.description !== undefined) updateData.description = data.description ? sanitizeHtml(data.description, sanitizeOptions) : null;
+  if (data.categoryId !== undefined) updateData.categoryId = data.categoryId;
+
+  return prisma.$transaction(async (tx) => {
+    await tx.resource.update({
+      where: { id },
+      data: updateData,
+    });
+
+    if (data.tags) {
+      await tx.resourceTag.deleteMany({ where: { resourceId: id } });
+
+      const tagResults = await Promise.all(
+        data.tags.map((tagName) => {
+          const slug = tagName.toLowerCase().replace(/\s+/g, "-");
+          return tx.tag.upsert({
+            where: { slug },
+            update: {},
+            create: { name: tagName, slug },
+          });
+        }),
+      );
+
+      await tx.resourceTag.createMany({
+        data: tagResults.map((tag) => ({ resourceId: id, tagId: tag.id })),
+      });
+    }
+
+    return tx.resource.findUnique({
+      where: { id },
+      include: {
+        course: true,
+        category: true,
+        uploader: {
+          select: { id: true, name: true, email: true, image: true },
+        },
+        resourceTags: { include: { tag: true } },
+      },
+    });
+  });
+};
+
+const deleteResource = async (id: string, userId: string) => {
+  const existing = await prisma.resource.findUnique({
+    where: { id, isDeleted: false },
+  });
+
+  if (!existing) {
+    throw new AppError(status.NOT_FOUND, "Resource not found.");
+  }
+
+  if (existing.uploaderId !== userId) {
+    throw new AppError(status.FORBIDDEN, "You can only delete your own resources.");
+  }
+
+  await softDelete(prisma.resource, id);
+
+  // Reverse reputation points awarded for this resource (non-blocking)
+  gamificationService
+    .handleContentDeleted("RESOURCE", id, existing.uploaderId)
+    .catch(() => {
+      // Non-critical: ignore gamification failures
+    });
+
+  return { message: "Resource deleted successfully." };
+};
+
+const toggleVote = async (
+  resourceId: string,
+  userId: string,
+  type: VoteType,
+): Promise<ToggleVoteResult> => {
+  const resource = await prisma.resource.findUnique({
+    where: { id: resourceId, isDeleted: false },
+  });
+
+  if (!resource) {
+    throw new AppError(status.NOT_FOUND, "Resource not found.");
+  }
+
+  const existingVote = await prisma.resourceVote.findUnique({
+    where: { resourceId_userId: { resourceId, userId } },
+  });
+
+  // Award/remove reputation points for the resource owner (skip self-votes).
+  // Non-blocking — gamification failures must not break voting.
+  const ownerId = resource.uploaderId;
+  const awardVote = (voteType: VoteType) => {
+    if (userId === ownerId) return Promise.resolve();
+    return voteType === VoteType.UP
+      ? gamificationService.handleUpvote(userId, ownerId, "RESOURCE", resourceId)
+      : gamificationService.handleDownvote(userId, ownerId, "RESOURCE", resourceId);
+  };
+  const reverseVote = (voteType: VoteType) => {
+    if (userId === ownerId) return Promise.resolve();
+    return gamificationService.handleVoteReversal(
+      userId,
+      ownerId,
+      "RESOURCE",
+      resourceId,
+      voteType === VoteType.UP ? "UP" : "DOWN",
+    );
+  };
+
+  if (existingVote) {
+    if (existingVote.type === type) {
+      const counts = await prisma.$transaction(async (tx) => {
+        await tx.resourceVote.delete({
+          where: { id: existingVote.id },
+        });
+
+        const decrementField = type === VoteType.UP ? "upvoteCount" : "downvoteCount";
+        await tx.resource.update({
+          where: { id: resourceId },
+          data: { [decrementField]: { decrement: 1 } },
+        });
+
+        return tx.resource.findUnique({
+          where: { id: resourceId },
+          select: { upvoteCount: true, downvoteCount: true },
+        });
+      });
+
+      await reverseVote(existingVote.type).catch(() => {});
+
+      return {
+        action: "removed",
+        upvoteCount: counts!.upvoteCount,
+        downvoteCount: counts!.downvoteCount,
+      };
+    }
+
+    const counts = await prisma.$transaction(async (tx) => {
+      await tx.resourceVote.update({
+        where: { id: existingVote.id },
+        data: { type },
+      });
+
+      if (type === VoteType.UP) {
+        await tx.resource.update({
+          where: { id: resourceId },
+          data: {
+            upvoteCount: { increment: 1 },
+            downvoteCount: { decrement: 1 },
+          },
+        });
+      } else {
+        await tx.resource.update({
+          where: { id: resourceId },
+          data: {
+            upvoteCount: { decrement: 1 },
+            downvoteCount: { increment: 1 },
+          },
+        });
+      }
+
+      return tx.resource.findUnique({
+        where: { id: resourceId },
+        select: { upvoteCount: true, downvoteCount: true },
+      });
+    });
+
+    await reverseVote(existingVote.type).catch(() => {});
+    await awardVote(type).catch(() => {});
+
+    return {
+      action: "updated",
+      upvoteCount: counts!.upvoteCount,
+      downvoteCount: counts!.downvoteCount,
+    };
+  }
+
+  const counts = await prisma.$transaction(async (tx) => {
+    await tx.resourceVote.create({
+      data: { resourceId, userId, type },
+    });
+
+    const incrementField = type === VoteType.UP ? "upvoteCount" : "downvoteCount";
+    await tx.resource.update({
+      where: { id: resourceId },
+      data: { [incrementField]: { increment: 1 } },
+    });
+
+    return tx.resource.findUnique({
+      where: { id: resourceId },
+      select: { upvoteCount: true, downvoteCount: true },
+    });
+  });
+
+  await awardVote(type).catch(() => {});
+
+  // Notify resource owner on UP vote (skip self-votes)
+  if (type === VoteType.UP && userId !== ownerId) {
+    notificationService.createNotification({
+      userId: ownerId,
+      senderId: userId,
+      type: "RESOURCE_UPVOTE",
+      title: "Resource Upvoted",
+      message: `Someone upvoted your resource.`,
+      link: `/resources/${resourceId}`,
+    }).catch(() => {});
+  }
+
+  return {
+    action: "added",
+    upvoteCount: counts!.upvoteCount,
+    downvoteCount: counts!.downvoteCount,
+  };
+};
+
+const toggleBookmark = async (
+  resourceId: string,
+  userId: string,
+): Promise<ToggleBookmarkResult> => {
+  const resource = await prisma.resource.findUnique({
+    where: { id: resourceId, isDeleted: false },
+  });
+
+  if (!resource) {
+    throw new AppError(status.NOT_FOUND, "Resource not found.");
+  }
+
+  const existingBookmark = await prisma.resourceBookmark.findUnique({
+    where: { resourceId_userId: { resourceId, userId } },
+  });
+
+  if (existingBookmark) {
+    await prisma.resourceBookmark.delete({
+      where: { id: existingBookmark.id },
+    });
+    return { action: "removed" };
+  }
+
+  await prisma.resourceBookmark.create({
+    data: { resourceId, userId },
+  });
+
+  return { action: "added" };
+};
+
+const trackDownload = async (resourceId: string, userId: string) => {
+  const resource = await prisma.resource.findUnique({
+    where: { id: resourceId, isDeleted: false },
+  });
+
+  if (!resource) {
+    throw new AppError(status.NOT_FOUND, "Resource not found.");
+  }
+
+  const existing = await prisma.resourceDownload.findFirst({
+    where: { resourceId, userId },
+  });
+
+  if (!existing) {
+    await prisma.$transaction(async (tx) => {
+      await tx.resourceDownload.create({
+        data: { resourceId, userId },
+      });
+
+      await tx.resource.update({
+        where: { id: resourceId },
+        data: { downloadCount: { increment: 1 } },
+      });
+    });
+  }
+
+  return { fileUrl: resource.fileUrl, filePublicId: resource.filePublicId };
+};
+
+const addComment = async (
+  resourceId: string,
+  userId: string,
+  data: CreateCommentInput,
+) => {
+  const resource = await prisma.resource.findUnique({
+    where: { id: resourceId, isDeleted: false },
+  });
+
+  if (!resource) {
+    throw new AppError(status.NOT_FOUND, "Resource not found.");
+  }
+
+  if (data.parentId) {
+    const parentComment = await prisma.comment.findUnique({
+      where: { id: data.parentId, resourceId, isDeleted: false },
+    });
+
+    if (!parentComment) {
+      throw new AppError(status.NOT_FOUND, "Parent comment not found.");
+    }
+  }
+
+  const comment = await prisma.comment.create({
+    data: {
+      content: sanitizeHtml(data.content, sanitizeOptions),
+      resourceId,
+      userId,
+      parentId: data.parentId ?? null,
+    },
+    include: {
+      user: {
+        select: { id: true, name: true, image: true },
+      },
+    },
+  });
+
+  // Notify resource owner on comment (skip self-comments)
+  if (userId !== resource.uploaderId) {
+    notificationService.createNotification({
+      userId: resource.uploaderId,
+      senderId: userId,
+      type: "RESOURCE_COMMENT",
+      title: "New Comment",
+      message: `Someone commented on your resource.`,
+      link: `/resources/${resourceId}`,
+    }).catch(() => {});
+  }
+
+  // Award reputation points for commenting (non-blocking)
+  gamificationService
+    .awardPoints({
+      userId,
+      event: "COMMENT_UPLOADED",
+      reason: "Posted a comment",
+      source: `COMMENT:${comment.id}`,
+    })
+    .catch(() => {});
+
+  return comment;
+};
+
+const getComments = async (resourceId: string, page = 1, limit = 20, userId?: string) => {
+  const resource = await prisma.resource.findUnique({
+    where: { id: resourceId, isDeleted: false },
+  });
+
+  if (!resource) {
+    throw new AppError(status.NOT_FOUND, "Resource not found.");
+  }
+
+  const skip = (page - 1) * limit;
+  const where = {
+    resourceId,
+    isDeleted: false,
+    parentId: null as string | null,
+  };
+
+  const [comments, total] = await prisma.$transaction([
+    prisma.comment.findMany({
+      where,
+      skip,
+      take: limit,
+      include: {
+        user: {
+          select: { id: true, name: true, image: true },
+        },
+        replies: {
+          where: { isDeleted: false },
+          include: {
+            user: {
+              select: { id: true, name: true, image: true },
+            },
+            replies: {
+              where: { isDeleted: false },
+              include: {
+                user: {
+                  select: { id: true, name: true, image: true },
+                },
+              },
+              orderBy: { createdAt: "asc" },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.comment.count({ where }),
+  ]);
+
+  // Fetch user votes for all visible comments if user is logged in
+  let userVoteMap = new Map<string, "UP" | "DOWN">();
+  if (userId) {
+    const commentIds = comments.flatMap((c) => [
+      c.id,
+      ...(c.replies?.map((r) => r.id) ?? []),
+      ...(c.replies?.flatMap((r) => r.replies?.map((rr) => rr.id) ?? []) ?? []),
+    ]);
+
+    const userVotes = await prisma.commentVote.findMany({
+      where: { commentId: { in: commentIds }, userId },
+      select: { commentId: true, type: true },
+    });
+
+    userVoteMap = new Map(userVotes.map((v) => [v.commentId, v.type]));
+  }
+
+  // Attach userVote to each comment
+  const enrichComment = (comment: Record<string, unknown>) => ({
+    ...comment,
+    userVote: userVoteMap.get(comment.id as string) ?? null,
+  });
+
+  const enrichedComments = comments.map((c) => ({
+    ...enrichComment(c as unknown as Record<string, unknown>),
+    replies: c.replies?.map((r) => ({
+      ...enrichComment(r as unknown as Record<string, unknown>),
+      replies: r.replies?.map((rr) => enrichComment(rr as unknown as Record<string, unknown>)),
+    })),
+  }));
+
+  return {
+    comments: enrichedComments,
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  };
+};
+
+const deleteComment = async (id: string, userId: string) => {
+  const comment = await prisma.comment.findUnique({
+    where: { id, isDeleted: false },
+  });
+
+  if (!comment) {
+    throw new AppError(status.NOT_FOUND, "Comment not found.");
+  }
+
+  if (comment.userId !== userId) {
+    throw new AppError(status.FORBIDDEN, "You can only delete your own comments.");
+  }
+
+  await softDelete(prisma.comment, id);
+
+  return { message: "Comment deleted successfully." };
+};
+
+const toggleCommentVote = async (
+  commentId: string,
+  userId: string,
+  type: VoteType,
+): Promise<ToggleCommentVoteResult> => {
+  const comment = await prisma.comment.findUnique({
+    where: { id: commentId, isDeleted: false },
+  });
+
+  if (!comment) {
+    throw new AppError(status.NOT_FOUND, "Comment not found.");
+  }
+
+  const existingVote = await prisma.commentVote.findUnique({
+    where: { commentId_userId: { commentId, userId } },
+  });
+
+  const awardVote = (voteType: VoteType) => {
+    if (userId === comment.userId) return Promise.resolve();
+    return voteType === VoteType.UP
+      ? gamificationService.handleUpvote(userId, comment.userId, "COMMENT", commentId)
+      : gamificationService.handleDownvote(userId, comment.userId, "COMMENT", commentId);
+  };
+  const reverseVote = (voteType: VoteType) => {
+    if (userId === comment.userId) return Promise.resolve();
+    return gamificationService.handleVoteReversal(
+      userId,
+      comment.userId,
+      "COMMENT",
+      commentId,
+      voteType === VoteType.UP ? "UP" : "DOWN",
+    );
+  };
+
+  if (existingVote) {
+    if (existingVote.type === type) {
+      const counts = await prisma.$transaction(async (tx) => {
+        await tx.commentVote.delete({ where: { id: existingVote.id } });
+
+        const decrementField = type === VoteType.UP ? "upvoteCount" : "downvoteCount";
+        await tx.comment.update({
+          where: { id: commentId },
+          data: { [decrementField]: { decrement: 1 } },
+        });
+
+        return tx.comment.findUnique({
+          where: { id: commentId },
+          select: { upvoteCount: true, downvoteCount: true },
+        });
+      });
+
+      await reverseVote(existingVote.type).catch(() => {});
+
+      return {
+        action: "removed",
+        upvoteCount: counts!.upvoteCount,
+        downvoteCount: counts!.downvoteCount,
+      };
+    }
+
+    const counts = await prisma.$transaction(async (tx) => {
+      await tx.commentVote.update({
+        where: { id: existingVote.id },
+        data: { type },
+      });
+
+      if (type === VoteType.UP) {
+        await tx.comment.update({
+          where: { id: commentId },
+          data: {
+            upvoteCount: { increment: 1 },
+            downvoteCount: { decrement: 1 },
+          },
+        });
+      } else {
+        await tx.comment.update({
+          where: { id: commentId },
+          data: {
+            upvoteCount: { decrement: 1 },
+            downvoteCount: { increment: 1 },
+          },
+        });
+      }
+
+      return tx.comment.findUnique({
+        where: { id: commentId },
+        select: { upvoteCount: true, downvoteCount: true },
+      });
+    });
+
+    await reverseVote(existingVote.type).catch(() => {});
+    await awardVote(type).catch(() => {});
+
+    return {
+      action: "updated",
+      upvoteCount: counts!.upvoteCount,
+      downvoteCount: counts!.downvoteCount,
+    };
+  }
+
+  const counts = await prisma.$transaction(async (tx) => {
+    await tx.commentVote.create({
+      data: { commentId, userId, type },
+    });
+
+    const incrementField = type === VoteType.UP ? "upvoteCount" : "downvoteCount";
+    await tx.comment.update({
+      where: { id: commentId },
+      data: { [incrementField]: { increment: 1 } },
+    });
+
+    return tx.comment.findUnique({
+      where: { id: commentId },
+      select: { upvoteCount: true, downvoteCount: true },
+    });
+  });
+
+  await awardVote(type).catch(() => {});
+
+  return {
+    action: "added",
+    upvoteCount: counts!.upvoteCount,
+    downvoteCount: counts!.downvoteCount,
+  };
+};
+
+const editComment = async (id: string, userId: string, data: EditCommentInput) => {
+  const comment = await prisma.comment.findUnique({
+    where: { id, isDeleted: false },
+  });
+
+  if (!comment) {
+    throw new AppError(status.NOT_FOUND, "Comment not found.");
+  }
+
+  if (comment.userId !== userId) {
+    throw new AppError(status.FORBIDDEN, "You can only edit your own comments.");
+  }
+
+  const updated = await prisma.comment.update({
+    where: { id },
+    data: { content: sanitizeHtml(data.content, sanitizeOptions) },
+    include: {
+      user: {
+        select: { id: true, name: true, image: true },
+      },
+    },
+  });
+
+  return updated;
+};
+
+const reportResource = async (
+  resourceId: string,
+  userId: string,
+  reason: ReportResourceInput["reason"],
+  description?: string,
+) => {
+  const resource = await prisma.resource.findUnique({
+    where: { id: resourceId, isDeleted: false },
+  });
+
+  if (!resource) {
+    throw new AppError(status.NOT_FOUND, "Resource not found.");
+  }
+
+  const existingReport = await prisma.resourceReport.findUnique({
+    where: { resourceId_userId: { resourceId, userId } },
+  });
+
+  if (existingReport) {
+    throw new AppError(status.CONFLICT, "You have already reported this resource.");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.resourceReport.create({
+      data: {
+        resourceId,
+        userId,
+        reason,
+        description: description ?? null,
+      },
+    });
+
+    await tx.resource.update({
+      where: { id: resourceId },
+      data: { reportCount: { increment: 1 } },
+    });
+  });
+
+  return { message: "Report submitted successfully." };
+};
+
+const getReports = async (page = 1, limit = 20) => {
+  const skip = (page - 1) * limit;
+
+  const [reports, total] = await prisma.$transaction([
+    prisma.resourceReport.findMany({
+      where: { status: "PENDING" },
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        resource: {
+          select: { id: true, title: true, fileType: true },
+        },
+        user: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    }),
+    prisma.resourceReport.count({ where: { status: "PENDING" } }),
+  ]);
+
+  return {
+    data: reports,
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  };
+};
+
+const reviewReport = async (
+  id: string,
+  reviewedById: string,
+  reviewStatus: ReviewReportInput["status"],
+) => {
+  const report = await prisma.resourceReport.findUnique({
+    where: { id },
+  });
+
+  if (!report) {
+    throw new AppError(status.NOT_FOUND, "Report not found.");
+  }
+
+  if (report.status !== "PENDING") {
+    throw new AppError(status.BAD_REQUEST, "Only pending reports can be reviewed.");
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const reportUpdate = await tx.resourceReport.update({
+      where: { id },
+      data: {
+        status: reviewStatus,
+        reviewedById,
+        reviewedAt: new Date(),
+      },
+    });
+
+    if (reviewStatus === "ACTION_TAKEN") {
+      await softDelete(tx.resource, report.resourceId);
+    } else {
+      // Decrement reportCount for DISMISSED / REVIEWED
+      await tx.resource.update({
+        where: { id: report.resourceId },
+        data: { reportCount: { decrement: 1 } },
+      });
+    }
+
+    return reportUpdate;
+  });
+
+  // Notify the reporter that their report was reviewed (non-blocking)
+  if (report.userId !== reviewedById) {
+    notificationService.createNotification({
+      userId: report.userId,
+      senderId: reviewedById,
+      type: "RESOURCE_REPORT_REVIEWED",
+      title: "Report Reviewed",
+      message: `Your report has been ${reviewStatus.toLowerCase().replace(/_/g, " ")}.`,
+      link: `/resources/${report.resourceId}`,
+    }).catch(() => {});
+  }
+
+  // Notify the resource owner if action was taken (non-blocking)
+  if (reviewStatus === "ACTION_TAKEN") {
+    const resource = await prisma.resource.findUnique({
+      where: { id: report.resourceId },
+      select: { uploaderId: true },
+    });
+    if (resource && resource.uploaderId !== reviewedById) {
+      notificationService.createNotification({
+        userId: resource.uploaderId,
+        senderId: reviewedById,
+        type: "RESOURCE_REPORT_REVIEWED",
+        title: "Resource Actioned",
+        message: "Your resource has been actioned following a report review.",
+        link: `/resources/${report.resourceId}`,
+      }).catch(() => {});
+    }
+  }
+
+  return updated;
+};
+
+const listCategories = async () => {
+  const categories = await prisma.resourceCategory.findMany({
+    orderBy: { name: "asc" },
+    include: { _count: { select: { resources: true } } },
+  });
+  return categories;
+};
+
+const listCourses = async () => {
+  const courses = await prisma.course.findMany({
+    orderBy: { code: "asc" },
+    include: { _count: { select: { resources: true } } },
+  });
+  return courses;
+};
+
+const listTags = async () => {
+  const tags = await prisma.tag.findMany({
+    orderBy: { name: "asc" },
+    include: { _count: { select: { resourceTags: true } } },
+  });
+  return tags;
+};
+
+export const resourceService = {
+  createResource,
+  getResourceById,
+  listResources,
+  listCategories,
+  listCourses,
+  listTags,
+  updateResource,
+  deleteResource,
+  toggleVote,
+  toggleBookmark,
+  trackDownload,
+  addComment,
+  getComments,
+  deleteComment,
+  toggleCommentVote,
+  editComment,
+  reportResource,
+  getReports,
+  reviewReport,
+};

@@ -1,0 +1,34 @@
+model Event {
+  id          String      @id @default(uuid())
+  title       String      @db.VarChar(200)
+  description String?     @db.Text
+  eventDate   DateTime
+  location    String?     @db.VarChar(200)
+  imageUrl    String?
+  organizerId String?
+  organizer   User?       @relation(fields: [organizerId], references: [id], onDelete: SetNull)
+  status      EventStatus @default(UPCOMING)
+  isFeatured  Boolean     @default(false)
+  rsvps       EventRSVP[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([eventDate(sort: Desc)])
+  @@index([status])
+  @@index([status, eventDate])
+  @@map("events")
+}
+
+model EventRSVP {
+  id        String   @id @default(uuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+  @@map("event_rsvps")
+}

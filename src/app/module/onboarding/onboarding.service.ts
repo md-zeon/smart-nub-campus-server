@@ -81,6 +81,16 @@ const completeOnboarding = async (onboardingStepId: string, email: string) => {
     },
   });
 
+  const existingProfile = await prisma.userProfile.findUnique({
+    where: { userId: user.id },
+  });
+
+  if (!existingProfile) {
+    await prisma.userProfile.create({
+      data: { userId: user.id },
+    });
+  }
+
   return { success: true };
 };
 

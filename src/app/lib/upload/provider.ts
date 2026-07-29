@@ -1,5 +1,4 @@
 import "multer";
-import { type UploadContext } from "./config";
 
 type UploadResult = {
   url: string;

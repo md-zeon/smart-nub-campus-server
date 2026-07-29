@@ -8,9 +8,14 @@ export const handleZodError = (error: z.ZodError): TErrorResponse => {
   const errorSources: IErrorSource[] = [];
 
   error.issues.forEach((issue) => {
+    const pathValue =
+      issue.path.length > 1
+        ? issue.path.join(".")
+        : issue.path.length === 1
+          ? String(issue.path[0])
+          : "(root)";
     errorSources.push({
-      path:
-        issue.path.length > 1 ? issue.path.join(".") : issue.path[0].toString(),
+      path: pathValue,
       message: issue.message,
     });
   });

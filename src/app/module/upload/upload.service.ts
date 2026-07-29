@@ -5,7 +5,7 @@ import {
 import cloudinaryProvider from "../../lib/upload/cloudinary";
 import AppError from "../../errorHelpers/AppError";
 import status from "http-status";
-import { UPLOAD_CONFIG } from "../../lib/upload/config";
+import { UPLOAD_CONFIG, type UploadContext } from "../../lib/upload/config";
 
 export class UploadService {
   private provider: UploadProvider;
@@ -32,6 +32,14 @@ export class UploadService {
       );
     }
 
+    // Validate context against allowed contexts
+    if (!UPLOAD_CONFIG.allowedContexts.includes(context as UploadContext)) {
+      throw new AppError(
+        status.BAD_REQUEST,
+        `Invalid upload context: ${context}. Allowed: ${UPLOAD_CONFIG.allowedContexts.join(", ")}`,
+      );
+    }
+
     // Validate MIME type based on type hint using centralized config
     if (type && file.mimetype) {
       const allowedTypes = UPLOAD_CONFIG.allowedMimeTypes;
@@ -45,6 +53,9 @@ export class UploadService {
       return await this.provider.upload(file, { context, type });
     } catch (error) {
       console.error("Upload failed:", error);
+      if (error instanceof Error && error.name === "TimeoutError") {
+        throw new AppError(status.REQUEST_TIMEOUT, "Upload timed out. Please try with a smaller file.");
+      }
       throw new AppError(status.INTERNAL_SERVER_ERROR, "Failed to upload file");
     }
   }

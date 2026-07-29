@@ -1,0 +1,5 @@
+import { z } from "zod";
+
+export const completeOnboardingSchema = z.object({
+  email: z.string().email("A valid email address is required."),
+});

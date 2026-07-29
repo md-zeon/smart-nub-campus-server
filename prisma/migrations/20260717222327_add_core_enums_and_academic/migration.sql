@@ -1,0 +1,91 @@
+-- CreateEnum
+CREATE TYPE "TeamRequestStatus" AS ENUM ('OPEN', 'FILLED', 'CLOSED');
+
+-- CreateEnum
+CREATE TYPE "ApplicationStatus" AS ENUM ('PENDING', 'ACCEPTED', 'REJECTED');
+
+-- CreateEnum
+CREATE TYPE "TeamMemberRole" AS ENUM ('LEADER', 'MEMBER');
+
+-- CreateEnum
+CREATE TYPE "VoteType" AS ENUM ('UP', 'DOWN');
+
+-- CreateEnum
+CREATE TYPE "ConnectionStatus" AS ENUM ('PENDING', 'ACCEPTED', 'REJECTED', 'BLOCKED');
+
+-- CreateEnum
+CREATE TYPE "ConversationType" AS ENUM ('DIRECT', 'GROUP');
+
+-- CreateEnum
+CREATE TYPE "MessageType" AS ENUM ('TEXT', 'FILE', 'IMAGE');
+
+-- CreateEnum
+CREATE TYPE "AIMessageRole" AS ENUM ('USER', 'ASSISTANT');
+
+-- CreateEnum
+CREATE TYPE "EventStatus" AS ENUM ('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "NotificationType" AS ENUM ('CONNECTION_REQUEST', 'CONNECTION_ACCEPTED', 'MESSAGE', 'MESSAGE_REQUEST', 'RESOURCE_UPVOTE', 'RESOURCE_DOWNVOTE', 'RESOURCE_COMMENT', 'RESOURCE_REPORT_REVIEWED', 'DISCUSSION_REPLY', 'DISCUSSION_MENTION', 'QUESTION_ANSWER', 'QUESTION_ACCEPTED', 'TEAM_APPLICATION', 'TEAM_APPLICATION_ACCEPTED', 'TEAM_APPLICATION_REJECTED', 'EVENT_REMINDER', 'BADGE_UNLOCKED', 'SYSTEM');
+
+-- CreateEnum
+CREATE TYPE "DiscussionVisibility" AS ENUM ('PUBLIC', 'DEPARTMENT', 'BATCH');
+
+-- CreateEnum
+CREATE TYPE "ReportReason" AS ENUM ('SPAM', 'COPYRIGHT', 'OFFENSIVE_CONTENT', 'DUPLICATE', 'WRONG_CATEGORY', 'BROKEN_FILE', 'MALWARE', 'OTHER');
+
+-- CreateEnum
+CREATE TYPE "ReportStatus" AS ENUM ('PENDING', 'REVIEWED', 'DISMISSED', 'ACTION_TAKEN');
+
+-- CreateEnum
+CREATE TYPE "BadgeCategory" AS ENUM ('ACADEMIC', 'COMMUNITY', 'CONTRIBUTION', 'NETWORKING', 'MILESTONES', 'REPUTATION');
+
+-- CreateEnum
+CREATE TYPE "BadgeTier" AS ENUM ('BRONZE', 'SILVER', 'GOLD', 'PLATINUM');
+
+-- CreateEnum
+CREATE TYPE "ReputationEvent" AS ENUM ('RESOURCE_UPLOADED', 'RESOURCE_UPVOTED_received', 'DISCUSSION_CREATED', 'DISCUSSION_UPVOTED_received', 'QUESTION_ASKED', 'QUESTION_UPVOTED_received', 'ANSWER_UPVOTED_received', 'ANSWER_ACCEPTED', 'REPLY_POSTED', 'PROFILE_COMPLETED', 'BADGE_UNLOCKED', 'RESOURCE_DOWNVOTED_received', 'RESOURCE_DOWNVOTED_given', 'DISCUSSION_DOWNVOTED_received', 'QUESTION_DOWNVOTED_received', 'ANSWER_DOWNVOTED_received', 'ANSWER_UNACCEPTED', 'CONTENT_REMOVED', 'ADMIN_ADJUSTMENT', 'VOTE_REVERSAL');
+
+-- CreateEnum
+CREATE TYPE "ProfileVisibilityLevel" AS ENUM ('EVERYONE', 'STUDENTS_ONLY', 'CONNECTIONS_ONLY', 'ONLY_ME');
+
+-- CreateEnum
+CREATE TYPE "ConnectionRequestPolicy" AS ENUM ('EVERYONE', 'SAME_DEPARTMENT', 'SAME_BATCH', 'MUTUAL_CONNECTIONS', 'NOBODY');
+
+-- CreateEnum
+CREATE TYPE "MessagingPolicy" AS ENUM ('EVERYONE', 'CONNECTIONS', 'DEPARTMENT', 'NOBODY');
+
+-- AlterTable
+ALTER TABLE "user" ADD COLUMN     "deactivationRequestedAt" TIMESTAMP(3),
+ADD COLUMN     "hasCompletedOnboarding" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "isDeactivated" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "scheduledDeletionAt" TIMESTAMP(3);
+
+-- AlterTable
+ALTER TABLE "user_profiles" ADD COLUMN     "batchYear" INTEGER,
+ADD COLUMN     "currentSemester" INTEGER,
+ADD COLUMN     "location" TEXT,
+ADD COLUMN     "phoneNumber" TEXT;
+
+-- CreateTable
+CREATE TABLE "course" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "department" "Department" NOT NULL,
+    "semester" INTEGER,
+    "description" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "course_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "course_code_key" ON "course"("code");
+
+-- CreateIndex
+CREATE INDEX "course_department_idx" ON "course"("department");
+
+-- CreateIndex
+CREATE INDEX "course_code_idx" ON "course"("code");
