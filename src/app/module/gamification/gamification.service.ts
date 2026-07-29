@@ -35,6 +35,11 @@ const awardPoints = async (input: AwardPointsInput) => {
     },
   });
 
+  await prisma.user.update({
+    where: { id: input.userId },
+    data: { reputation: { increment: pointValue } },
+  });
+
   // Evaluate badges asynchronously (fire-and-forget)
   evaluateBadges(input.userId).catch(() => {
     // Silently fail badge evaluation — non-critical path

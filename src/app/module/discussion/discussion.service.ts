@@ -139,7 +139,7 @@ const createDiscussion = async (data: CreateDiscussionInput, userId: string) => 
     include: {
       category: true,
       course: true,
-      author: { select: { id: true, name: true, email: true, image: true } },
+      author: { select: { id: true, name: true, email: true, image: true, reputation: true } },
       discussionTags: { include: { tag: true } },
     },
   });
@@ -167,7 +167,7 @@ const getDiscussion = async (id: string, userId?: string) => {
     include: {
       category: true,
       course: true,
-      author: { select: { id: true, name: true, email: true, image: true } },
+      author: { select: { id: true, name: true, email: true, image: true, reputation: true } },
       discussionTags: { include: { tag: true } },
       _count: { select: { discussionReplies: true, discussionBookmarks: true } },
     },
@@ -293,7 +293,7 @@ const listDiscussions = async (query: ListDiscussionsQuery, userId?: string) => 
       include: {
         category: { select: { id: true, name: true, slug: true } },
         course: { select: { id: true, code: true, name: true } },
-        author: { select: { id: true, name: true, image: true } },
+        author: { select: { id: true, name: true, image: true, reputation: true } },
         discussionTags: { include: { tag: { select: { id: true, name: true, slug: true } } } },
         _count: { select: { discussionReplies: true } },
       },
@@ -387,7 +387,7 @@ const updateDiscussion = async (
       include: {
         category: true,
         course: true,
-        author: { select: { id: true, name: true, email: true, image: true } },
+        author: { select: { id: true, name: true, email: true, image: true, reputation: true } },
         discussionTags: { include: { tag: true } },
       },
     });
@@ -460,7 +460,7 @@ const createReply = async (
         parentId: data.parentId ?? null,
       },
       include: {
-        author: { select: { id: true, name: true, email: true, image: true } },
+        author: { select: { id: true, name: true, email: true, image: true, reputation: true } },
       },
     });
 
@@ -870,7 +870,7 @@ const getBookmarkedDiscussions = async (userId: string, page = 1, limit = 12) =>
         discussion: {
           include: {
             category: { select: { id: true, name: true, slug: true } },
-            author: { select: { id: true, name: true, image: true } },
+            author: { select: { id: true, name: true, image: true, reputation: true } },
             _count: { select: { discussionReplies: true } },
           },
         },
@@ -918,7 +918,7 @@ const getTrending = async (limit = 3) => {
     take: limit,
     include: {
       category: { select: { id: true, name: true, slug: true } },
-      author: { select: { id: true, name: true, image: true } },
+      author: { select: { id: true, name: true, image: true, reputation: true } },
       _count: { select: { discussionReplies: true } },
     },
   });
@@ -966,7 +966,7 @@ const getMyDiscussions = async (userId: string, page = 1, limit = 12) => {
       orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
       include: {
         category: { select: { id: true, name: true, slug: true } },
-        author: { select: { id: true, name: true, image: true } },
+        author: { select: { id: true, name: true, image: true, reputation: true } },
         _count: { select: { discussionReplies: true } },
       },
     }),
@@ -999,7 +999,7 @@ const getMyReplies = async (userId: string, page = 1, limit = 12) => {
       orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
       include: {
         category: { select: { id: true, name: true, slug: true } },
-        author: { select: { id: true, name: true, image: true } },
+        author: { select: { id: true, name: true, image: true, reputation: true } },
         _count: { select: { discussionReplies: true } },
       },
     }),
@@ -1039,7 +1039,7 @@ const updateReply = async (
       isEdited: true,
     },
     include: {
-      author: { select: { id: true, name: true, email: true, image: true } },
+      author: { select: { id: true, name: true, email: true, image: true, reputation: true } },
     },
   });
 
@@ -1193,12 +1193,12 @@ const listReplies = async (
       take: limit,
       orderBy,
       include: {
-        author: { select: { id: true, name: true, email: true, image: true } },
+        author: { select: { id: true, name: true, email: true, image: true, reputation: true } },
         replies: {
           where: { isDeleted: false },
           orderBy: { createdAt: "asc" },
           include: {
-            author: { select: { id: true, name: true, email: true, image: true } },
+            author: { select: { id: true, name: true, email: true, image: true, reputation: true } },
           },
         },
       },
@@ -1245,7 +1245,7 @@ const listReports = async (page = 1, limit = 20) => {
       include: {
         reply: {
           include: {
-            author: { select: { id: true, name: true, image: true } },
+            author: { select: { id: true, name: true, image: true, reputation: true } },
           },
         },
         user: { select: { id: true, name: true, image: true } },

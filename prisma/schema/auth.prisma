@@ -13,6 +13,7 @@ model User {
 
   deletedAt                    DateTime?
   hasCompletedOnboarding       Boolean               @default(false)
+  reputation                  Int                   @default(0)
   isDeactivated                Boolean               @default(false)
   deactivationRequestedAt      DateTime?
   scheduledDeletionAt          DateTime?

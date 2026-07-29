@@ -61,7 +61,7 @@ const createQuestion = async (data: CreateQuestionInput, userId: string) => {
     include: {
       category: true,
       course: true,
-      author: { select: { id: true, name: true, email: true, image: true } },
+      author: { select: { id: true, name: true, email: true, image: true, reputation: true } },
       questionTags: { include: { tag: true } },
     },
   });
@@ -102,7 +102,7 @@ const getQuestion = async (id: string, userId?: string) => {
     include: {
       category: true,
       course: true,
-      author: { select: { id: true, name: true, email: true, image: true } },
+      author: { select: { id: true, name: true, email: true, image: true, reputation: true } },
       questionTags: { include: { tag: true } },
       _count: { select: { answers: true, questionBookmarks: true } },
     },
@@ -237,7 +237,7 @@ const listQuestions = async (query: ListQuestionsQuery, userId?: string) => {
       include: {
         category: { select: { id: true, name: true, slug: true } },
         course: { select: { id: true, code: true, name: true } },
-        author: { select: { id: true, name: true, image: true } },
+        author: { select: { id: true, name: true, image: true, reputation: true } },
         questionTags: {
           include: { tag: { select: { id: true, name: true, slug: true } } },
         },
@@ -319,7 +319,7 @@ const updateQuestion = async (
     include: {
       category: true,
       course: true,
-      author: { select: { id: true, name: true, email: true, image: true } },
+      author: { select: { id: true, name: true, email: true, image: true, reputation: true } },
       questionTags: { include: { tag: true } },
     },
   });
@@ -375,7 +375,7 @@ const createAnswer = async (
         authorId: userId,
       },
       include: {
-        author: { select: { id: true, name: true, email: true, image: true } },
+        author: { select: { id: true, name: true, email: true, image: true, reputation: true } },
       },
     });
 
@@ -869,7 +869,7 @@ const getBookmarkedQuestions = async (userId: string, page = 1, limit = 12) => {
         question: {
           include: {
             category: { select: { id: true, name: true, slug: true } },
-            author: { select: { id: true, name: true, image: true } },
+            author: { select: { id: true, name: true, image: true, reputation: true } },
             _count: { select: { answers: true } },
           },
         },
@@ -945,7 +945,7 @@ const getTrending = async (limit = 5) => {
     take: limit,
     include: {
       category: { select: { id: true, name: true, slug: true } },
-      author: { select: { id: true, name: true, image: true } },
+      author: { select: { id: true, name: true, image: true, reputation: true } },
       _count: { select: { answers: true } },
     },
   });
