@@ -18,6 +18,10 @@ export interface CreateAnswerInput {
   content: string;
 }
 
+export interface UpdateAnswerInput {
+  content?: string;
+}
+
 export interface VoteInput {
   type: VoteType;
 }

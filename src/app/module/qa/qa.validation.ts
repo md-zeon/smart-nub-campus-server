@@ -27,6 +27,12 @@ const updateQuestionSchema = z
   })
   .strict();
 
+const updateAnswerSchema = z
+  .object({
+    content: z.string().trim().min(1, "Answer content cannot be empty").max(10000, "Answer must be at most 10,000 characters"),
+  })
+  .strict();
+
 const createAnswerSchema = z
   .object({
     content: z.string().trim().min(1, "Answer content is required").max(10000, "Answer must be at most 10,000 characters"),
@@ -42,6 +48,7 @@ const voteSchema = z
 export const qaValidation = {
   createQuestionSchema,
   updateQuestionSchema,
+  updateAnswerSchema,
   createAnswerSchema,
   voteSchema,
 };

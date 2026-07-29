@@ -52,6 +52,13 @@ router.post(
   qaController.createAnswer,
 );
 
+router.put(
+  "/:id/answers/:answerId",
+  verifySession,
+  validateRequest(qaValidation.updateAnswerSchema),
+  qaController.updateAnswer,
+);
+
 router.delete(
   "/:id/answers/:answerId",
   verifySession,

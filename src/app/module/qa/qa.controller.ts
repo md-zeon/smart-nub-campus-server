@@ -131,6 +131,17 @@ const createAnswer = catchAsync(async (req, res) => {
   });
 });
 
+const updateAnswer = catchAsync(async (req, res) => {
+  const answerId = req.params.answerId as string;
+  const result = await qaService.updateAnswer(answerId, req.body, req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Answer updated successfully.",
+    data: result,
+  });
+});
+
 const deleteAnswer = catchAsync(async (req, res) => {
   const answerId = req.params.answerId as string;
   const result = await qaService.deleteAnswer(answerId, req.user.id);
@@ -222,6 +233,7 @@ export const qaController = {
   updateQuestion,
   deleteQuestion,
   createAnswer,
+  updateAnswer,
   deleteAnswer,
   acceptAnswer,
   unacceptAnswer,

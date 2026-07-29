@@ -10,6 +10,7 @@ import {
   CreateAnswerInput,
   CreateQuestionInput,
   ListQuestionsQuery,
+  UpdateAnswerInput,
   UpdateQuestionInput,
   VoteInput,
 } from "./qa.interface";
@@ -413,6 +414,49 @@ const createAnswer = async (
   }
 
   return answer;
+};
+
+/**
+ * Updates an answer. Only the answer author can update content.
+ */
+const updateAnswer = async (
+  answerId: string,
+  data: UpdateAnswerInput,
+  userId: string,
+) => {
+  const answer = await prisma.answer.findUnique({
+    where: { id: answerId, isDeleted: false },
+  });
+
+  if (!answer) {
+    throw new AppError(status.NOT_FOUND, "Answer not found.");
+  }
+
+  if (answer.authorId !== userId) {
+    throw new AppError(status.FORBIDDEN, "You can only edit your own answers.");
+  }
+
+  const updated = await prisma.answer.update({
+    where: { id: answerId },
+    data: { content: data.content },
+    include: {
+      author: { select: { id: true, name: true, email: true, image: true, reputation: true } },
+    },
+  });
+
+  try {
+    const io = getSocketServer();
+    io.to(`question:${answer.questionId}`).emit("qa:answerUpdated", {
+      id: updated.id,
+      questionId: updated.questionId,
+      content: updated.content,
+      updatedAt: updated.updatedAt.toISOString(),
+    });
+  } catch {
+    // Socket.IO may not be initialized
+  }
+
+  return updated;
 };
 
 /**
@@ -960,6 +1004,7 @@ export const qaService = {
   updateQuestion,
   deleteQuestion,
   createAnswer,
+  updateAnswer,
   deleteAnswer,
   acceptAnswer,
   unacceptAnswer,
