@@ -147,7 +147,10 @@ const downloadExport = catchAsync(async (req: Request, res: Response) => {
 });
 
 const requestArchive = catchAsync(async (req: Request, res: Response) => {
-  const result = await settingsService.requestArchive(req.user.id);
+  const result = await settingsService.requestArchive(
+    req.user.id,
+    req.body.password,
+  );
   sendResponse(res, {
     httpStatusCode: StatusCodes.ACCEPTED,
     success: true,
@@ -157,7 +160,10 @@ const requestArchive = catchAsync(async (req: Request, res: Response) => {
 });
 
 const deactivateAccount = catchAsync(async (req: Request, res: Response) => {
-  await settingsService.deactivateAccount(req.user.id);
+  await settingsService.deactivateAccount(
+    req.user.id,
+    req.body.password,
+  );
   sendResponse(res, {
     httpStatusCode: StatusCodes.OK,
     success: true,
@@ -167,7 +173,10 @@ const deactivateAccount = catchAsync(async (req: Request, res: Response) => {
 });
 
 const reactivateAccount = catchAsync(async (req: Request, res: Response) => {
-  await settingsService.reactivateAccount(req.user.id);
+  await settingsService.reactivateAccount(
+    req.user.id,
+    req.body.password,
+  );
   sendResponse(res, {
     httpStatusCode: StatusCodes.OK,
     success: true,
@@ -186,6 +195,16 @@ const requestDeletion = catchAsync(async (req: Request, res: Response) => {
     success: true,
     message:
       "Account deletion scheduled. You have 30 days to cancel before permanent deletion.",
+    data: result,
+  });
+});
+
+const getDeletionStatus = catchAsync(async (req: Request, res: Response) => {
+  const result = await settingsService.getDeletionStatus(req.user.id);
+  sendResponse(res, {
+    httpStatusCode: StatusCodes.OK,
+    success: true,
+    message: "Deletion status retrieved successfully.",
     data: result,
   });
 });
@@ -217,4 +236,5 @@ export const settingsController = {
   reactivateAccount,
   requestDeletion,
   cancelDeletion,
+  getDeletionStatus,
 };

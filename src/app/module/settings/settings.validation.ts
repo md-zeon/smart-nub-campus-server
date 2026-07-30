@@ -90,6 +90,12 @@ const requestArchiveSchema = z
   })
   .strict();
 
+const passwordSchema = z
+  .object({
+    password: z.string().min(1, "Password is required"),
+  })
+  .strict();
+
 const requestDeletionSchema = z
   .object({
     password: z.string().min(1, "Password is required"),
@@ -103,5 +109,6 @@ export const settingsValidation = {
   changePasswordSchema,
   requestExportSchema,
   requestArchiveSchema,
+  passwordSchema,
   requestDeletionSchema,
 };

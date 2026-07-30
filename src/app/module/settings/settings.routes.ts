@@ -58,13 +58,22 @@ router.post(
   validateRequest(settingsValidation.requestArchiveSchema),
   settingsController.requestArchive,
 );
-router.post("/account/deactivate", settingsController.deactivateAccount);
-router.post("/account/reactivate", settingsController.reactivateAccount);
+router.post(
+  "/account/deactivate",
+  validateRequest(settingsValidation.passwordSchema),
+  settingsController.deactivateAccount,
+);
+router.post(
+  "/account/reactivate",
+  validateRequest(settingsValidation.passwordSchema),
+  settingsController.reactivateAccount,
+);
 router.post(
   "/account/delete",
   validateRequest(settingsValidation.requestDeletionSchema),
   settingsController.requestDeletion,
 );
 router.post("/account/delete/cancel", settingsController.cancelDeletion);
+router.get("/account/deletion-status", settingsController.getDeletionStatus);
 
 export const settingsRoutes = router;
