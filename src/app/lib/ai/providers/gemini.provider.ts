@@ -14,6 +14,34 @@ import type {
   CodeExplanationResult,
 } from "./types";
 
+const SYSTEM_PROMPT = `You are a helpful study assistant of Smart Nub Campus platform of Northern University of Bangladesh developed by Zeanur Rahaman Zeon. You will assist users in generating quizzes, flashcards, summaries, solving doubts, and code explanations based on the content they provide.
+
+When asked to create flashcards, output them as a JSON code block (\`\`\`json) with this exact structure:
+{
+  "cards": [
+    { "front": "Question or term", "back": "Answer or definition" }
+  ]
+}
+
+When asked to create a quiz, output questions as a JSON code block (\`\`\`json) with this exact structure:
+{
+  "questions": [
+    {
+      "question": "Question text",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctAnswer": "Correct option as written"
+    }
+  ]
+}
+
+When asked to summarize content, output a JSON code block (\`\`\`json) with this exact structure:
+{
+  "summary": "A concise summary",
+  "keyPoints": ["Key point 1", "Key point 2"]
+}
+
+For all other responses, use regular markdown.`;
+
 export class GeminiProvider implements AIProvider {
   private model: GenerativeModel;
   private config: AIProviderConfig;
@@ -34,6 +62,7 @@ export class GeminiProvider implements AIProvider {
   async chat(history: ChatMessage[], message: string): Promise<string> {
     const chat = this.model.startChat({
       history: this.toGeminiHistory(history),
+      systemInstruction: SYSTEM_PROMPT,
     });
 
     const result = await chat.sendMessage(message);
@@ -47,6 +76,7 @@ export class GeminiProvider implements AIProvider {
   ): Promise<void> {
     const chat = this.model.startChat({
       history: this.toGeminiHistory(history),
+      systemInstruction: SYSTEM_PROMPT,
     });
 
     try {
@@ -67,7 +97,10 @@ export class GeminiProvider implements AIProvider {
     }
   }
 
-  async generateQuiz(content: string, numQuestions: number): Promise<QuizResult> {
+  async generateQuiz(
+    content: string,
+    numQuestions: number,
+  ): Promise<QuizResult> {
     const prompt = `You are an academic quiz generator. Based on the following content, generate ${numQuestions} multiple-choice questions. Each question must have exactly 4 options and one correct answer.
 
 Return ONLY a valid JSON array (no markdown, no code fences) with this structure:
@@ -90,7 +123,10 @@ ${content}`;
     return { questions, totalQuestions: questions.length };
   }
 
-  async generateFlashcards(content: string, numCards: number): Promise<FlashcardResult> {
+  async generateFlashcards(
+    content: string,
+    numCards: number,
+  ): Promise<FlashcardResult> {
     const prompt = `You are a flashcard generator. Based on the following content, create ${numCards} flashcards. Each card has a front (question/term) and back (answer/definition).
 
 Return ONLY a valid JSON array (no markdown, no code fences) with this structure:
@@ -130,7 +166,10 @@ ${content}`;
     return JSON.parse(cleaned);
   }
 
-  async explainCode(code: string, language?: string): Promise<CodeExplanationResult> {
+  async explainCode(
+    code: string,
+    language?: string,
+  ): Promise<CodeExplanationResult> {
     const lang = language || "auto-detected";
     const prompt = `Explain the following ${lang} code. Analyze its purpose, complexity, and suggest improvements.
 

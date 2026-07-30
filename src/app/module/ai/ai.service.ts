@@ -7,6 +7,26 @@ import type { AIProvider, ChatMessage } from "../../lib/ai";
 import ENVVARS from "../../../config/env";
 import { UploadService } from "../../module/upload/upload.service";
 
+function detectToolUsage(content: string): { quizzes: boolean; flashcards: boolean } {
+  try {
+    const match = content.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
+    if (match) {
+      const parsed = JSON.parse(match[1].trim());
+      if (parsed.cards && Array.isArray(parsed.cards) && parsed.cards.some((c: unknown) => (c as Record<string, unknown>)?.front)) {
+        return { quizzes: false, flashcards: true };
+      }
+      if (parsed.questions && Array.isArray(parsed.questions)) {
+        return { quizzes: true, flashcards: false };
+      }
+    }
+  } catch {}
+  return { quizzes: false, flashcards: false };
+}
+
+function elapsedMinutesSince(date: Date): number {
+  return Math.min(Math.ceil((Date.now() - date.getTime()) / 60000), 30);
+}
+
 const provider: AIProvider = createProvider({
   provider: ENVVARS.AI_PROVIDER,
   apiKey: ENVVARS.AI_PROVIDER_API_KEY,
@@ -151,7 +171,7 @@ const sendMessage = async (
       const pastMessages = await tx.aIMessage.findMany({
         where: { sessionId },
         orderBy: { createdAt: "asc" },
-        select: { role: true, content: true },
+        select: { role: true, content: true, createdAt: true },
       });
 
       const history = buildHistory(pastMessages.slice(0, -1));
@@ -168,6 +188,12 @@ const sendMessage = async (
         },
       });
 
+      const prevMsg = pastMessages.length >= 2 ? pastMessages[pastMessages.length - 2] : null;
+      const timeGap = prevMsg ? elapsedMinutesSince(new Date(prevMsg.createdAt)) : 0;
+      const isFirstMessage = pastMessages.length <= 1;
+      const toolUsage = detectToolUsage(aiResponseContent);
+      const toolIncrement = (toolUsage.quizzes ? 1 : 0) + (toolUsage.flashcards ? 1 : 0);
+
       await tx.aIStudyStats.upsert({
         where: {
           userId_weekStart: { userId, weekStart },
@@ -176,13 +202,15 @@ const sendMessage = async (
           userId,
           weekStart,
           questionsAsked: 1,
-          topicsExplored: 1,
-          timeSpentMinutes: 1,
+          topicsExplored: isFirstMessage ? 1 : 0,
+          timeSpentMinutes: timeGap || 1,
+          quizzesGenerated: toolIncrement,
         },
         update: {
           questionsAsked: { increment: 1 },
-          topicsExplored: { increment: 1 },
-          timeSpentMinutes: { increment: 1 },
+          ...(isFirstMessage ? { topicsExplored: { increment: 1 } } : {}),
+          ...(timeGap > 0 ? { timeSpentMinutes: { increment: timeGap } } : {}),
+          ...(toolIncrement > 0 ? { quizzesGenerated: { increment: toolIncrement } } : {}),
         },
       });
 
@@ -238,8 +266,12 @@ const sendMessageStream = async (
   const pastMessages = await prisma.aIMessage.findMany({
     where: { sessionId },
     orderBy: { createdAt: "asc" },
-    select: { role: true, content: true },
+    select: { role: true, content: true, createdAt: true },
   });
+
+  const prevMsg = pastMessages.length >= 1 ? pastMessages[pastMessages.length - 1] : null;
+  const timeGap = prevMsg ? elapsedMinutesSince(new Date(prevMsg.createdAt)) : 0;
+  const isFirstMessage = pastMessages.length === 0;
 
   const history = buildHistory(
     pastMessages.filter((m) => m.role !== "USER" || m.content !== content),
@@ -261,6 +293,9 @@ const sendMessageStream = async (
         },
       });
 
+      const toolUsage = detectToolUsage(fullContent);
+      const toolIncrement = (toolUsage.quizzes ? 1 : 0) + (toolUsage.flashcards ? 1 : 0);
+
       await prisma.aIStudyStats.upsert({
         where: {
           userId_weekStart: { userId, weekStart },
@@ -269,13 +304,15 @@ const sendMessageStream = async (
           userId,
           weekStart,
           questionsAsked: 1,
-          topicsExplored: 1,
-          timeSpentMinutes: 1,
+          topicsExplored: isFirstMessage ? 1 : 0,
+          timeSpentMinutes: timeGap || 1,
+          quizzesGenerated: toolIncrement,
         },
         update: {
           questionsAsked: { increment: 1 },
-          topicsExplored: { increment: 1 },
-          timeSpentMinutes: { increment: 1 },
+          ...(isFirstMessage ? { topicsExplored: { increment: 1 } } : {}),
+          ...(timeGap > 0 ? { timeSpentMinutes: { increment: timeGap } } : {}),
+          ...(toolIncrement > 0 ? { quizzesGenerated: { increment: toolIncrement } } : {}),
         },
       });
 
