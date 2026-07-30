@@ -5,12 +5,15 @@ import { Prisma } from "../../../generated/prisma/client";
 import { createProvider } from "../../lib/ai";
 import type { AIProvider, ChatMessage } from "../../lib/ai";
 import ENVVARS from "../../../config/env";
+import { UploadService } from "../../module/upload/upload.service";
 
 const provider: AIProvider = createProvider({
   provider: ENVVARS.AI_PROVIDER,
   apiKey: ENVVARS.AI_PROVIDER_API_KEY,
   model: ENVVARS.AI_PROVIDER_MODEL,
 });
+
+const uploadService = new UploadService();
 
 const getWeekStart = (date: Date = new Date()): Date => {
   const d = new Date(date);
@@ -39,7 +42,11 @@ const createSession = async (userId: string, title?: string) => {
   return session;
 };
 
-const getSessions = async (userId: string, page: number = 1, limit: number = 20) => {
+const getSessions = async (
+  userId: string,
+  page: number = 1,
+  limit: number = 20,
+) => {
   const skip = (page - 1) * limit;
 
   const [sessions, total] = await Promise.all([
@@ -81,7 +88,10 @@ const getSessionById = async (sessionId: string, userId: string) => {
   }
 
   if (session.userId !== userId) {
-    throw new AppError(status.FORBIDDEN, "You do not have access to this session.");
+    throw new AppError(
+      status.FORBIDDEN,
+      "You do not have access to this session.",
+    );
   }
 
   return session;
@@ -97,13 +107,20 @@ const deleteSession = async (sessionId: string, userId: string) => {
   }
 
   if (session.userId !== userId) {
-    throw new AppError(status.FORBIDDEN, "You do not have access to this session.");
+    throw new AppError(
+      status.FORBIDDEN,
+      "You do not have access to this session.",
+    );
   }
 
   await prisma.aIChatSession.delete({ where: { id: sessionId } });
 };
 
-const sendMessage = async (sessionId: string, content: string, userId: string) => {
+const sendMessage = async (
+  sessionId: string,
+  content: string,
+  userId: string,
+) => {
   const session = await prisma.aIChatSession.findUnique({
     where: { id: sessionId },
   });
@@ -113,68 +130,74 @@ const sendMessage = async (sessionId: string, content: string, userId: string) =
   }
 
   if (session.userId !== userId) {
-    throw new AppError(status.FORBIDDEN, "You do not have access to this session.");
+    throw new AppError(
+      status.FORBIDDEN,
+      "You do not have access to this session.",
+    );
   }
 
   const weekStart = getWeekStart();
 
-  const [userMessage, aiMessage] = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    const userMsg = await tx.aIMessage.create({
-      data: {
-        sessionId,
-        role: "USER",
-        content,
-      },
-    });
-
-    const pastMessages = await tx.aIMessage.findMany({
-      where: { sessionId },
-      orderBy: { createdAt: "asc" },
-      select: { role: true, content: true },
-    });
-
-    const history = buildHistory(pastMessages.slice(0, -1));
-
-    const aiResponseContent = await provider.chat(history, content);
-
-    const modelName = ENVVARS.AI_PROVIDER_MODEL;
-    const aiMsg = await tx.aIMessage.create({
-      data: {
-        sessionId,
-        role: "ASSISTANT",
-        content: aiResponseContent,
-        model: modelName,
-      },
-    });
-
-    await tx.aIStudyStats.upsert({
-      where: {
-        userId_weekStart: { userId, weekStart },
-      },
-      create: {
-        userId,
-        weekStart,
-        questionsAsked: 1,
-        topicsExplored: 1,
-        timeSpentMinutes: 1,
-      },
-      update: {
-        questionsAsked: { increment: 1 },
-        topicsExplored: { increment: 1 },
-        timeSpentMinutes: { increment: 1 },
-      },
-    });
-
-    if (!session.title || session.title === "New Chat") {
-      const truncatedTitle = content.length > 50 ? content.slice(0, 50) + "..." : content;
-      await tx.aIChatSession.update({
-        where: { id: sessionId },
-        data: { title: truncatedTitle },
+  const [userMessage, aiMessage] = await prisma.$transaction(
+    async (tx: Prisma.TransactionClient) => {
+      const userMsg = await tx.aIMessage.create({
+        data: {
+          sessionId,
+          role: "USER",
+          content,
+        },
       });
-    }
 
-    return [userMsg, aiMsg];
-  });
+      const pastMessages = await tx.aIMessage.findMany({
+        where: { sessionId },
+        orderBy: { createdAt: "asc" },
+        select: { role: true, content: true },
+      });
+
+      const history = buildHistory(pastMessages.slice(0, -1));
+
+      const aiResponseContent = await provider.chat(history, content);
+
+      const modelName = ENVVARS.AI_PROVIDER_MODEL;
+      const aiMsg = await tx.aIMessage.create({
+        data: {
+          sessionId,
+          role: "ASSISTANT",
+          content: aiResponseContent,
+          model: modelName,
+        },
+      });
+
+      await tx.aIStudyStats.upsert({
+        where: {
+          userId_weekStart: { userId, weekStart },
+        },
+        create: {
+          userId,
+          weekStart,
+          questionsAsked: 1,
+          topicsExplored: 1,
+          timeSpentMinutes: 1,
+        },
+        update: {
+          questionsAsked: { increment: 1 },
+          topicsExplored: { increment: 1 },
+          timeSpentMinutes: { increment: 1 },
+        },
+      });
+
+      if (!session.title || session.title === "New Chat") {
+        const truncatedTitle =
+          content.length > 50 ? content.slice(0, 50) + "..." : content;
+        await tx.aIChatSession.update({
+          where: { id: sessionId },
+          data: { title: truncatedTitle },
+        });
+      }
+
+      return [userMsg, aiMsg];
+    },
+  );
 
   return { userMessage, aiMessage };
 };
@@ -196,7 +219,10 @@ const sendMessageStream = async (
   }
 
   if (session.userId !== userId) {
-    throw new AppError(status.FORBIDDEN, "You do not have access to this session.");
+    throw new AppError(
+      status.FORBIDDEN,
+      "You do not have access to this session.",
+    );
   }
 
   const weekStart = getWeekStart();
@@ -215,7 +241,9 @@ const sendMessageStream = async (
     select: { role: true, content: true },
   });
 
-  const history = buildHistory(pastMessages.filter((m) => m.role !== "USER" || m.content !== content));
+  const history = buildHistory(
+    pastMessages.filter((m) => m.role !== "USER" || m.content !== content),
+  );
 
   const modelName = ENVVARS.AI_PROVIDER_MODEL;
 
@@ -252,7 +280,8 @@ const sendMessageStream = async (
       });
 
       if (!session.title || session.title === "New Chat") {
-        const truncatedTitle = content.length > 50 ? content.slice(0, 50) + "..." : content;
+        const truncatedTitle =
+          content.length > 50 ? content.slice(0, 50) + "..." : content;
         await prisma.aIChatSession.update({
           where: { id: sessionId },
           data: { title: truncatedTitle },
@@ -286,7 +315,10 @@ const getMessages = async (
   }
 
   if (session.userId !== userId) {
-    throw new AppError(status.FORBIDDEN, "You do not have access to this session.");
+    throw new AppError(
+      status.FORBIDDEN,
+      "You do not have access to this session.",
+    );
   }
 
   const skip = (page - 1) * limit;
@@ -312,7 +344,11 @@ const getMessages = async (
   };
 };
 
-const markHelpful = async (messageId: string, isHelpful: boolean, userId: string) => {
+const markHelpful = async (
+  messageId: string,
+  isHelpful: boolean,
+  userId: string,
+) => {
   const message = await prisma.aIMessage.findUnique({
     where: { id: messageId },
     include: { session: true },
@@ -323,7 +359,10 @@ const markHelpful = async (messageId: string, isHelpful: boolean, userId: string
   }
 
   if (message.session.userId !== userId) {
-    throw new AppError(status.FORBIDDEN, "You do not have access to this message.");
+    throw new AppError(
+      status.FORBIDDEN,
+      "You do not have access to this message.",
+    );
   }
 
   const updated = await prisma.aIMessage.update({
@@ -343,17 +382,19 @@ const getStudyStats = async (userId: string, weekStart?: Date) => {
     },
   });
 
-  return stats || {
-    id: null,
-    userId,
-    weekStart: targetWeek,
-    questionsAsked: 0,
-    timeSpentMinutes: 0,
-    topicsExplored: 0,
-    quizzesGenerated: 0,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  return (
+    stats || {
+      id: null,
+      userId,
+      weekStart: targetWeek,
+      questionsAsked: 0,
+      timeSpentMinutes: 0,
+      topicsExplored: 0,
+      quizzesGenerated: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+  );
 };
 
 const getStudyStatsHistory = async (userId: string, weeks: number = 4) => {
@@ -373,24 +414,48 @@ const summarizePdf = async (userId: string, fileUrl: string) => {
   const result = await provider.summarizeContent(text);
 
   const weekStart = getWeekStart();
-  await prisma.aIStudyStats.upsert({
-    where: { userId_weekStart: { userId, weekStart } },
-    create: { userId, weekStart, questionsAsked: 0, topicsExplored: 1, timeSpentMinutes: 1 },
-    update: { topicsExplored: { increment: 1 }, timeSpentMinutes: { increment: 1 } },
-  }).catch(() => {});
+  await prisma.aIStudyStats
+    .upsert({
+      where: { userId_weekStart: { userId, weekStart } },
+      create: {
+        userId,
+        weekStart,
+        questionsAsked: 0,
+        topicsExplored: 1,
+        timeSpentMinutes: 1,
+      },
+      update: {
+        topicsExplored: { increment: 1 },
+        timeSpentMinutes: { increment: 1 },
+      },
+    })
+    .catch(() => {});
 
   return result;
 };
 
-const generateQuiz = async (userId: string, content: string, numQuestions: number = 5) => {
+const generateQuiz = async (
+  userId: string,
+  content: string,
+  numQuestions: number = 5,
+) => {
   const result = await provider.generateQuiz(content, numQuestions);
 
   const weekStart = getWeekStart();
-  await prisma.aIStudyStats.upsert({
-    where: { userId_weekStart: { userId, weekStart } },
-    create: { userId, weekStart, questionsAsked: 0, topicsExplored: 0, timeSpentMinutes: 0, quizzesGenerated: 1 },
-    update: { quizzesGenerated: { increment: 1 } },
-  }).catch(() => {});
+  await prisma.aIStudyStats
+    .upsert({
+      where: { userId_weekStart: { userId, weekStart } },
+      create: {
+        userId,
+        weekStart,
+        questionsAsked: 0,
+        topicsExplored: 0,
+        timeSpentMinutes: 0,
+        quizzesGenerated: 1,
+      },
+      update: { quizzesGenerated: { increment: 1 } },
+    })
+    .catch(() => {});
 
   return result;
 };
@@ -401,6 +466,42 @@ const generateFlashcards = async (content: string, numCards: number = 10) => {
 
 const explainCode = async (code: string, language?: string) => {
   return provider.explainCode(code, language);
+};
+
+const uploadAttachment = async (
+  sessionId: string,
+  userId: string,
+  file: Express.Multer.File,
+  originalName: string,
+) => {
+  const session = await prisma.aIChatSession.findUnique({
+    where: { id: sessionId },
+  });
+
+  if (!session) {
+    throw new AppError(status.NOT_FOUND, "Chat session not found.");
+  }
+
+  if (session.userId !== userId) {
+    throw new AppError(
+      status.FORBIDDEN,
+      "You do not have access to this session.",
+    );
+  }
+
+  const result = await uploadService.upload(file, "ai-attachments", "raw");
+
+  const attachment = await prisma.aIAttachment.create({
+    data: {
+      sessionId,
+      fileName: originalName,
+      fileUrl: result.url,
+      fileType: file.mimetype,
+      fileSize: file.size,
+    },
+  });
+
+  return attachment;
 };
 
 export default {
@@ -418,4 +519,5 @@ export default {
   generateQuiz,
   generateFlashcards,
   explainCode,
+  uploadAttachment,
 };

@@ -8,6 +8,7 @@ export const createSessionSchema = z.object({
 // Send a message in an AI chat session
 export const sendMessageSchema = z.object({
   content: z.string().min(1).max(10000),
+  attachmentIds: z.array(z.string()).optional(),
 }).strict();
 
 // Mark a message as helpful/unhelpful

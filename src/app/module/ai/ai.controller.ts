@@ -80,18 +80,18 @@ const streamMessage = catchAsync(async (req, res) => {
     req.user.id,
     (token: string) => {
       if (!aborted) {
-        res.write(`event: token\ndata: ${JSON.stringify({ token })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: "text", content: token })}\n\n`);
       }
     },
     (aiMessage: { id: string; content: string; createdAt: Date }) => {
       if (!aborted) {
-        res.write(`event: done\ndata: ${JSON.stringify(aiMessage)}\n\n`);
+        res.write(`data: [DONE]\n\n`);
         res.end();
       }
     },
     (error: Error) => {
       if (!aborted) {
-        res.write(`event: error\ndata: ${JSON.stringify({ error: error.message })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: "error", content: error.message })}\n\n`);
         res.end();
       }
     },
@@ -184,6 +184,20 @@ const explainCode = catchAsync(async (req, res) => {
   });
 });
 
+const uploadAttachment = catchAsync(async (req, res) => {
+  const sessionId = req.params.sessionId as string;
+  const file = req.file as Express.Multer.File;
+  const originalName = (req.file as Express.Multer.File)?.originalname || "unknown";
+
+  const result = await aiService.uploadAttachment(sessionId, req.user.id, file, originalName);
+  sendResponse(res, {
+    httpStatusCode: status.CREATED,
+    success: true,
+    message: "Attachment uploaded successfully.",
+    data: result,
+  });
+});
+
 export default {
   createSession,
   getSessions,
@@ -199,4 +213,5 @@ export default {
   generateQuiz,
   generateFlashcards,
   explainCode,
+  uploadAttachment,
 };
