@@ -30,7 +30,7 @@ This document provides a comprehensive guide for the onboarding and authenticati
 
 ## Onboarding Lifecycle
 
-This is the complete journey of a user from visitor to authenticated student:
+This is the complete journey of a user from visitor to authenticated student — or, for the **legacy alumni claim**, a graduate who predates the platform directly to an authenticated **alumni**:
 
 ```
 Visitor
@@ -39,7 +39,7 @@ GET /onboarding/current
 
 VERIFICATION_FORM
     ↓
-POST /verification/request
+POST /verification/request   (requestType: STUDENT | ALUMNI)
 
 ADMIN_REVIEW (PENDING)
     ↓
@@ -47,7 +47,7 @@ Admin approves via /verification/{id}/approve
 
 ACCOUNT_CREATION
     ↓
-POST /account/create
+POST /account/create         (role = STUDENT or ALUMNI)
 
 COMPLETED
     ↓
@@ -55,6 +55,8 @@ COMPLETED
 
 Authenticated
 ```
+
+> **Legacy alumni claim (P1):** submit `requestType: "ALUMNI"` plus `graduationYear`/`degreeTitle` (required for ALUMNI) in the verification request. The lifecycle is identical, but `POST /account/create` creates the user with `role=ALUMNI` and a Student record pre-marked `academicStatus=GRADUATED` (`graduationYear`, `degreeTitle`, `transitionConfirmedAt`).
 
 ---
 
@@ -228,7 +230,18 @@ Authenticated
   ```
   Content-Type: application/json
   ```
-- **Body (raw JSON):**
+
+**Description:** Submit a verification request to create a new account. Must be called before account creation. Current students use the default `STUDENT` request type; graduates who predate the platform claim a legacy alumni account with `requestType: "ALUMNI"`.
+
+#### Request Type (P1)
+
+| Field            | Type    | Required        | Description                                                       |
+| ---------------- | ------- | --------------- | ----------------------------------------------------------------- |
+| `requestType`    | string  | No (STUDENT)    | `STUDENT` (default, enrolled student) or `ALUMNI` (legacy claim)  |
+| `graduationYear` | number  | Only for ALUMNI | Graduation year, e.g. `2024`                                       |
+| `degreeTitle`    | string  | Only for ALUMNI | Degree title, e.g. `"B.Sc. in Computer Science & Engineering"`     |
+
+**Body — Student (default):**
   ```json
   {
     "name": "John Doe",
@@ -239,7 +252,19 @@ Authenticated
   }
   ```
 
-**Description:** Submit a verification request to create a new account. Must be called before account creation.
+**Body — Legacy Alumni claim:**
+  ```json
+  {
+    "requestType": "ALUMNI",
+    "name": "Jane Smith",
+    "email": "jane.smith@example.com",
+    "dateOfBirth": "1998-02-10",
+    "studentId": "41204001834",
+    "idCardImage": "https://example.com/jane-id.jpg",
+    "graduationYear": 2024,
+    "degreeTitle": "B.Sc. in Computer Science & Engineering"
+  }
+  ```
 
 #### Student ID Format
 
@@ -292,6 +317,10 @@ Authenticated
 | 9   | Invalid ID card URL            | `"idCardImage": "not-a-url"` | 400 Bad Request      | "Invalid ID card image URL"             |
 | 10  | Duplicate email                | Same email as existing       | 409 Conflict         | "Email already associated..."           |
 | 11  | Duplicate student ID           | Same studentId as existing   | 200 OK / 201 Created | Returns existing or updates if rejected |
+| 12  | ALUMNI missing graduationYear  | `"requestType":"ALUMNI"` no grad year | 400 Bad Request | "graduationYear is required..." |
+| 13  | ALUMNI missing degreeTitle     | `"requestType":"ALUMNI"` no degree | 400 Bad Request | "degreeTitle is required..." |
+| 14  | ALUMNI with bad graduationYear | `"graduationYear": 1700`     | 400 Bad Request      | Invalid graduation year                  |
+| 15  | Valid ALUMNI claim             | Full ALUMNI body              | 201 Created          | Account later created with `role=ALUMNI` |
 
 #### Sample Success Response (201):
 
@@ -582,7 +611,12 @@ This allows the frontend to reactively update the UI based on admin actions with
   }
   ```
 
-**Description:** Create a student account after verification approval. Requires a valid `onboarding_step` cookie.
+**Description:** Create an account after verification approval. Requires a valid `onboarding_step` cookie. The created role and Student record depend on the verification `requestType`:
+
+| `requestType` | Role created | Student record                               |
+| ------------- | ------------ | -------------------------------------------- |
+| `STUDENT`     | `STUDENT`    | Enrolled (defaults, no graduation fields)    |
+| `ALUMNI`      | `ALUMNI`     | `academicStatus=GRADUATED`, `graduationYear`, `degreeTitle`, `transitionConfirmedAt` |
 
 #### Completed Onboarding Behavior
 
@@ -627,8 +661,9 @@ After a successful `POST /account/create`:
 | 6   | Already completed step         | `{"password": "..."}`           | Completed step ID | 409 Conflict     | "Account already created"                |
 | 7   | Wrong step (VERIFICATION_FORM) | `{"password": "..."}`           | Wrong step ID     | 400 Bad Request  | "Cannot create account at current stage" |
 | 8   | Rejected verification          | `{"password": "..."}`           | Rejected step ID  | 400 Bad Request  | "Verification not approved"              |
+| 9   | ALUMNI claim creation          | `{"password": "..."}`           | ALUMNI step ID    | 201 Created      | `role: "ALUMNI"` + GRADUATED student record |
 
-#### Sample Success Response (201):
+#### Sample Success Response (201) — Student:
 
 ```json
 {
@@ -639,6 +674,31 @@ After a successful `POST /account/create`:
     "user": {
       "id": "uuid-here",
       "role": "STUDENT"
+    }
+  }
+}
+```
+
+#### Sample Success Response (201) — Legacy Alumni claim:
+
+```json
+{
+  "success": true,
+  "message": "Account created successfully.",
+  "data": {
+    "currentStep": "COMPLETED",
+    "user": {
+      "id": "uuid-here",
+      "role": "ALUMNI"
+    },
+    "student": {
+      "id": "student-uuid",
+      "studentId": "41204001834",
+      "department": "CSE",
+      "academicStatus": "GRADUATED",
+      "graduationYear": 2024,
+      "degreeTitle": "B.Sc. in Computer Science & Engineering",
+      "transitionConfirmedAt": "2024-01-15T11:00:00.000Z"
     }
   }
 }
@@ -915,3 +975,13 @@ if (jsonData.data && jsonData.data.verificationRequest) {
 2. **GET** `/verification` → List all requests
 3. **PATCH** `/verification/{{verification_request_id}}/approve` → Approve request
 4. **GET** `/verification/{{verification_request_id}}` → Verify approval status
+
+### Flow 5: Legacy Alumni Claim (P1)
+
+1. **GET** `/onboarding/current` → Verify initial state (VERIFICATION_FORM)
+2. **POST** `/verification/request` with `requestType: "ALUMNI"`, `graduationYear`, `degreeTitle` → 201, save `onboarding_step_id`
+3. **Admin** approves via `/verification/{{verification_request_id}}/approve`
+4. **POST** `/account/create` with saved cookie → 201, `role: "ALUMNI"`, student record `GRADUATED`
+5. **POST** `/auth/sign-in/email` → Login and save `session_token`
+6. **GET** `/identity/me` → Verify role is `ALUMNI`
+7. Optionally **PATCH** `/identity/profile` with `showInAlumniDirectory: true` to appear in the alumni directory
