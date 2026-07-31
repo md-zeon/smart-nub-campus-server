@@ -8,10 +8,28 @@ export interface ListUsersQuery {
   limit?: number;
 }
 
+export interface ListAlumniQuery {
+  department?: string;
+  graduationYear?: number;
+  industry?: string;
+  currentEmployer?: string;
+  q?: string;
+  page?: number;
+  limit?: number;
+}
+
 export interface ListResourcesQuery {
   search?: string;
   courseId?: string;
   categoryId?: string;
+  isVerified?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface ListJobsQuery {
+  search?: string;
+  status?: string;
   isVerified?: boolean;
   page?: number;
   limit?: number;

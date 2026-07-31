@@ -2,7 +2,7 @@ import status from "http-status";
 import catchAsync from "../../shared/catchAsync";
 import sendResponse from "../../shared/sendResponse";
 import { adminService } from "./admin.service";
-import { ListUsersQuery, ListResourcesQuery, ListAuditLogsQuery, ListDiscussionsQuery, DashboardChartsQuery } from "./admin.interface";
+import { ListUsersQuery, ListAlumniQuery, ListResourcesQuery, ListJobsQuery, ListAuditLogsQuery, ListDiscussionsQuery, DashboardChartsQuery } from "./admin.interface";
 
 // --- Dashboard Stats ---
 const getDashboardStats = catchAsync(async (req, res) => {
@@ -114,6 +114,117 @@ const deleteUser = catchAsync(async (req, res) => {
   });
 });
 
+// --- Graduation & Alumni Management ---
+const markGraduation = catchAsync(async (req, res) => {
+  const id = req.params.id as string;
+  const result = await adminService.markGraduation(id, req.user.id, req.body);
+
+  await adminService.createAuditLog({
+    adminUserId: req.user.id,
+    action: "MARK_GRADUATION",
+    targetType: "USER",
+    targetId: id,
+    details: {
+      graduationYear: req.body.graduationYear,
+      graduationSemester: req.body.graduationSemester,
+    },
+    ipAddress: req.ip,
+  });
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Student marked as graduated successfully.",
+    data: result,
+  });
+});
+
+const undoGraduation = catchAsync(async (req, res) => {
+  const id = req.params.id as string;
+  const result = await adminService.undoGraduation(id);
+
+  await adminService.createAuditLog({
+    adminUserId: req.user.id,
+    action: "UNDO_GRADUATION",
+    targetType: "USER",
+    targetId: id,
+    ipAddress: req.ip,
+  });
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Graduation record undone successfully.",
+    data: result,
+  });
+});
+
+const batchGraduation = catchAsync(async (req, res) => {
+  const result = await adminService.batchGraduation(req.user.id, req.body);
+
+  await adminService.createAuditLog({
+    adminUserId: req.user.id,
+    action: "BATCH_GRADUATION",
+    targetType: "SYSTEM",
+    details: {
+      count: String(result.count),
+      graduationYear: req.body.graduationYear,
+      graduationSemester: req.body.graduationSemester,
+    },
+    ipAddress: req.ip,
+  });
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: `${result.count} student(s) marked as graduated successfully.`,
+    data: result,
+  });
+});
+
+const revertAlumni = catchAsync(async (req, res) => {
+  const id = req.params.id as string;
+  const result = await adminService.revertAlumni(id);
+
+  await adminService.createAuditLog({
+    adminUserId: req.user.id,
+    action: "REVERT_ALUMNI",
+    targetType: "USER",
+    targetId: id,
+    ipAddress: req.ip,
+  });
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: result.message,
+    data: null,
+  });
+});
+
+const listAlumni = catchAsync(async (req, res) => {
+  const query: ListAlumniQuery = {
+    department: req.query.department as string | undefined,
+    graduationYear: req.query.graduationYear
+      ? parseInt(req.query.graduationYear as string)
+      : undefined,
+    industry: req.query.industry as string | undefined,
+    currentEmployer: req.query.currentEmployer as string | undefined,
+    q: req.query.q as string | undefined,
+    page: parseInt(req.query.page as string) || 1,
+    limit: parseInt(req.query.limit as string) || 20,
+  };
+
+  const result = await adminService.listAlumni(query);
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Alumni retrieved successfully.",
+    data: result,
+  });
+});
+
 // --- Resource Management ---
 const listResources = catchAsync(async (req, res) => {
   const query: ListResourcesQuery = {
@@ -169,6 +280,72 @@ const deleteResource = catchAsync(async (req, res) => {
     adminUserId: req.user.id,
     action: "DELETE_RESOURCE",
     targetType: "RESOURCE",
+    targetId: id,
+    ipAddress: req.ip,
+  });
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: result.message,
+    data: null,
+  });
+});
+
+// --- Job Post Management ---
+const listJobs = catchAsync(async (req, res) => {
+  const query: ListJobsQuery = {
+    search: req.query.search as string | undefined,
+    status: req.query.status as string | undefined,
+    isVerified:
+      req.query.isVerified !== undefined
+        ? req.query.isVerified === "true"
+        : undefined,
+    page: parseInt(req.query.page as string) || 1,
+    limit: parseInt(req.query.limit as string) || 20,
+  };
+
+  const result = await adminService.listJobs(query);
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Job posts retrieved successfully.",
+    data: result,
+  });
+});
+
+const verifyJob = catchAsync(async (req, res) => {
+  const id = req.params.id as string;
+  const { isVerified } = req.body;
+
+  const result = await adminService.verifyJob(id, isVerified);
+
+  await adminService.createAuditLog({
+    adminUserId: req.user.id,
+    action: isVerified ? "VERIFY_JOB" : "UNVERIFY_JOB",
+    targetType: "JOB",
+    targetId: id,
+    details: { isVerified },
+    ipAddress: req.ip,
+  });
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: `Job post ${isVerified ? "verified" : "unverified"} successfully.`,
+    data: result,
+  });
+});
+
+const deleteJob = catchAsync(async (req, res) => {
+  const id = req.params.id as string;
+  const result = await adminService.deleteJob(id);
+
+  await adminService.createAuditLog({
+    adminUserId: req.user.id,
+    action: "DELETE_JOB",
+    targetType: "JOB",
     targetId: id,
     ipAddress: req.ip,
   });
@@ -652,9 +829,17 @@ export const adminController = {
   getUserById,
   updateUserStatus,
   deleteUser,
+  markGraduation,
+  undoGraduation,
+  batchGraduation,
+  revertAlumni,
+  listAlumni,
   listResources,
   verifyResource,
   deleteResource,
+  listJobs,
+  verifyJob,
+  deleteJob,
   listCourses,
   getCourseById,
   createCourse,
