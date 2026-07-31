@@ -5,7 +5,7 @@ const badgeDefinitions = [
   {
     name: "First Upload",
     description: "Upload your first resource to the campus library.",
-    icon: "upload-bronze",
+    icon: "upload-cloud",
     category: "CONTRIBUTION",
     tier: "BRONZE",
     points: 5,
@@ -14,7 +14,7 @@ const badgeDefinitions = [
   {
     name: "Prolific Uploader",
     description: "Upload 10 resources to help fellow students.",
-    icon: "upload-silver",
+    icon: "folder-up",
     category: "CONTRIBUTION",
     tier: "SILVER",
     points: 25,
@@ -23,7 +23,7 @@ const badgeDefinitions = [
   {
     name: "Resource Champion",
     description: "Upload 50 resources and become a campus knowledge hub.",
-    icon: "upload-gold",
+    icon: "library-big",
     category: "CONTRIBUTION",
     tier: "GOLD",
     points: 100,
@@ -32,7 +32,7 @@ const badgeDefinitions = [
   {
     name: "Campus Librarian",
     description: "Upload 100 resources. You are the backbone of campus knowledge.",
-    icon: "upload-platinum",
+    icon: "book-marked",
     category: "CONTRIBUTION",
     tier: "PLATINUM",
     points: 250,
@@ -43,7 +43,7 @@ const badgeDefinitions = [
   {
     name: "Discussion Starter",
     description: "Start your first discussion on campus.",
-    icon: "discussion-bronze",
+    icon: "message-square",
     category: "COMMUNITY",
     tier: "BRONZE",
     points: 5,
@@ -52,7 +52,7 @@ const badgeDefinitions = [
   {
     name: "Conversation Maker",
     description: "Start 10 discussions and spark campus conversations.",
-    icon: "discussion-silver",
+    icon: "messages-square",
     category: "COMMUNITY",
     tier: "SILVER",
     points: 20,
@@ -61,7 +61,7 @@ const badgeDefinitions = [
   {
     name: "Helpful Answerer",
     description: "Get 5 answers accepted by the community.",
-    icon: "answer-silver",
+    icon: "badge-check",
     category: "COMMUNITY",
     tier: "SILVER",
     points: 30,
@@ -70,7 +70,7 @@ const badgeDefinitions = [
   {
     name: "Q&A Expert",
     description: "Get 25 answers accepted. You are a trusted problem solver.",
-    icon: "answer-gold",
+    icon: "lightbulb",
     category: "COMMUNITY",
     tier: "GOLD",
     points: 75,
@@ -81,7 +81,7 @@ const badgeDefinitions = [
   {
     name: "Curious Mind",
     description: "Ask your first question on campus Q&A.",
-    icon: "question-bronze",
+    icon: "help-circle",
     category: "ACADEMIC",
     tier: "BRONZE",
     points: 3,
@@ -90,7 +90,7 @@ const badgeDefinitions = [
   {
     name: "Knowledge Seeker",
     description: "Ask 10 questions and deepen your understanding.",
-    icon: "question-silver",
+    icon: "book-open",
     category: "ACADEMIC",
     tier: "SILVER",
     points: 15,
@@ -99,7 +99,7 @@ const badgeDefinitions = [
   {
     name: "Scholar",
     description: "Ask 50 questions. Your curiosity knows no bounds.",
-    icon: "question-gold",
+    icon: "graduation-cap",
     category: "ACADEMIC",
     tier: "GOLD",
     points: 50,
@@ -110,7 +110,7 @@ const badgeDefinitions = [
   {
     name: "Rising Star",
     description: "Earn 50 reputation points through campus contributions.",
-    icon: "reputation-bronze",
+    icon: "star",
     category: "REPUTATION",
     tier: "BRONZE",
     points: 10,
@@ -119,7 +119,7 @@ const badgeDefinitions = [
   {
     name: "Campus Influencer",
     description: "Earn 200 reputation points and influence campus culture.",
-    icon: "reputation-silver",
+    icon: "megaphone",
     category: "REPUTATION",
     tier: "SILVER",
     points: 30,
@@ -128,7 +128,7 @@ const badgeDefinitions = [
   {
     name: "Top Contributor",
     description: "Earn 500 reputation points. You are a campus legend.",
-    icon: "reputation-gold",
+    icon: "trophy",
     category: "REPUTATION",
     tier: "GOLD",
     points: 100,
@@ -137,7 +137,7 @@ const badgeDefinitions = [
   {
     name: "Campus Elite",
     description: "Earn 1000 reputation points. The pinnacle of campus achievement.",
-    icon: "reputation-platinum",
+    icon: "gem",
     category: "REPUTATION",
     tier: "PLATINUM",
     points: 250,
@@ -148,7 +148,7 @@ const badgeDefinitions = [
   {
     name: "Connector",
     description: "Send your first connection request.",
-    icon: "network-bronze",
+    icon: "user-plus",
     category: "NETWORKING",
     tier: "BRONZE",
     points: 5,
@@ -159,7 +159,7 @@ const badgeDefinitions = [
   {
     name: "Profile Pro",
     description: "Complete your campus profile.",
-    icon: "profile-bronze",
+    icon: "user-round-check",
     category: "MILESTONES",
     tier: "BRONZE",
     points: 5,
@@ -168,7 +168,7 @@ const badgeDefinitions = [
   {
     name: "Campus Pioneer",
     description: "Be among the first to explore the campus platform.",
-    icon: "pioneer-silver",
+    icon: "rocket",
     category: "MILESTONES",
     tier: "SILVER",
     points: 15,
@@ -177,15 +177,28 @@ const badgeDefinitions = [
 ];
 
 export async function seedBadges() {
-  const existingCount = await prisma.badge.count();
-  if (existingCount > 0) {
-    console.log("Badges already exist. Skipping badge seed.");
-    return;
-  }
+  const existingNames = new Set(
+    (await prisma.badge.findMany({ select: { name: true } })).map(
+      (b) => b.name,
+    ),
+  );
+
+  let created = 0;
+  let updated = 0;
 
   for (const badge of badgeDefinitions) {
-    await prisma.badge.create({
-      data: {
+    const exists = existingNames.has(badge.name);
+    await prisma.badge.upsert({
+      where: { name: badge.name },
+      update: {
+        description: badge.description,
+        icon: badge.icon,
+        category: badge.category as never,
+        tier: badge.tier as never,
+        points: badge.points,
+        condition: badge.condition,
+      },
+      create: {
         name: badge.name,
         description: badge.description,
         icon: badge.icon,
@@ -195,7 +208,13 @@ export async function seedBadges() {
         condition: badge.condition,
       },
     });
+
+    if (exists) {
+      updated++;
+    } else {
+      created++;
+    }
   }
 
-  console.log(`Seeded ${badgeDefinitions.length} badges.`);
+  console.log(`Badges seeded — created: ${created}, updated: ${updated}.`);
 }
