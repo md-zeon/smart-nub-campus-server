@@ -9,6 +9,11 @@ model Event {
   organizer   User?       @relation(fields: [organizerId], references: [id], onDelete: SetNull)
   status      EventStatus @default(UPCOMING)
   isFeatured  Boolean     @default(false)
+
+  // Audience (Alumni role feature)
+  audience         EventAudience @default(EVERYONE)
+  reunionBatchYear Int?
+
   rsvps       EventRSVP[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

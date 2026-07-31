@@ -1,4 +1,5 @@
 import {
+  AcademicStatus,
   AdmissionSemester,
   Department,
   UserRole,
@@ -32,6 +33,15 @@ export interface RequestUser {
     department: Department;
     admissionYear: number;
     admissionSemester: AdmissionSemester;
+    academicStatus: AcademicStatus;
+    graduationYear: number | null;
+    graduationSemester: AdmissionSemester | null;
+    graduationDate: Date | null;
+    degreeTitle: string | null;
+    cgpa: unknown;
+    graduatedById: string | null;
+    graduatedAt: Date | null;
+    transitionConfirmedAt: Date | null;
   } | null;
   admin: {
     id: string;
@@ -58,5 +68,11 @@ export interface RequestUser {
     phoneNumber: string | null;
     currentSemester: number | null;
     batchYear: number | null;
+    currentEmployer: string | null;
+    jobTitle: string | null;
+    industry: string | null;
+    showInAlumniDirectory: boolean;
+    isMentor: boolean;
+    mentorshipTopics: string[];
   } | null;
 }

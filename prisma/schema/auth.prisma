@@ -85,6 +85,14 @@ model User {
     loginHistory                  LoginHistory[]
     dataExports                   DataExport[]
 
+    // Alumni role feature relations
+    graduatedStudents            Student[]              @relation("GraduationReviewer")
+    alumniEmployment             EmploymentRecord[]
+    jobPosts                     JobPost[]
+    jobApplications              JobApplication[]
+    mentorshipRequestsSent       MentorshipRequest[]    @relation("MentorshipMentee")
+    mentorshipRequestsReceived   MentorshipRequest[]    @relation("MentorshipMentor")
+
     @@unique([email])
     @@index([isDeleted])
   @@map("user")

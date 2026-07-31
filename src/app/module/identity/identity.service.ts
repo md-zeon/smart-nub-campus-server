@@ -3,6 +3,7 @@ import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
 import { RequestUser } from "./identity.interface";
 import type { ProfileVisibilityLevel } from "../../../generated/prisma/enums";
+import { gamificationService } from "../gamification/gamification.service";
 
 const me = (user: RequestUser) => {
   return {
@@ -324,6 +325,12 @@ const updateProfile = async (
     phoneNumber?: string;
     currentSemester?: number;
     batchYear?: number;
+    currentEmployer?: string;
+    jobTitle?: string;
+    industry?: string;
+    showInAlumniDirectory?: boolean;
+    isMentor?: boolean;
+    mentorshipTopics?: string[];
     image?: string;
   },
 ) => {
@@ -340,6 +347,11 @@ const updateProfile = async (
   const existingProfile = await prisma.userProfile.findUnique({
     where: { userId },
   });
+
+  // Award the "Mentor" badge when opting in as a mentor (best-effort)
+  if (data.isMentor === true) {
+    gamificationService.awardBadgeByName(userId, "Mentor").catch(() => {});
+  }
 
   if (existingProfile) {
     const updated = await prisma.userProfile.update({
@@ -358,9 +370,70 @@ const updateProfile = async (
   return created;
 };
 
+const createEmployment = async (
+  userId: string,
+  data: {
+    employer: string;
+    title: string;
+    industry?: string;
+    startDate: Date;
+    endDate?: Date | null;
+    isCurrent?: boolean;
+    description?: string;
+  },
+) => {
+  return prisma.employmentRecord.create({
+    data: { userId, ...data },
+  });
+};
+
+const updateEmployment = async (
+  userId: string,
+  id: string,
+  data: {
+    employer?: string;
+    title?: string;
+    industry?: string;
+    startDate?: Date;
+    endDate?: Date | null;
+    isCurrent?: boolean;
+    description?: string;
+  },
+) => {
+  const record = await prisma.employmentRecord.findFirst({
+    where: { id, userId },
+  });
+
+  if (!record) {
+    throw new AppError(status.NOT_FOUND, "Employment record not found.");
+  }
+
+  return prisma.employmentRecord.update({
+    where: { id },
+    data,
+  });
+};
+
+const deleteEmployment = async (userId: string, id: string) => {
+  const record = await prisma.employmentRecord.findFirst({
+    where: { id, userId },
+  });
+
+  if (!record) {
+    throw new AppError(status.NOT_FOUND, "Employment record not found.");
+  }
+
+  await prisma.employmentRecord.delete({ where: { id } });
+
+  return { message: "Employment record deleted successfully." };
+};
+
 export const identityService = {
   me,
   getProfile,
   getPublicProfile,
   updateProfile,
+  createEmployment,
+  updateEmployment,
+  deleteEmployment,
 };

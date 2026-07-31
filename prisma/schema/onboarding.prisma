@@ -13,6 +13,11 @@ model VerificationRequest {
   status VerificationStatus @default(PENDING)
   note   String?
 
+  // Request type (Alumni role feature: legacy alumni claim)
+  requestType    VerificationRequestType @default(STUDENT)
+  graduationYear Int?
+  degreeTitle    String?
+
   // Review audit
   reviewedById String?
   reviewedBy   User?     @relation("VerificationReviewedBy", fields: [reviewedById], references: [id])

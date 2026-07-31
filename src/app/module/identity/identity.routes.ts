@@ -19,4 +19,24 @@ router.patch(
   identityController.updateProfile,
 );
 
+router.post(
+  "/employment",
+  verifySession,
+  validateRequest(identityValidation.createEmploymentSchema),
+  identityController.createEmployment,
+);
+
+router.patch(
+  "/employment/:id",
+  verifySession,
+  validateRequest(identityValidation.updateEmploymentSchema),
+  identityController.updateEmployment,
+);
+
+router.delete(
+  "/employment/:id",
+  verifySession,
+  identityController.deleteEmployment,
+);
+
 export const identityRoutes = router;

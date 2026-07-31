@@ -9,11 +9,25 @@ model Student {
   admissionSemester AdmissionSemester
   dateOfBirth       DateTime
 
+  // Academic status (Alumni role feature)
+  academicStatus        AcademicStatus      @default(ENROLLED)
+  graduationYear        Int?
+  graduationSemester    AdmissionSemester?
+  graduationDate        DateTime?
+  degreeTitle           String?
+  cgpa                  Decimal?            @db.Decimal(4, 2)
+  graduatedById         String?
+  graduatedBy           User?               @relation("GraduationReviewer", fields: [graduatedById], references: [id], onDelete: SetNull)
+  graduatedAt           DateTime?
+  transitionConfirmedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([department])
   @@index([admissionYear])
   @@index([admissionSemester])
+  @@index([academicStatus])
+  @@index([graduationYear])
   @@map("student")
 }

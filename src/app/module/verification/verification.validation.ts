@@ -1,29 +1,60 @@
 import { z } from "zod";
-import { VerificationStatus } from "../../../generated/prisma/enums";
+import {
+  VerificationRequestType,
+  VerificationStatus,
+} from "../../../generated/prisma/enums";
 
-const createVerificationRequestSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(2, "Name must be at least 2 characters long")
-    .max(100, "Name is too long"),
+const createVerificationRequestSchema = z
+  .object({
+    requestType: z
+      .nativeEnum(VerificationRequestType)
+      .default(VerificationRequestType.STUDENT),
 
-  email: z.string().toLowerCase().trim().email("Invalid email address"),
+    name: z
+      .string()
+      .trim()
+      .min(2, "Name must be at least 2 characters long")
+      .max(100, "Name is too long"),
 
-  dateOfBirth: z.coerce
-    .date()
-    .max(new Date(), "Date of birth cannot be in the future"),
+    email: z.string().toLowerCase().trim().email("Invalid email address"),
 
-  // Example: 41230301652
-  studentId: z
-    .string()
-    .trim()
-    .regex(/^\d{11}$/, "Student ID must be exactly 11 digits"),
+    dateOfBirth: z.coerce
+      .date()
+      .max(new Date(), "Date of birth cannot be in the future"),
 
-  idCardImage: z.url("Invalid ID card image URL"),
+    // Example: 41230301652
+    studentId: z
+      .string()
+      .trim()
+      .regex(/^\d{11}$/, "Student ID must be exactly 11 digits"),
 
-  idCardImagePublicId: z.string().optional(),
-});
+    idCardImage: z.url("Invalid ID card image URL"),
+
+    idCardImagePublicId: z.string().optional(),
+
+    graduationYear: z.number().int().min(1950).max(2100).optional(),
+
+    degreeTitle: z.string().trim().min(1).max(200).optional(),
+  })
+  .strict()
+  .refine(
+    (data) => {
+      if (data.requestType !== VerificationRequestType.ALUMNI) {
+        return true;
+      }
+      return (
+        data.graduationYear !== undefined &&
+        data.graduationYear !== null &&
+        data.degreeTitle !== undefined &&
+        data.degreeTitle.trim() !== ""
+      );
+    },
+    {
+      message:
+        "Graduation year and degree title are required for alumni verification.",
+      path: ["graduationYear"],
+    },
+  );
 
 // Admin schemas
 const listVerificationRequestsSchema = z.object({

@@ -1,0 +1,91 @@
+// Alumni role feature models (AlumniProfile data, jobs, mentorship)
+
+model EmploymentRecord {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  employer    String
+  title       String
+  industry    String?
+  startDate   DateTime
+  endDate     DateTime?
+  isCurrent   Boolean  @default(false)
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("employment_records")
+}
+
+model JobPost {
+  id          String        @id @default(uuid())
+  title       String        @db.VarChar(200)
+  company     String        @db.VarChar(200)
+  description String?       @db.Text
+  employmentType JobType
+  location    String?
+  salaryRange String?
+  applicationUrl String?
+  deadline    DateTime?
+  department  Department?
+  status      JobPostStatus @default(OPEN)
+  isVerified  Boolean       @default(false)
+
+  postedById String
+  postedBy   User           @relation(fields: [postedById], references: [id], onDelete: Cascade)
+
+  applications JobApplication[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([postedById])
+  @@index([status])
+  @@index([employmentType])
+  @@index([department])
+  @@index([createdAt(sort: Desc)])
+  @@map("job_posts")
+}
+
+model JobApplication {
+  id        String   @id @default(uuid())
+  jobPostId String
+  jobPost   JobPost  @relation(fields: [jobPostId], references: [id], onDelete: Cascade)
+  applicantId String
+  applicant User     @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+
+  coverLetter String?
+  resumeUrl   String?
+  status      ApplicationStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([jobPostId, applicantId])
+  @@index([applicantId])
+  @@map("job_applications")
+}
+
+model MentorshipRequest {
+  id        String   @id @default(uuid())
+  mentorId  String
+  mentor    User     @relation("MentorshipMentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  menteeId  String
+  mentee    User     @relation("MentorshipMentee", fields: [menteeId], references: [id], onDelete: Cascade)
+
+  topic   String?
+  message String?
+  status  ApplicationStatus @default(PENDING)
+  respondedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mentorId])
+  @@index([menteeId])
+  @@index([status])
+  @@map("mentorship_requests")
+}
