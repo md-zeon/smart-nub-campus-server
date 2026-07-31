@@ -18,6 +18,8 @@ const createEventSchema = z
     organizerId: z.string().uuid("Invalid organizer ID").optional(),
     status: z.enum(["UPCOMING", "ONGOING", "COMPLETED", "CANCELLED"]).optional(),
     isFeatured: z.boolean().optional(),
+    audience: z.enum(["EVERYONE", "STUDENTS_ONLY", "ALUMNI_ONLY"]).optional(),
+    reunionBatchYear: z.number().int().min(1990).max(2100).optional(),
   })
   .strict();
 
@@ -39,6 +41,8 @@ const updateEventSchema = z
     imageUrl: z.string().url("Invalid image URL").optional().nullable(),
     status: z.enum(["UPCOMING", "ONGOING", "COMPLETED", "CANCELLED"]).optional(),
     isFeatured: z.boolean().optional(),
+    audience: z.enum(["EVERYONE", "STUDENTS_ONLY", "ALUMNI_ONLY"]).optional(),
+    reunionBatchYear: z.number().int().min(1990).max(2100).optional().nullable(),
   })
   .strict();
 
@@ -53,6 +57,7 @@ const listEventsSchema = z.object({
     .string()
     .transform((val) => val === "true")
     .optional(),
+  type: z.enum(["reunion"]).optional(),
   page: z
     .string()
     .transform((val) => parseInt(val) || 1)

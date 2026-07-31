@@ -16,7 +16,10 @@ const createEvent = catchAsync(async (req, res) => {
 
 const getEventById = catchAsync(async (req, res) => {
   const id = req.params.id as string;
-  const result = await eventService.getEventById(id, req.user.id);
+  const result = await eventService.getEventById(id, {
+    id: req.user.id,
+    role: req.user.role,
+  });
   sendResponse(res, {
     httpStatusCode: status.OK,
     success: true,
@@ -31,11 +34,15 @@ const listEvents = catchAsync(async (req, res) => {
     search: req.query.search as string | undefined,
     upcoming: req.query.upcoming === "true",
     featured: req.query.featured === "true",
+    type: req.query.type as string | undefined,
     page: parseInt(req.query.page as string) || 1,
     limit: parseInt(req.query.limit as string) || 12,
   };
 
-  const result = await eventService.listEvents(query, req.user.id);
+  const result = await eventService.listEvents(query, {
+    id: req.user.id,
+    role: req.user.role,
+  });
   sendResponse(res, {
     httpStatusCode: status.OK,
     success: true,
@@ -45,7 +52,10 @@ const listEvents = catchAsync(async (req, res) => {
 });
 
 const getUpcomingEvents = catchAsync(async (req, res) => {
-  const result = await eventService.getUpcomingEvents(req.user.id);
+  const result = await eventService.getUpcomingEvents({
+    id: req.user.id,
+    role: req.user.role,
+  });
   sendResponse(res, {
     httpStatusCode: status.OK,
     success: true,

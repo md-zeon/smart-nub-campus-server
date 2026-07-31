@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { toNodeHandler } from "better-auth/node";
 import { accountRoutes } from "../module/account/account.routes";
+import { alumniRoutes } from "../module/alumni/alumni.routes";
+import { jobsRoutes } from "../module/jobs/jobs.routes";
+import { mentorshipRoutes } from "../module/mentorship/mentorship.routes";
 import { identityRoutes } from "../module/identity/identity.routes";
 import { onboardingRoutes } from "../module/onboarding/onboarding.routes";
 import { verificationRoutes } from "../module/verification/verification.routes";
@@ -53,6 +56,9 @@ router.use("/ai", aiRoutes);
 router.use("/events", eventRoutes);
 router.use("/gamification", gamificationRoutes);
 router.use("/notifications", notificationRoutes);
+router.use("/alumni", alumniRoutes);
+router.use("/jobs", jobsRoutes);
+router.use("/mentorship", mentorshipRoutes);
 router.use("/admin", adminRoutes);
 router.use("/settings", settingsRoutes);
 

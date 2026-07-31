@@ -1,5 +1,7 @@
 import status from "http-status";
 import AppError from "../../errorHelpers/AppError";
+import { Prisma } from "../../../generated/prisma/client";
+import { EventAudience, UserRole } from "../../../generated/prisma/enums";
 import { prisma } from "../../lib/prisma";
 import { getSocketServer } from "../../lib/socket/socket-server";
 import { notificationService } from "../notification/notification.service";
@@ -8,6 +10,24 @@ import {
   UpdateEventInput,
   ListEventsQuery,
 } from "./event.interface";
+
+type EventViewer = { id: string; role: UserRole } | undefined;
+
+/**
+ * Restrict an event query to events the viewer's role is allowed to see.
+ * Alumni: EVERYONE + ALUMNI_ONLY; Students: EVERYONE + STUDENTS_ONLY; Admins: all.
+ */
+const applyAudienceFilter = (
+  where: Prisma.EventWhereInput,
+  role?: UserRole,
+) => {
+  if (role === UserRole.ALUMNI) {
+    where.audience = { in: [EventAudience.EVERYONE, EventAudience.ALUMNI_ONLY] };
+  } else if (role === UserRole.STUDENT) {
+    where.audience = { in: [EventAudience.EVERYONE, EventAudience.STUDENTS_ONLY] };
+  }
+  return where;
+};
 
 /**
  * Create a new event. If organizerId is provided, links the event to that user.
@@ -23,6 +43,8 @@ const createEvent = async (data: CreateEventInput, userId: string) => {
       organizerId: data.organizerId ?? userId,
       status: data.status ?? "UPCOMING",
       isFeatured: data.isFeatured ?? false,
+      audience: data.audience ?? EventAudience.EVERYONE,
+      reunionBatchYear: data.reunionBatchYear ?? null,
     },
     include: {
       organizer: {
@@ -54,7 +76,7 @@ const createEvent = async (data: CreateEventInput, userId: string) => {
 /**
  * Get a single event by ID with RSVP count and user RSVP status.
  */
-const getEventById = async (id: string, userId?: string) => {
+const getEventById = async (id: string, user: EventViewer) => {
   const event = await prisma.event.findUnique({
     where: { id },
     include: {
@@ -69,11 +91,19 @@ const getEventById = async (id: string, userId?: string) => {
     throw new AppError(status.NOT_FOUND, "Event not found.");
   }
 
+  // Audience protection: students cannot view alumni-only events and vice versa.
+  if (event.audience === EventAudience.ALUMNI_ONLY && user?.role === UserRole.STUDENT) {
+    throw new AppError(status.NOT_FOUND, "Event not found.");
+  }
+  if (event.audience === EventAudience.STUDENTS_ONLY && user?.role === UserRole.ALUMNI) {
+    throw new AppError(status.NOT_FOUND, "Event not found.");
+  }
+
   let isRsvpd = false;
 
-  if (userId) {
+  if (user?.id) {
     const rsvp = await prisma.eventRSVP.findUnique({
-      where: { eventId_userId: { eventId: id, userId } },
+      where: { eventId_userId: { eventId: id, userId: user.id } },
       select: { id: true },
     });
     isRsvpd = !!rsvp;
@@ -85,12 +115,13 @@ const getEventById = async (id: string, userId?: string) => {
 /**
  * List events with optional filters (status, search, date range, featured).
  */
-const listEvents = async (query: ListEventsQuery, userId?: string) => {
+const listEvents = async (query: ListEventsQuery, user: EventViewer) => {
   const {
     status: eventStatus,
     search,
     upcoming,
     featured,
+    type,
     page = 1,
     limit = 12,
   } = query;
@@ -98,7 +129,9 @@ const listEvents = async (query: ListEventsQuery, userId?: string) => {
   const skip = (page - 1) * limit;
   const take = limit;
 
-  const where: Record<string, unknown> = {};
+  const where: Prisma.EventWhereInput = {};
+
+  applyAudienceFilter(where, user?.role);
 
   if (eventStatus) {
     where.status = eventStatus;
@@ -111,6 +144,10 @@ const listEvents = async (query: ListEventsQuery, userId?: string) => {
 
   if (featured) {
     where.isFeatured = true;
+  }
+
+  if (type === "reunion") {
+    where.reunionBatchYear = { not: null };
   }
 
   if (search) {
@@ -139,11 +176,11 @@ const listEvents = async (query: ListEventsQuery, userId?: string) => {
 
   let eventsWithUserState = events;
 
-  if (userId) {
+  if (user?.id) {
     const eventIds = events.map((e) => e.id);
 
     const rsvps = await prisma.eventRSVP.findMany({
-      where: { eventId: { in: eventIds }, userId },
+      where: { eventId: { in: eventIds }, userId: user.id },
       select: { eventId: true },
     });
 
@@ -164,12 +201,16 @@ const listEvents = async (query: ListEventsQuery, userId?: string) => {
 /**
  * Fetch upcoming events for homepage display. Returns featured events first, then by date.
  */
-const getUpcomingEvents = async (userId?: string) => {
+const getUpcomingEvents = async (user: EventViewer) => {
+  const where: Prisma.EventWhereInput = {
+    status: "UPCOMING",
+    eventDate: { gte: new Date() },
+  };
+
+  applyAudienceFilter(where, user?.role);
+
   const events = await prisma.event.findMany({
-    where: {
-      status: "UPCOMING",
-      eventDate: { gte: new Date() },
-    },
+    where,
     take: 6,
     orderBy: [{ isFeatured: "desc" }, { eventDate: "asc" }],
     include: {
@@ -182,11 +223,11 @@ const getUpcomingEvents = async (userId?: string) => {
 
   let eventsWithUserState = events;
 
-  if (userId) {
+  if (user?.id) {
     const eventIds = events.map((e) => e.id);
 
     const rsvps = await prisma.eventRSVP.findMany({
-      where: { eventId: { in: eventIds }, userId },
+      where: { eventId: { in: eventIds }, userId: user.id },
       select: { eventId: true },
     });
 
@@ -231,6 +272,8 @@ const updateEvent = async (
   if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl;
   if (data.status !== undefined) updateData.status = data.status;
   if (data.isFeatured !== undefined) updateData.isFeatured = data.isFeatured;
+  if (data.audience !== undefined) updateData.audience = data.audience;
+  if (data.reunionBatchYear !== undefined) updateData.reunionBatchYear = data.reunionBatchYear;
 
   const updated = await prisma.event.update({
     where: { id },
