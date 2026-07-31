@@ -174,6 +174,35 @@ const badgeDefinitions = [
     points: 15,
     condition: "total_points:0",
   },
+
+  // ALUMNI milestones
+  {
+    name: "Alumnus",
+    description: "Officially joined the alumni community after graduating from NUB.",
+    icon: "graduation-cap",
+    category: "MILESTONES",
+    tier: "SILVER",
+    points: 20,
+    condition: "total_points:0",
+  },
+  {
+    name: "Mentor",
+    description: "Opened up to mentor current students and guide the next generation.",
+    icon: "users",
+    category: "NETWORKING",
+    tier: "SILVER",
+    points: 15,
+    condition: "total_points:0",
+  },
+  {
+    name: "Job Pioneer",
+    description: "Posted the first job opportunity for the campus community.",
+    icon: "briefcase",
+    category: "CONTRIBUTION",
+    tier: "BRONZE",
+    points: 10,
+    condition: "jobs_posted:1",
+  },
 ];
 
 export async function seedBadges() {
