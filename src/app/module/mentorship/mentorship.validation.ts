@@ -32,7 +32,7 @@ const listMentorsSchema = z
 
 const createMentorshipRequestSchema = z
   .object({
-    mentorId: z.string().uuid("Invalid mentor ID"),
+    mentorId: z.string().trim().min(1, "Invalid mentor ID"),
     topic: z.string().trim().max(200).optional(),
     message: z.string().trim().max(1000).optional(),
   })

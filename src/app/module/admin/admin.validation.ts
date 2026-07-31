@@ -223,7 +223,7 @@ const updateQuestionCategorySchema = z
 
 const listAuditLogsSchema = z
   .object({
-    adminUserId: z.string().uuid().optional(),
+    adminUserId: z.string().trim().min(1).optional(),
     action: z.string().optional(),
     targetType: z.string().optional(),
     startDate: z.string().optional(),

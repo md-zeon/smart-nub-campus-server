@@ -31,7 +31,7 @@ router.delete("/users/:id", adminController.deleteUser);
 // --- Graduation & Alumni Management ---
 router.get(
   "/alumni",
-  validateRequest(adminValidation.listAlumniSchema),
+  validateRequest(adminValidation.listAlumniSchema, "query"),
   adminController.listAlumni,
 );
 router.patch(
