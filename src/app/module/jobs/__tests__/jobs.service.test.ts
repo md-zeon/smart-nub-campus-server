@@ -34,6 +34,16 @@ vi.mock("../../../../app/lib/prisma", () => ({
   },
 }));
 
+const aiMocks = vi.hoisted(() => {
+  const extractJobDetails = vi.fn();
+  return {
+    extractJobDetails,
+    createProvider: vi.fn(() => ({ extractJobDetails })),
+  };
+});
+
+vi.mock("../../../../app/lib/ai", () => aiMocks);
+
 import { prisma } from "../../../../app/lib/prisma";
 import { jobsService } from "../jobs.service";
 
@@ -49,6 +59,17 @@ const otherJob = { id: jobId, title: "SDE", postedById: strangerId };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  aiMocks.extractJobDetails.mockResolvedValue({
+    title: "",
+    company: "",
+    description: "",
+    employmentType: null,
+    location: "",
+    salaryRange: "",
+    deadline: null,
+    department: null,
+    applicationUrl: "",
+  });
 });
 
 // ─── createJob ──────────────────────────────────────────────────────
@@ -74,10 +95,71 @@ describe("createJob", () => {
         applicationUrl: null,
         deadline: null,
         department: null,
+        source: undefined,
+        sourceUrl: null,
         postedById: ownerId,
       },
       include: expect.any(Object),
     });
+  });
+
+  it("passes through source and sourceUrl when provided", async () => {
+    mockPrisma.jobPost.create.mockResolvedValue({ id: jobId } as never);
+
+    await jobsService.createJob(
+      {
+        title: "SDE",
+        company: "Acme",
+        employmentType: "FULL_TIME",
+        source: "LINKEDIN",
+        sourceUrl: "https://www.linkedin.com/jobs/view/123",
+      },
+      ownerId,
+    );
+
+    expect(mockPrisma.jobPost.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          source: "LINKEDIN",
+          sourceUrl: "https://www.linkedin.com/jobs/view/123",
+        }),
+      }),
+    );
+  });
+});
+
+// ─── importJob ─────────────────────────────────────────────────────
+
+describe("importJob", () => {
+  it("extracts a draft from raw description text", async () => {
+    aiMocks.extractJobDetails.mockResolvedValue({
+      title: "Software Engineer",
+      company: "Acme",
+      description: "Build great things with a great team.",
+      employmentType: "FULL_TIME",
+      location: "Dhaka",
+      salaryRange: "৳40,000 - ৳60,000",
+      deadline: null,
+      department: null,
+      applicationUrl: "https://acme.test/careers",
+    });
+
+    const result = await jobsService.importJob({
+      input: "Software Engineer at Acme, Dhaka. Full-time.",
+    });
+
+    expect(result.title).toBe("Software Engineer");
+    expect(result.company).toBe("Acme");
+    expect(result.description).toContain("Build great things");
+    expect(result.employmentType).toBe("FULL_TIME");
+    expect(result.location).toBe("Dhaka");
+    expect(result.salaryRange).toBe("৳40,000 - ৳60,000");
+    expect(result.applicationUrl).toBe("https://acme.test/careers");
+    expect(result.source).toBeNull();
+    expect(result.sourceUrl).toBeNull();
+    expect(aiMocks.extractJobDetails).toHaveBeenCalledWith(
+      "Software Engineer at Acme, Dhaka. Full-time.",
+    );
   });
 });
 

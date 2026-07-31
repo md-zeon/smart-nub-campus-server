@@ -10,6 +10,22 @@ const JOB_TYPE_ENUM = [
 
 const JOB_STATUS_ENUM = ["OPEN", "FILLED", "CLOSED"] as const;
 
+const JOB_SOURCE_ENUM = [
+  "PLATFORM",
+  "LINKEDIN",
+  "FACEBOOK",
+  "BDJOBS",
+  "INDEED",
+  "GLASSDOOR",
+  "GOOGLE_JOBS",
+  "BIKROY",
+  "CHAKRI",
+  "JOBSBD",
+  "COMPANY_WEBSITE",
+  "NEWSPAPER",
+  "OTHER",
+] as const;
+
 const DEPARTMENT_ENUM = [
   "CSE",
   "ECSE",
@@ -41,6 +57,13 @@ const createJobSchema = z
     applicationUrl: z.string().url("Invalid application URL").optional(),
     deadline: z.coerce.date().optional(),
     department: z.enum(DEPARTMENT_ENUM).optional(),
+    source: z.enum(JOB_SOURCE_ENUM).optional(),
+    sourceUrl: z
+      .string()
+      .trim()
+      .url("Invalid source URL")
+      .max(2048)
+      .optional(),
   })
   .strict();
 
@@ -56,6 +79,20 @@ const updateJobSchema = z
     deadline: z.coerce.date().optional().nullable(),
     department: z.enum(DEPARTMENT_ENUM).optional().nullable(),
     status: z.enum(JOB_STATUS_ENUM).optional(),
+    source: z.enum(JOB_SOURCE_ENUM).optional(),
+    sourceUrl: z
+      .string()
+      .trim()
+      .url("Invalid source URL")
+      .max(2048)
+      .optional()
+      .nullable(),
+  })
+  .strict();
+
+const importJobSchema = z
+  .object({
+    input: z.string().trim().min(1, "Input is required").max(20000),
   })
   .strict();
 
@@ -91,4 +128,5 @@ export const jobsValidation = {
   listJobsSchema,
   applyJobSchema,
   updateApplicationSchema,
+  importJobSchema,
 };

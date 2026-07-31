@@ -24,6 +24,15 @@ router.post(
   jobsController.createJob,
 );
 
+// Parse a pasted link / job description into a prefilled draft (no persistence)
+router.post(
+  "/import",
+  verifySession,
+  requireRole(UserRole.ALUMNI, UserRole.ADMIN),
+  validateRequest(jobsValidation.importJobSchema),
+  jobsController.importJob,
+);
+
 router.get("/:id", verifySession, jobsController.getJobById);
 
 // Owner or admin can update/delete

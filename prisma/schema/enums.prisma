@@ -264,6 +264,22 @@ enum JobPostStatus {
   CLOSED
 }
 
+enum JobSource {
+  PLATFORM
+  LINKEDIN
+  FACEBOOK
+  BDJOBS
+  INDEED
+  GLASSDOOR
+  GOOGLE_JOBS
+  BIKROY
+  CHAKRI
+  JOBSBD
+  COMPANY_WEBSITE
+  NEWSPAPER
+  OTHER
+}
+
 enum EventAudience {
   EVERYONE
   STUDENTS_ONLY

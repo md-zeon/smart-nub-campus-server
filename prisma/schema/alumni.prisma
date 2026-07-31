@@ -33,6 +33,8 @@ model JobPost {
   department  Department?
   status      JobPostStatus @default(OPEN)
   isVerified  Boolean       @default(false)
+  source      JobSource     @default(PLATFORM)
+  sourceUrl   String?       @db.VarChar(2048)
 
   postedById String
   postedBy   User           @relation(fields: [postedById], references: [id], onDelete: Cascade)

@@ -14,10 +14,12 @@ import { gamificationService } from "../gamification/gamification.service";
 import {
   ApplyJobInput,
   CreateJobInput,
+  ImportJobInput,
   ListJobsQuery,
   UpdateApplicationInput,
   UpdateJobInput,
 } from "./jobs.interface";
+import { parseJobImport } from "./jobs.import";
 
 const JOB_INCLUDE = {
   postedBy: {
@@ -162,6 +164,8 @@ const createJob = async (data: CreateJobInput, userId: string) => {
       applicationUrl: data.applicationUrl ?? null,
       deadline: data.deadline ?? null,
       department: data.department ?? null,
+      source: data.source ?? undefined,
+      sourceUrl: data.sourceUrl ?? null,
       postedById: userId,
     },
     include: JOB_INCLUDE,
@@ -171,6 +175,10 @@ const createJob = async (data: CreateJobInput, userId: string) => {
   gamificationService.awardBadgeByName(userId, "Job Pioneer").catch(() => {});
 
   return job;
+};
+
+const importJob = async (data: ImportJobInput) => {
+  return parseJobImport(data.input);
 };
 
 const updateJob = async (
@@ -198,6 +206,8 @@ const updateJob = async (
   if (data.deadline !== undefined) updateData.deadline = data.deadline;
   if (data.department !== undefined) updateData.department = data.department;
   if (data.status !== undefined) updateData.status = data.status;
+  if (data.source !== undefined) updateData.source = data.source;
+  if (data.sourceUrl !== undefined) updateData.sourceUrl = data.sourceUrl;
 
   return prisma.jobPost.update({
     where: { id },
@@ -366,4 +376,5 @@ export const jobsService = {
   applyToJob,
   listApplications,
   updateApplicationStatus,
+  importJob,
 };

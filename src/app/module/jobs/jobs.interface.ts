@@ -2,6 +2,7 @@ import {
   ApplicationStatus,
   Department,
   JobPostStatus,
+  JobSource,
   JobType,
 } from "../../../generated/prisma/enums";
 
@@ -15,6 +16,8 @@ export interface CreateJobInput {
   applicationUrl?: string;
   deadline?: Date;
   department?: Department;
+  source?: JobSource;
+  sourceUrl?: string;
 }
 
 export interface UpdateJobInput {
@@ -28,6 +31,12 @@ export interface UpdateJobInput {
   deadline?: Date | null;
   department?: Department;
   status?: JobPostStatus;
+  source?: JobSource;
+  sourceUrl?: string | null;
+}
+
+export interface ImportJobInput {
+  input: string;
 }
 
 export interface ListJobsQuery {

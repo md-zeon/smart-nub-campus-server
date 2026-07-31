@@ -42,6 +42,18 @@ export interface CodeExplanationResult {
   suggestions: string[];
 }
 
+export interface JobDetailsResult {
+  title: string;
+  company: string;
+  description: string;
+  employmentType: string;
+  location: string;
+  salaryRange: string;
+  department: string;
+  deadline: string;
+  applicationUrl: string;
+}
+
 export interface AIProviderConfig {
   apiKey: string;
   model: string;
@@ -58,4 +70,5 @@ export interface AIProvider {
   generateFlashcards(content: string, numCards: number): Promise<FlashcardResult>;
   summarizeContent(content: string): Promise<SummaryResult>;
   explainCode(code: string, language?: string): Promise<CodeExplanationResult>;
+  extractJobDetails(content: string): Promise<JobDetailsResult>;
 }

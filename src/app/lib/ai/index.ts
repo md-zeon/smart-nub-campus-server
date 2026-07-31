@@ -12,4 +12,5 @@ export type {
   Flashcard,
   SummaryResult,
   CodeExplanationResult,
+  JobDetailsResult,
 } from "./providers/types";

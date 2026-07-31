@@ -50,6 +50,17 @@ const createJob = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const importJob = catchAsync(async (req: Request, res: Response) => {
+  const result = await jobsService.importJob(req.body);
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Job details extracted.",
+    data: result,
+  });
+});
+
 const updateJob = catchAsync(async (req: Request, res: Response) => {
   const result = await jobsService.updateJob(
     req.params.id as string,
@@ -132,6 +143,7 @@ export const jobsController = {
   listJobs,
   getJobById,
   createJob,
+  importJob,
   updateJob,
   deleteJob,
   applyToJob,
