@@ -83,7 +83,7 @@ const streamMessage = catchAsync(async (req, res) => {
         res.write(`data: ${JSON.stringify({ type: "text", content: token })}\n\n`);
       }
     },
-    (aiMessage: { id: string; content: string; createdAt: Date }) => {
+    () => {
       if (!aborted) {
         res.write(`data: [DONE]\n\n`);
         res.end();

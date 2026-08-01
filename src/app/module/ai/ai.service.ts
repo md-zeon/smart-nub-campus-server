@@ -19,8 +19,10 @@ function detectToolUsage(content: string): { quizzes: boolean; flashcards: boole
         return { quizzes: true, flashcards: false };
       }
     }
-  } catch {}
-  return { quizzes: false, flashcards: false };
+    return { quizzes: false, flashcards: false };
+  } catch {
+    return { quizzes: false, flashcards: false };
+  }
 }
 
 function elapsedMinutesSince(date: Date): number {
@@ -255,7 +257,7 @@ const sendMessageStream = async (
 
   const weekStart = getWeekStart();
 
-  const userMessage = await prisma.aIMessage.create({
+  await prisma.aIMessage.create({
     data: {
       sessionId,
       role: "USER",
