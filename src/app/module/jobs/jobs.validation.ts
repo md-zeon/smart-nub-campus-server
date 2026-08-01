@@ -50,7 +50,7 @@ const createJobSchema = z
   .object({
     title: z.string().trim().min(1, "Title is required").max(200),
     company: z.string().trim().min(1, "Company is required").max(200),
-    description: z.string().trim().max(5000).optional(),
+    description: z.string().trim().max(50000).optional(),
     employmentType: z.enum(JOB_TYPE_ENUM),
     location: z.string().trim().max(200).optional(),
     salaryRange: z.string().trim().max(100).optional(),
@@ -71,7 +71,7 @@ const updateJobSchema = z
   .object({
     title: z.string().trim().min(1).max(200).optional(),
     company: z.string().trim().min(1).max(200).optional(),
-    description: z.string().trim().max(5000).optional(),
+    description: z.string().trim().max(50000).optional(),
     employmentType: z.enum(JOB_TYPE_ENUM).optional(),
     location: z.string().trim().max(200).optional().nullable(),
     salaryRange: z.string().trim().max(100).optional().nullable(),
@@ -102,7 +102,7 @@ const listJobsSchema = z
     location: z.string().trim().max(100).optional(),
     employmentType: z.enum(JOB_TYPE_ENUM).optional(),
     department: z.enum(DEPARTMENT_ENUM).optional(),
-    status: z.enum(JOB_STATUS_ENUM).optional(),
+    status: z.enum([...JOB_STATUS_ENUM, "ALL"]).optional(),
     q: z.string().trim().max(100).optional(),
     page: z.coerce.number().int().positive().optional(),
     limit: z.coerce.number().int().positive().max(100).optional(),

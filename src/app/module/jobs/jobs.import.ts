@@ -15,8 +15,20 @@ import ENVVARS from "../../../config/env";
 const MAX_FETCH_BYTES = 2 * 1024 * 1024; // 2 MB
 const FETCH_TIMEOUT_MS = 10000;
 const MAX_REDIRECTS = 5;
-const MAX_DESCRIPTION_LENGTH = 5000;
+const MAX_DESCRIPTION_LENGTH = 50000;
 const MAX_FIELD_LENGTH = 200;
+const MAX_FACT_DESCRIPTION = 8000;
+const BLOCKED_PAGE_ERROR =
+  "This site blocks automated access. Please paste the job text instead.";
+
+// og:title on social/job-board pages is often "Company hiring X | Job Board".
+// Strip the trailing site-name suffix so titles stay clean for the AI and the
+// stored job.
+const SITE_NAME_SUFFIX_RE =
+  /\s*(?:\||–|-)\s*(?:linkedin|facebook|fb|bdjobs|indeed|glassdoor|careerjet|jobsbd|chakri|bikroy|remoterocketship)\s*$/i;
+
+const cleanPageTitle = (title: string): string =>
+  title.replace(SITE_NAME_SUFFIX_RE, "").trim();
 
 export interface ParsedJobDraft {
   title: string;
@@ -155,6 +167,9 @@ const fetchPageSafe = async (rawUrl: string): Promise<string> => {
     }
 
     if (!response || response.status >= 400) {
+      if (response && (response.status === 403 || response.status === 429)) {
+        throw new AppError(status.FORBIDDEN, BLOCKED_PAGE_ERROR);
+      }
       throw new AppError(
         status.BAD_GATEWAY,
         "Could not read the job page from the provided link.",
@@ -218,6 +233,7 @@ const decodeEntities = (value: string): string =>
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&#0?39;/g, "'")
+    .replace(/&nbsp;/gi, " ")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&");
@@ -259,6 +275,70 @@ const extractMeta = (html: string): PageMetadata => {
     "";
 
   return { title, description };
+};
+
+// ── Plain-text extraction for the AI input ──────────────────────────────────
+
+const BLOCK_TAG_RE =
+  /<\s*(script|style|noscript|template|head|iframe|svg|object|embed)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi;
+
+const htmlToText = (html: string): string => {
+  const withoutBlocks = html
+    .replace(BLOCK_TAG_RE, " ")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(
+      /<(?:br|p|li|div|section|article|h[1-6]|tr|ul|ol|blockquote)[^>]*\/?>/gi,
+      "\n",
+    )
+    .replace(/<[^>]+>/g, "");
+  return decodeEntities(withoutBlocks)
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+};
+
+const MAX_EXTRACTION_INPUT = 30000;
+const HEAD_CHARS = 22000;
+const TAIL_CHARS = 8000;
+
+// Keep the beginning and the end of long pages: deadlines, salary and the
+// apply link are frequently listed near the top or at the bottom of the post.
+const truncateForExtraction = (text: string): string => {
+  if (text.length <= MAX_EXTRACTION_INPUT) return text;
+  return `${text.slice(0, HEAD_CHARS)}\n\n[...content omitted...]\n\n${text.slice(-TAIL_CHARS)}`;
+};
+
+const BLOCKED_PAGE_MARKERS = [
+  "agree & join linkedin",
+  "you're signed out",
+  "sign in for the full experience",
+  "verification required",
+  "unusual traffic from your computer network",
+  "checking your browser before accessing",
+  "attention required!",
+  "enable javascript and cookies to continue",
+  "prove you're human",
+  "verify you are human",
+  "captcha",
+];
+
+const isBlockedPageText = (text: string): boolean => {
+  const normalized = text.toLowerCase().replace(/\s+/g, " ");
+  return BLOCKED_PAGE_MARKERS.some((marker) => normalized.includes(marker));
+};
+
+const buildExtractionText = (
+  pageText: string,
+  facts: string[],
+): string => {
+  const header =
+    facts.length > 0 ? `Page metadata facts:\n${facts.join("\n")}\n\n` : "";
+  const body = pageText
+    ? `Page body:\n${truncateForExtraction(pageText)}`
+    : "Page body: (no readable page text — use the metadata facts above)";
+  return `${header}${body}`;
 };
 
 // ── JSON-LD JobPosting extraction ────────────────────────────────────────────
@@ -523,29 +603,41 @@ export const parseJobImport = async (
   let textToExtract: string | null = trimmed;
 
   if (isUrl) {
-    try {
-      const html = await fetchPageSafe(trimmed);
-      const pageMeta = extractMeta(html);
-      metadata = jsonLdToJob(extractJsonLdNodes(html));
+    const html = await fetchPageSafe(trimmed);
 
-      // Open Graph fields fill gaps the JSON-LD might miss.
-      if (!metadata.title) metadata.title = pageMeta.title;
-      if (!metadata.description) metadata.description = pageMeta.description;
+    const pageMeta = extractMeta(html);
+    metadata = jsonLdToJob(extractJsonLdNodes(html));
 
-      const description = metadata.description ?? "";
-      textToExtract = [
-        metadata.title ? `Job Title: ${metadata.title}` : "",
-        metadata.company ? `Company: ${metadata.company}` : "",
-        metadata.location ? `Location: ${metadata.location}` : "",
-        description,
-      ]
-        .filter(Boolean)
-        .join("\n\n")
-        .slice(0, 12000);
-    } catch {
-      // Login wall / unreachable page — fall back to AI with the URL itself.
-      textToExtract = trimmed;
+    // Open Graph fields fill gaps the JSON-LD might miss.
+    if (!metadata.title) metadata.title = pageMeta.title;
+    if (!metadata.description) metadata.description = pageMeta.description;
+
+    const bodyText = htmlToText(html);
+    const isWalled = !bodyText || isBlockedPageText(bodyText);
+
+    // Login walls and bot-check pages have no real content. Only proceed when
+    // the page metadata still carries usable text (e.g. og:description).
+    if (isWalled && !metadata.description) {
+      throw new AppError(status.BAD_GATEWAY, BLOCKED_PAGE_ERROR);
     }
+
+    const facts = [
+      metadata.title ? `Title: ${cleanPageTitle(metadata.title)}` : "",
+      metadata.company ? `Company: ${metadata.company}` : "",
+      metadata.location ? `Location: ${metadata.location}` : "",
+      metadata.employmentType
+        ? `Employment type: ${metadata.employmentType}`
+        : "",
+      metadata.salaryRange ? `Salary: ${metadata.salaryRange}` : "",
+      metadata.deadline ? `Deadline: ${metadata.deadline}` : "",
+      metadata.description
+        ? `Description: ${metadata.description.slice(0, MAX_FACT_DESCRIPTION)}`
+        : "",
+    ].filter(Boolean);
+
+    textToExtract = isWalled
+      ? buildExtractionText("", facts)
+      : buildExtractionText(bodyText, facts);
   }
 
   let ai: Partial<JobDetailsResult> = {};
@@ -558,9 +650,9 @@ export const parseJobImport = async (
   }
 
   return {
-    title: cleanString(metadata.title || ai.title),
+    title: cleanString(ai.title || cleanPageTitle(metadata.title ?? "")),
     company: cleanString(metadata.company || ai.company),
-    description: cleanDescription(metadata.description || ai.description),
+    description: cleanDescription(ai.description || metadata.description),
     employmentType:
       metadata.employmentType ?? mapEmploymentType(ai.employmentType),
     location: cleanString(metadata.location || ai.location),
@@ -576,4 +668,9 @@ export const parseJobImport = async (
 
 export const jobImportUtils = {
   detectSourceFromUrl,
+  htmlToText,
+  truncateForExtraction,
+  buildExtractionText,
+  isBlockedPageText,
+  cleanPageTitle,
 };

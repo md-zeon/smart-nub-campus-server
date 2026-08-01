@@ -10,6 +10,13 @@ import type {
   CodeExplanationResult,
   JobDetailsResult,
 } from "./types";
+import {
+  buildJobDetailsPrompt,
+  buildJobDetailsRepairPrompt,
+  EMPTY_JOB_DETAILS,
+  JOB_DETAILS_REPAIR_ERROR,
+  parseJobDetailsJson,
+} from "../job-details";
 
 const SYSTEM_PROMPT = `You are a helpful study assistant of Smart Nub Campus platform of Northern University of Bangladesh developed by Zeanur Rahaman Zeon who is a student of CSE department at Northern University Bangladesh. You will assist users in generating quizzes, flashcards, summaries, solving doubts, and code explanations based on the content they provide.
 
@@ -187,30 +194,24 @@ ${code}`;
     return this.jsonFromPrompt<CodeExplanationResult>(prompt);
   }
 
+  private async rawCompletion(prompt: string): Promise<string> {
+    const completion = await this.client.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: this.config.model,
+      temperature: 0,
+    });
+
+    return completion.choices[0]?.message?.content || "";
+  }
+
   async extractJobDetails(content: string): Promise<JobDetailsResult> {
-    const prompt = `You are a job listing parser. Extract structured job details from the text below (it may be a pasted job description or text scraped from a job board such as LinkedIn, Facebook, BdJobs, Indeed, Glassdoor, or a company career page).
+    const first = await this.rawCompletion(buildJobDetailsPrompt(content));
+    const parsed = parseJobDetailsJson(first);
+    if (parsed) return parsed;
 
-Return ONLY a valid JSON object (no markdown, no code fences) with this exact structure:
-{
-  "title": "Job title, or empty string if unknown",
-  "company": "Company or organization name, or empty string if unknown",
-  "description": "The cleaned job description (responsibilities, requirements, how to apply). Preserve the original text as faithfully as possible; strip unrelated ads, navigation text and boilerplate. Empty string if the source text contains no real description.",
-  "employmentType": "One of: FULL_TIME, PART_TIME, CONTRACT, INTERNSHIP, REMOTE. Empty string if unknown or not clearly stated.",
-  "location": "Work location (city/country or 'Remote'), or empty string if unknown",
-  "salaryRange": "Salary or compensation as written (e.g. '৳30,000 - ৳50,000'), or empty string if unknown",
-  "department": "One of: CSE, ECSE, EEE, EEEE, BBA, MBA, ENGLISH, MAE, BANGLA, MAB, LLB, MPH, BPH, ME, CIVIL, BTX, EBTX. Empty string if it does not clearly belong to a university department.",
-  "deadline": "Application deadline as an ISO date string (YYYY-MM-DD), or empty string if unknown",
-  "applicationUrl": "URL where candidates should apply, or empty string if not present in the text"
-}
-
-Rules:
-- Use empty strings for fields you cannot determine — never invent values.
-- "employmentType" must be exactly one of the listed enum values or empty.
-- "department" must be exactly one of the listed enum values or empty (only relevant for roles tied to a specific academic department, e.g. university teaching positions).
-
-Source text:
-${content}`;
-
-    return this.jsonFromPrompt<JobDetailsResult>(prompt);
+    const repaired = await this.rawCompletion(
+      buildJobDetailsRepairPrompt(content, JOB_DETAILS_REPAIR_ERROR),
+    );
+    return parseJobDetailsJson(repaired) ?? EMPTY_JOB_DETAILS;
   }
 }

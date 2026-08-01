@@ -1,4 +1,5 @@
 import status from "http-status";
+import sanitizeHtml from "sanitize-html";
 import { Prisma } from "../../../generated/prisma/client";
 import {
   Department,
@@ -20,6 +21,38 @@ import {
   UpdateJobInput,
 } from "./jobs.interface";
 import { parseJobImport } from "./jobs.import";
+
+const sanitizeOptions: sanitizeHtml.IOptions = {
+  allowedTags: [
+    "p",
+    "br",
+    "strong",
+    "em",
+    "u",
+    "s",
+    "code",
+    "pre",
+    "blockquote",
+    "ul",
+    "ol",
+    "li",
+    "a",
+    "h1",
+    "h2",
+    "h3",
+    "hr",
+    "mark",
+  ],
+  allowedAttributes: {
+    a: ["href", "target", "rel"],
+  },
+  allowedSchemes: ["http", "https", "mailto"],
+};
+
+const sanitizeDescription = (
+  value: string | null | undefined,
+): string | null =>
+  value ? sanitizeHtml(value, sanitizeOptions) : null;
 
 const JOB_INCLUDE = {
   postedBy: {
@@ -84,9 +117,9 @@ const listJobs = async (query: ListJobsQuery, userId: string) => {
   const skip = (page - 1) * limit;
 
   const where: Prisma.JobPostWhereInput = {};
-  where.status = jobStatus
-    ? (jobStatus as JobPostStatus)
-    : JobPostStatus.OPEN;
+  if (jobStatus && jobStatus !== "ALL") {
+    where.status = jobStatus as JobPostStatus;
+  }
 
   if (employmentType) where.employmentType = employmentType as JobType;
   if (department) where.department = department as Department;
@@ -157,7 +190,7 @@ const createJob = async (data: CreateJobInput, userId: string) => {
     data: {
       title: data.title,
       company: data.company,
-      description: data.description ?? null,
+      description: sanitizeDescription(data.description),
       employmentType: data.employmentType,
       location: data.location ?? null,
       salaryRange: data.salaryRange ?? null,
@@ -198,7 +231,8 @@ const updateJob = async (
   const updateData: Prisma.JobPostUpdateInput = {};
   if (data.title !== undefined) updateData.title = data.title;
   if (data.company !== undefined) updateData.company = data.company;
-  if (data.description !== undefined) updateData.description = data.description;
+  if (data.description !== undefined)
+    updateData.description = sanitizeDescription(data.description);
   if (data.employmentType !== undefined) updateData.employmentType = data.employmentType;
   if (data.location !== undefined) updateData.location = data.location;
   if (data.salaryRange !== undefined) updateData.salaryRange = data.salaryRange;
