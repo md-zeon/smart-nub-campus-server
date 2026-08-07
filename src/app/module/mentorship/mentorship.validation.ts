@@ -72,12 +72,10 @@ const listMentorshipsSchema = z
 
 const paramsIdSchema = z.object({ id: z.string().trim().min(1) }).strict();
 
-const goalIdSchema = z
-  .object({ id: z.string().trim().min(1), goalId: z.string().trim().min(1) })
-  .strict();
+const goalIdSchema = z.object({ goalId: z.string().trim().min(1) }).strict();
 
 const sessionIdSchema = z
-  .object({ id: z.string().trim().min(1), sessionId: z.string().trim().min(1) })
+  .object({ sessionId: z.string().trim().min(1) })
   .strict();
 
 const createMentorshipGoalSchema = z
@@ -103,7 +101,7 @@ const createMentorshipSessionSchema = z
     durationMinutes: z.coerce.number().int().min(5).max(240).optional(),
     format: z.enum(MEETING_PREFERENCES).optional(),
     location: z.string().trim().max(500).optional(),
-    agenda: z.string().trim().max(2000).optional(),
+    agenda: z.string().trim().max(10000).optional(),
   })
   .strict();
 
@@ -113,7 +111,7 @@ const updateMentorshipSessionSchema = z
     durationMinutes: z.coerce.number().int().min(5).max(240).optional(),
     format: z.enum(MEETING_PREFERENCES).optional(),
     location: z.string().trim().max(500).nullable().optional(),
-    agenda: z.string().trim().max(2000).nullable().optional(),
+    agenda: z.string().trim().max(10000).nullable().optional(),
     notes: z.string().trim().max(5000).nullable().optional(),
     actionItems: z.string().trim().max(5000).nullable().optional(),
     status: z.enum([

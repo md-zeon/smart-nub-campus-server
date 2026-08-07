@@ -662,6 +662,16 @@ const getMentorship = async (userId: string, id: string) => {
       (Date.now() - mentorship.lastActivityAt.getTime()) / (24 * 60 * 60 * 1000),
     ),
   );
+  const completedSessions = mentorship.sessions.filter(
+    (s) => s.status === MentorshipSessionStatus.COMPLETED,
+  );
+  const upcomingSession = mentorship.sessions
+    .filter(
+      (s) =>
+        s.status === MentorshipSessionStatus.SCHEDULED &&
+        s.scheduledAt.getTime() >= Date.now(),
+    )
+    .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime())[0];
 
   return {
     ...mentorship,
@@ -669,9 +679,20 @@ const getMentorship = async (userId: string, id: string) => {
     other,
     stats: {
       daysSinceLastActivity,
-      completedSessionCount: mentorship.sessions.filter(
-        (s) => s.status === MentorshipSessionStatus.COMPLETED,
+      goalCount: mentorship.goals.length,
+      completedGoalCount: mentorship.goals.filter(
+        (g) => g.status === MentorshipGoalStatus.COMPLETED,
       ).length,
+      sessionCount: mentorship.sessions.length,
+      completedSessionCount: completedSessions.length,
+      upcomingSession: upcomingSession
+        ? {
+            id: upcomingSession.id,
+            scheduledAt: upcomingSession.scheduledAt.toISOString(),
+            format: upcomingSession.format,
+            location: upcomingSession.location,
+          }
+        : null,
     },
   };
 };
