@@ -133,7 +133,9 @@ const getCommittedSlots = async (mentorIds: string[]) => {
 
 /**
  * Per-viewer relationship state with each listed mentor: whether the viewer
- * already has an ACTIVE mentorship, a PENDING/ACCEPTED request, or none.
+ * already has an ACTIVE mentorship, a PENDING request, or none. Accepted
+ * requests are excluded here because acceptance always creates a mentorship
+ * record whose status reflects the real relationship state.
  * Cards for mentors the viewer is actively mentoring show the pending/active
  * state so the client can swap the "Request" CTA accordingly.
  */
@@ -159,7 +161,7 @@ const getViewerRelationships = async (
       where: {
         mentorId: { in: mentorIds },
         menteeId: viewerId,
-        status: { in: [ApplicationStatus.PENDING, ApplicationStatus.ACCEPTED] },
+        status: ApplicationStatus.PENDING,
       },
       select: { mentorId: true },
     }),
