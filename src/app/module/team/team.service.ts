@@ -1,5 +1,6 @@
 import status from "http-status";
 import AppError from "../../errorHelpers/AppError";
+import { Prisma } from "../../../generated/prisma/client";
 import { prisma } from "../../lib/prisma";
 import { getSocketServer } from "../../lib/socket/socket-server";
 import { softDelete } from "../../shared/softDelete";
@@ -31,6 +32,7 @@ const createTeamRequest = async (data: CreateTeamRequestInput, userId: string) =
         difficulty: data.difficulty ?? null,
         meetingPreference: data.meetingPreference ?? "FLEXIBLE",
         contactInfo: data.contactInfo ?? null,
+        applicationForm: (data.applicationForm as unknown as Prisma.InputJsonValue) ?? Prisma.JsonNull,
         creatorId: userId,
         teamRequestSkills: {
           create: data.skillTagIds.map((tagId) => ({ tagId })),
@@ -74,7 +76,35 @@ const getTeamRequest = async (id: string, userId?: string) => {
       },
       teamApplications: {
         include: {
-          applicant: { select: { id: true, name: true, email: true, image: true } },
+          applicant: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+              profile: {
+                select: {
+                  bio: true,
+                  githubUrl: true,
+                  linkedinUrl: true,
+                  portfolioUrl: true,
+                  websiteUrl: true,
+                  phoneNumber: true,
+                  location: true,
+                  currentSemester: true,
+                  batchYear: true,
+                },
+              },
+              student: {
+                select: {
+                  studentId: true,
+                  department: true,
+                  admissionYear: true,
+                  admissionSemester: true,
+                },
+              },
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
       },
@@ -264,6 +294,7 @@ const updateTeamRequest = async (
   if (data.difficulty !== undefined) updateData.difficulty = data.difficulty;
   if (data.meetingPreference !== undefined) updateData.meetingPreference = data.meetingPreference;
   if (data.contactInfo !== undefined) updateData.contactInfo = data.contactInfo;
+  if (data.applicationForm !== undefined) updateData.applicationForm = data.applicationForm;
 
   return prisma.$transaction(async (tx) => {
     // Update the team request
@@ -355,6 +386,7 @@ const applyToTeam = async (
       teamRequestId,
       applicantId: userId,
       message: data.message ?? null,
+      responses: (data.responses as Prisma.InputJsonValue) ?? Prisma.JsonNull,
     },
     include: {
       applicant: { select: { id: true, name: true, email: true, image: true } },
@@ -777,7 +809,35 @@ const getTeamApplications = async (teamRequestId: string, userId: string) => {
   const applications = await prisma.teamApplication.findMany({
     where: { teamRequestId },
     include: {
-      applicant: { select: { id: true, name: true, email: true, image: true } },
+      applicant: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          profile: {
+            select: {
+              bio: true,
+              githubUrl: true,
+              linkedinUrl: true,
+              portfolioUrl: true,
+              websiteUrl: true,
+              phoneNumber: true,
+              location: true,
+              currentSemester: true,
+              batchYear: true,
+            },
+          },
+          student: {
+            select: {
+              studentId: true,
+              department: true,
+              admissionYear: true,
+              admissionSemester: true,
+            },
+          },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });

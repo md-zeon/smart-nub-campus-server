@@ -1,5 +1,40 @@
 import { ApplicationStatus, DifficultyLevel, MeetingPreference, TeamRequestStatus } from "../../../generated/prisma/enums";
 
+/** Built-in profile metadata fields a team leader can collect on an application. */
+export type ApplicationFormFieldKey =
+  | "name"
+  | "email"
+  | "github"
+  | "linkedin"
+  | "portfolio"
+  | "website"
+  | "phone"
+  | "location"
+  | "studentId"
+  | "department"
+  | "semester";
+
+export interface ApplicationFormField {
+  key: ApplicationFormFieldKey;
+  required: boolean;
+}
+
+export interface ApplicationFormQuestion {
+  id: string;
+  label: string;
+  type: "SHORT_TEXT" | "PARAGRAPH";
+  required: boolean;
+}
+
+/** Leader-defined configuration for the application form. */
+export interface ApplicationFormConfig {
+  fields: ApplicationFormField[];
+  questions: ApplicationFormQuestion[];
+}
+
+/** Snapshot of an applicant's answers keyed by field key / question id. */
+export type ApplicationResponses = Record<string, string>;
+
 export interface CreateTeamRequestInput {
   title: string;
   description: string;
@@ -10,6 +45,7 @@ export interface CreateTeamRequestInput {
   difficulty?: DifficultyLevel;
   meetingPreference?: MeetingPreference;
   contactInfo?: string;
+  applicationForm?: ApplicationFormConfig;
   skillTagIds: string[];
 }
 
@@ -24,11 +60,13 @@ export interface UpdateTeamRequestInput {
   difficulty?: DifficultyLevel;
   meetingPreference?: MeetingPreference;
   contactInfo?: string;
+  applicationForm?: ApplicationFormConfig;
   skillTagIds?: string[];
 }
 
 export interface ApplyToTeamInput {
   message?: string;
+  responses?: ApplicationResponses;
 }
 
 export interface ReviewApplicationInput {

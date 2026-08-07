@@ -13,6 +13,7 @@ model TeamRequest {
   difficulty         DifficultyLevel?
   meetingPreference  MeetingPreference  @default(FLEXIBLE)
   contactInfo        String?            @db.VarChar(500)
+  applicationForm    Json?
   viewCount          Int                @default(0)
   bookmarkCount      Int                @default(0)
   teamRequestSkills  TeamRequestSkill[]
@@ -54,6 +55,7 @@ model TeamApplication {
   applicantId   String
   applicant     User              @relation(fields: [applicantId], references: [id], onDelete: Cascade)
   message       String?           @db.Text
+  responses     Json?
   status        ApplicationStatus @default(PENDING)
   reviewedAt    DateTime?
   createdAt     DateTime          @default(now())
