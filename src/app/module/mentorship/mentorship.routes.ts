@@ -119,6 +119,14 @@ router.post(
 );
 
 router.post(
+  "/relationships/:id/rate",
+  verifySession,
+  validateRequest(mentorshipValidation.paramsIdSchema, "params"),
+  validateRequest(mentorshipValidation.rateMentorSchema),
+  mentorshipController.rateMentor,
+);
+
+router.post(
   "/relationships/:id/end",
   verifySession,
   validateRequest(mentorshipValidation.paramsIdSchema, "params"),

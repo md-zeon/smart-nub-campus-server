@@ -227,6 +227,21 @@ const completeMentorship = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const rateMentor = catchAsync(async (req: Request, res: Response) => {
+  const result = await mentorshipService.rateMentor(
+    req.user.id,
+    req.params.id as string,
+    req.body,
+  );
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Mentor rated successfully.",
+    data: result,
+  });
+});
+
 const endMentorship = catchAsync(async (req: Request, res: Response) => {
   const result = await mentorshipService.endMentorship(
     req.user.id,
@@ -256,5 +271,6 @@ export const mentorshipController = {
   listMessages,
   sendMessage,
   completeMentorship,
+  rateMentor,
   endMentorship,
 };

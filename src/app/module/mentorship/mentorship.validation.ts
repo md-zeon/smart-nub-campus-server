@@ -137,6 +137,12 @@ const sendMessageSchema = z
 
 const completeMentorshipSchema = z
   .object({
+    feedback: z.string().trim().max(2000).optional(),
+  })
+  .strict();
+
+const rateMentorSchema = z
+  .object({
     rating: z.coerce.number().int().min(1, "Rating must be between 1 and 5.").max(5),
     feedback: z.string().trim().max(2000).optional(),
   })
@@ -158,4 +164,5 @@ export const mentorshipValidation = {
   messagesQuerySchema,
   sendMessageSchema,
   completeMentorshipSchema,
+  rateMentorSchema,
 };

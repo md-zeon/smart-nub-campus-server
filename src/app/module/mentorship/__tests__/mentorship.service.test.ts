@@ -208,9 +208,9 @@ describe("listMentors", () => {
   it("reports a mentor at capacity with zero available slots", async () => {
     mockPrisma.$transaction.mockResolvedValue([[mentor], 1] as never);
     mockPrisma.connection.groupBy.mockResolvedValue([] as never);
-    mockPrisma.mentorship.groupBy.mockResolvedValue([
-      { mentorId, _count: 3 },
-    ] as never);
+    mockPrisma.mentorship.groupBy
+      .mockResolvedValueOnce([] as never)
+      .mockResolvedValueOnce([{ mentorId, _count: 3 }] as never);
 
     const result = await mentorshipService.listMentors({});
 
@@ -530,7 +530,7 @@ describe("getMentorship", () => {
 });
 
 describe("completeMentorship", () => {
-  it("stores the mentor's rating and ends the relationship", async () => {
+  it("stores the mentor's private closing note and ends the relationship", async () => {
     mockPrisma.mentorship.findUnique.mockResolvedValue({
       id: "m-1",
       mentorId,
@@ -544,8 +544,7 @@ describe("completeMentorship", () => {
     mockPrisma.notification.create.mockResolvedValue({} as never);
 
     const result = await mentorshipService.completeMentorship(mentorId, "m-1", {
-      rating: 5,
-      feedback: "Great guidance!",
+      feedback: "Great progress this semester!",
     });
 
     expect(result.status).toBe("COMPLETED");
@@ -553,8 +552,7 @@ describe("completeMentorship", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           status: "COMPLETED",
-          mentorRating: 5,
-          mentorFeedback: "Great guidance!",
+          menteeFeedback: "Great progress this semester!",
         }),
       }),
     );
@@ -577,10 +575,86 @@ describe("completeMentorship", () => {
     } as never);
 
     await expect(
-      mentorshipService.completeMentorship(menteeId, "m-1", { rating: 5 }),
+      mentorshipService.completeMentorship(menteeId, "m-1", {}),
     ).rejects.toThrow(
       "Only the mentor can manage sessions and close a mentorship.",
     );
+  });
+});
+
+describe("rateMentor", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("stores the mentee's rating of the mentor", async () => {
+    mockPrisma.mentorship.findUnique.mockResolvedValue({
+      id: "m-1",
+      menteeId,
+      status: "COMPLETED",
+      mentorRating: null,
+    } as never);
+    mockPrisma.mentorship.update.mockResolvedValue({
+      id: "m-1",
+      mentorRating: 5,
+      mentorFeedback: "Really helpful!",
+    } as never);
+
+    const result = await mentorshipService.rateMentor(menteeId, "m-1", {
+      rating: 5,
+      feedback: "Really helpful!",
+    });
+
+    expect(result.mentorRating).toBe(5);
+    expect(mockPrisma.mentorship.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          mentorRating: 5,
+          mentorFeedback: "Really helpful!",
+        }),
+      }),
+    );
+  });
+
+  it("forbids the mentor from rating themselves", async () => {
+    mockPrisma.mentorship.findUnique.mockResolvedValue({
+      id: "m-1",
+      menteeId,
+      status: "COMPLETED",
+      mentorRating: null,
+    } as never);
+
+    await expect(
+      mentorshipService.rateMentor(mentorId, "m-1", { rating: 5 }),
+    ).rejects.toThrow("Only the mentee can rate the mentor.");
+  });
+
+  it("forbids rating an active mentorship", async () => {
+    mockPrisma.mentorship.findUnique.mockResolvedValue({
+      id: "m-1",
+      menteeId,
+      status: "ACTIVE",
+      mentorRating: null,
+    } as never);
+
+    await expect(
+      mentorshipService.rateMentor(menteeId, "m-1", { rating: 5 }),
+    ).rejects.toThrow(
+      "You can only rate your mentor after the mentorship has been completed.",
+    );
+  });
+
+  it("forbids rating a mentor twice", async () => {
+    mockPrisma.mentorship.findUnique.mockResolvedValue({
+      id: "m-1",
+      menteeId,
+      status: "COMPLETED",
+      mentorRating: 4,
+    } as never);
+
+    await expect(
+      mentorshipService.rateMentor(menteeId, "m-1", { rating: 5 }),
+    ).rejects.toThrow("You have already rated this mentor.");
   });
 });
 

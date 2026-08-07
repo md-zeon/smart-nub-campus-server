@@ -23,6 +23,7 @@ import {
   ListMentorsQuery,
   ListMentorshipsQuery,
   ListRequestsQuery,
+  RateMentorInput,
   SendMentorshipMessageInput,
   UpdateMentorshipGoalInput,
   UpdateMentorshipRequestInput,
@@ -250,17 +251,32 @@ const listMentors = async (
   ]);
 
   const mentorIds = mentors.map((m) => m.id);
-  const [connectionCounts, capacity, viewerState] = await Promise.all([
+  const [connectionCounts, ratingAggregates, capacity, viewerState] = await Promise.all([
     prisma.connection.groupBy({
       by: ["receiverId"],
       where: { status: "ACCEPTED", receiverId: { in: mentorIds } },
       _count: true,
+    }),
+    prisma.mentorship.groupBy({
+      by: ["mentorId"],
+      where: { mentorId: { in: mentorIds }, mentorRating: { not: null } },
+      _avg: { mentorRating: true },
+      _count: { mentorRating: true },
     }),
     getCommittedSlots(mentorIds),
     getViewerRelationships(viewerId, mentorIds),
   ]);
 
   const countByUser = new Map(connectionCounts.map((c) => [c.receiverId, c._count]));
+  const ratingByMentor = new Map(
+    ratingAggregates.map((r) => [
+      r.mentorId,
+      {
+        average: r._avg.mentorRating ?? null,
+        count: r._count.mentorRating,
+      },
+    ]),
+  );
 
   const scored = mentors.map((mentor) => {
     let score = 0;
@@ -311,6 +327,10 @@ const listMentors = async (
         maxMentees,
         committedSlots: committed,
         slotsAvailable,
+      },
+      rating: {
+        average: ratingByMentor.get(mentor.id)?.average ?? null,
+        count: ratingByMentor.get(mentor.id)?.count ?? 0,
       },
       matchScore: score,
       bestMatchTopic,
@@ -1047,8 +1067,7 @@ const completeMentorship = async (
       status: MentorshipStatus.COMPLETED,
       endedAt: new Date(),
       lastActivityAt: new Date(),
-      mentorRating: data.rating,
-      mentorFeedback: data.feedback ?? null,
+      menteeFeedback: data.feedback ?? null,
     },
   });
 
@@ -1057,7 +1076,51 @@ const completeMentorship = async (
     senderId: userId,
     type: NotificationType.MENTORSHIP_COMPLETED,
     title: "Mentorship completed",
-    message: "Your mentorship has been marked as complete. Thanks for being part of it!",
+    message:
+      "Your mentorship has been marked as complete. Thanks for being part of it! You can now rate your mentor to help future mentees.",
+  });
+
+  return updated;
+};
+
+const rateMentor = async (
+  userId: string,
+  mentorshipId: string,
+  data: RateMentorInput,
+) => {
+  const mentorship = await prisma.mentorship.findUnique({
+    where: { id: mentorshipId },
+    select: { menteeId: true, status: true, mentorRating: true },
+  });
+
+  if (!mentorship) {
+    throw new AppError(status.NOT_FOUND, "Mentorship not found.");
+  }
+
+  if (mentorship.menteeId !== userId) {
+    throw new AppError(status.FORBIDDEN, "Only the mentee can rate the mentor.");
+  }
+
+  if (mentorship.status === MentorshipStatus.ACTIVE) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "You can only rate your mentor after the mentorship has been completed.",
+    );
+  }
+
+  if (mentorship.mentorRating !== null) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "You have already rated this mentor.",
+    );
+  }
+
+  const updated = await prisma.mentorship.update({
+    where: { id: mentorshipId },
+    data: {
+      mentorRating: data.rating,
+      mentorFeedback: data.feedback ?? null,
+    },
   });
 
   return updated;
@@ -1080,7 +1143,8 @@ const endMentorship = async (userId: string, mentorshipId: string) => {
     senderId: userId,
     type: NotificationType.MENTORSHIP_ENDED,
     title: "Mentorship ended",
-    message: "Your mentorship has been ended.",
+    message:
+      "Your mentorship has been ended. You can still rate your mentor to help future mentees.",
   });
 
   return updated;
@@ -1101,5 +1165,6 @@ export const mentorshipService = {
   listMessages,
   sendMessage,
   completeMentorship,
+  rateMentor,
   endMentorship,
 };

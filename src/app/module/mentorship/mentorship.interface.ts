@@ -70,6 +70,10 @@ export interface SendMentorshipMessageInput {
 }
 
 export interface CompleteMentorshipInput {
+  feedback?: string;
+}
+
+export interface RateMentorInput {
   rating: number;
   feedback?: string;
 }
