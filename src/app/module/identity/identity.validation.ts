@@ -23,6 +23,19 @@ const updateProfileSchema = z
       .array(z.string().trim().min(1).max(100))
       .max(10)
       .optional(),
+    // Mentor profile (Mentorship feature)
+    mentorHeadline: z.string().trim().max(200).optional(),
+    mentorBio: z.string().trim().max(2000).optional(),
+    mentorAvailability: z.string().trim().max(300).optional(),
+    mentorCadence: z
+      .enum(["WEEKLY", "BIWEEKLY", "MONTHLY", "FLEXIBLE"])
+      .nullable()
+      .optional(),
+    mentorMeetingFormat: z
+      .enum(["ONLINE", "IN_PERSON", "HYBRID", "FLEXIBLE"])
+      .nullable()
+      .optional(),
+    mentorMaxMentees: z.number().int().min(1).max(50).optional(),
   })
   .strict();
 

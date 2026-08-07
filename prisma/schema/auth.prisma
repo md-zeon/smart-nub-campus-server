@@ -93,6 +93,12 @@ model User {
     mentorshipRequestsSent       MentorshipRequest[]    @relation("MentorshipMentee")
     mentorshipRequestsReceived   MentorshipRequest[]    @relation("MentorshipMentor")
 
+    // Mentorship relationships
+    mentorshipsAsMentor          Mentorship[]           @relation("MentorshipActiveMentor")
+    mentorshipsAsMentee          Mentorship[]           @relation("MentorshipActiveMentee")
+    mentorshipMessagesSent       MentorshipMessage[]    @relation("MentorshipMessageSender")
+    mentorshipSessionsCreated    MentorshipSession[]    @relation("MentorshipSessionCreator")
+
     @@unique([email])
     @@index([isDeleted])
   @@map("user")

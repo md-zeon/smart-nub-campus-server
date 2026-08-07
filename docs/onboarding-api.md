@@ -281,7 +281,7 @@ Authenticated
 - `41` - CSE (Computer Science & Engineering)
 - `42` - ECSE (Electronics & Communications)
 - `43` - EEE (Electrical & Electronic Engineering)
-- `44` - EEEE (Electrical & Electronic Engineering)
+- `44` - EEEE (Electrical & Electronic Engineering (Evening)s)
 - `45` - BBA (Business Administration)
 - `46` - MBA (Business Administration)
 - `47` - ENGLISH

@@ -6,6 +6,7 @@ vi.mock("../../../../app/lib/prisma", () => ({
       findMany: vi.fn(),
       count: vi.fn(),
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
     },
     connection: {
       groupBy: vi.fn(),
@@ -17,6 +18,32 @@ vi.mock("../../../../app/lib/prisma", () => ({
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      groupBy: vi.fn(),
+    },
+    mentorship: {
+      findMany: vi.fn(),
+      count: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      groupBy: vi.fn(),
+      findFirstOrThrow: vi.fn(),
+    },
+    mentorshipGoal: {
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      findUnique: vi.fn(),
+      aggregate: vi.fn(),
+    },
+    mentorshipSession: {
+      create: vi.fn(),
+      update: vi.fn(),
+      findUnique: vi.fn(),
+    },
+    mentorshipMessage: {
+      create: vi.fn(),
+      findMany: vi.fn(),
     },
     notification: {
       create: vi.fn(),
@@ -58,8 +85,36 @@ const mentor = {
   },
 };
 
+// Exposes the transaction proxy created by the $transaction mock so tests can
+// assert on the tx-level calls the service makes when accepting a request.
+let txMock: {
+  mentorshipRequest: { update: ReturnType<typeof vi.fn> };
+  mentorship: { create: ReturnType<typeof vi.fn> };
+} | null = null;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  txMock = null;
+  mockPrisma.$transaction.mockImplementation(async (fns: unknown) => {
+    if (Array.isArray(fns)) {
+      return Promise.all(fns);
+    }
+    const tx = {
+      mentorshipRequest: {
+        update: vi.fn(async (args: { data: { status: string } }) => ({
+          id: "req-1",
+          status: args?.data?.status ?? "ACCEPTED",
+        })),
+      },
+      mentorship: { create: vi.fn().mockResolvedValue({}) },
+    };
+    txMock = tx;
+    return (fns as (t: unknown) => unknown)(tx);
+  });
+  mockPrisma.mentorship.groupBy.mockResolvedValue([] as never);
+  mockPrisma.mentorshipRequest.groupBy.mockResolvedValue([] as never);
+  mockPrisma.mentorship.findMany.mockResolvedValue([] as never);
+  mockPrisma.mentorshipRequest.findMany.mockResolvedValue([] as never);
 });
 
 // ─── listMentors ────────────────────────────────────────────────────
@@ -126,6 +181,77 @@ describe("listMentors", () => {
 
     expect(result.data[0].stats.connectionCount).toBe(7);
   });
+
+  it("ranks same-department mentors higher on relevance sort", async () => {
+    const otherMentor = {
+      ...mentor,
+      id: "user-mentor-2",
+      name: "Zed",
+      student: { department: "BBA", graduationYear: 2021, degreeTitle: "BBA" },
+    };
+    mockPrisma.$transaction.mockResolvedValue([[mentor, otherMentor], 2] as never);
+    mockPrisma.connection.groupBy.mockResolvedValue([] as never);
+    mockPrisma.user.findUnique.mockResolvedValue({
+      student: { department: "CSE" },
+    } as never);
+
+    const result = await mentorshipService.listMentors(
+      { sort: "relevance" },
+      "viewer-id",
+    );
+
+    expect(result.data[0].id).toBe(mentorId);
+    expect(result.data[0].matchScore).toBeGreaterThan(result.data[1].matchScore);
+    expect(result.data[0].stats.slotsAvailable).toBe(3);
+  });
+
+  it("reports a mentor at capacity with zero available slots", async () => {
+    mockPrisma.$transaction.mockResolvedValue([[mentor], 1] as never);
+    mockPrisma.connection.groupBy.mockResolvedValue([] as never);
+    mockPrisma.mentorship.groupBy.mockResolvedValue([
+      { mentorId, _count: 3 },
+    ] as never);
+
+    const result = await mentorshipService.listMentors({});
+
+    expect(result.data[0].stats.committedSlots).toBe(3);
+    expect(result.data[0].stats.slotsAvailable).toBe(0);
+  });
+
+  it("reports the viewer's relationship with each mentor", async () => {
+    const otherMentor = {
+      ...mentor,
+      id: "user-mentor-2",
+      name: "Zed",
+    };
+    mockPrisma.$transaction.mockResolvedValue([[mentor, otherMentor], 2] as never);
+    mockPrisma.connection.groupBy.mockResolvedValue([] as never);
+    mockPrisma.user.findUnique.mockResolvedValue({
+      student: { department: "CSE" },
+    } as never);
+    mockPrisma.mentorship.findMany.mockResolvedValue([
+      { mentorId },
+    ] as never);
+    mockPrisma.mentorshipRequest.findMany.mockResolvedValue([
+      { mentorId: "user-mentor-2" },
+    ] as never);
+
+    const result = await mentorshipService.listMentors({}, "viewer-id");
+
+    const alice = result.data.find((m) => m.id === mentorId);
+    const zed = result.data.find((m) => m.id === "user-mentor-2");
+    expect(alice?.relationshipState).toBe("active");
+    expect(zed?.relationshipState).toBe("pending");
+  });
+
+  it("marks the viewer's own card as self", async () => {
+    mockPrisma.$transaction.mockResolvedValue([[mentor], 1] as never);
+    mockPrisma.connection.groupBy.mockResolvedValue([] as never);
+
+    const result = await mentorshipService.listMentors({}, mentorId);
+
+    expect(result.data[0].relationshipState).toBe("self");
+  });
 });
 
 // ─── createMentorshipRequest ────────────────────────────────────────
@@ -133,7 +259,10 @@ describe("listMentors", () => {
 describe("createMentorshipRequest", () => {
   it("rejects requesting yourself as a mentor", async () => {
     await expect(
-      mentorshipService.createMentorshipRequest(menteeId, { mentorId: menteeId }),
+      mentorshipService.createMentorshipRequest(menteeId, {
+        mentorId: menteeId,
+        goals: ["Career"],
+      }),
     ).rejects.toThrow("You cannot request mentorship from yourself.");
   });
 
@@ -141,7 +270,10 @@ describe("createMentorshipRequest", () => {
     mockPrisma.user.findFirst.mockResolvedValue(null);
 
     await expect(
-      mentorshipService.createMentorshipRequest(menteeId, { mentorId: mentorId }),
+      mentorshipService.createMentorshipRequest(menteeId, {
+        mentorId: mentorId,
+        goals: ["Career"],
+      }),
     ).rejects.toThrow("Mentor not found.");
   });
 
@@ -155,14 +287,39 @@ describe("createMentorshipRequest", () => {
     } as never);
 
     await expect(
-      mentorshipService.createMentorshipRequest(menteeId, { mentorId }),
-    ).rejects.toThrow("You already have an active mentorship request with this mentor.");
+      mentorshipService.createMentorshipRequest(menteeId, {
+        mentorId,
+        goals: ["Career"],
+      }),
+    ).rejects.toThrow(
+      "You already have an active mentorship request with this mentor.",
+    );
   });
 
-  it("creates a request and notifies the mentor", async () => {
+  it("blocks requests when the mentor is at full capacity", async () => {
     mockPrisma.user.findFirst.mockResolvedValue({
       id: mentorId,
       name: "Alice",
+      profile: { mentorMaxMentees: 2 },
+    } as never);
+    mockPrisma.mentorshipRequest.findFirst.mockResolvedValue(null);
+    mockPrisma.mentorship.groupBy.mockResolvedValue([
+      { mentorId, _count: 2 },
+    ] as never);
+
+    await expect(
+      mentorshipService.createMentorshipRequest(menteeId, {
+        mentorId,
+        goals: ["Career"],
+      }),
+    ).rejects.toThrow(/full capacity/);
+  });
+
+  it("creates a request with goals and notifies the mentor", async () => {
+    mockPrisma.user.findFirst.mockResolvedValue({
+      id: mentorId,
+      name: "Alice",
+      profile: { mentorMaxMentees: 3 },
     } as never);
     mockPrisma.mentorshipRequest.findFirst.mockResolvedValue(null);
     mockPrisma.mentorshipRequest.create.mockResolvedValue({
@@ -175,6 +332,7 @@ describe("createMentorshipRequest", () => {
       mentorId,
       topic: "Career advice",
       message: "Would love your guidance.",
+      goals: ["Build a resume", "Interview prep"],
     });
 
     expect(result.id).toBe("req-1");
@@ -184,6 +342,7 @@ describe("createMentorshipRequest", () => {
         menteeId,
         topic: "Career advice",
         message: "Would love your guidance.",
+        goals: ["Build a resume", "Interview prep"],
       },
       include: expect.any(Object),
     });
@@ -207,6 +366,7 @@ describe("updateMentorshipRequest", () => {
     mentorId,
     menteeId,
     status: "PENDING",
+    goals: ["Career switch"],
     mentor: { name: "Alice" },
     mentee: { name: "Bob" },
   };
@@ -257,35 +417,47 @@ describe("updateMentorshipRequest", () => {
       mentorshipService.updateMentorshipRequest(mentorId, "req-1", {
         status: "WITHDRAWN",
       }),
-    ).rejects.toThrow("Mentors can accept or reject a request, but not withdraw it.");
+    ).rejects.toThrow(
+      "Mentors can accept or reject a request, but not withdraw it.",
+    );
   });
 
-  it("lets a mentor accept the request and notify the mentee", async () => {
+  it("creates a Mentorship seeded with request goals when accepting", async () => {
     mockPrisma.mentorshipRequest.findUnique.mockResolvedValue(
       pendingRequest as never,
     );
-    mockPrisma.mentorshipRequest.update.mockResolvedValue({
-      ...pendingRequest,
-      status: "ACCEPTED",
+    mockPrisma.user.findUnique.mockResolvedValue({
+      profile: { mentorMaxMentees: 3 },
     } as never);
     mockPrisma.notification.create.mockResolvedValue({} as never);
 
-    const result = await mentorshipService.updateMentorshipRequest(mentorId, "req-1", {
-      status: "ACCEPTED",
-    });
+    const result = await mentorshipService.updateMentorshipRequest(
+      mentorId,
+      "req-1",
+      { status: "ACCEPTED" },
+    );
 
     expect(result.status).toBe("ACCEPTED");
-    expect(mockPrisma.mentorshipRequest.update).toHaveBeenCalledWith({
-      where: { id: "req-1" },
-      data: { status: "ACCEPTED", respondedAt: expect.any(Date) },
-      include: expect.any(Object),
-    });
+    expect(txMock?.mentorshipRequest.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "req-1" },
+        data: { status: "ACCEPTED", respondedAt: expect.any(Date) },
+      }),
+    );
+    expect(txMock?.mentorship.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          requestId: "req-1",
+          mentorId,
+          menteeId,
+        }),
+      }),
+    );
     expect(mockPrisma.notification.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           userId: menteeId,
-          senderId: mentorId,
-          type: "MENTORSHIP_REQUEST_UPDATED",
+          type: "MENTORSHIP_ACCEPTED",
         }),
       }),
     );
@@ -301,10 +473,132 @@ describe("updateMentorshipRequest", () => {
     } as never);
     mockPrisma.notification.create.mockResolvedValue({} as never);
 
-    const result = await mentorshipService.updateMentorshipRequest(menteeId, "req-1", {
-      status: "WITHDRAWN",
-    });
+    const result = await mentorshipService.updateMentorshipRequest(
+      menteeId,
+      "req-1",
+      { status: "WITHDRAWN" },
+    );
 
     expect(result.status).toBe("WITHDRAWN");
+  });
+});
+
+// ─── Relationships ──────────────────────────────────────────────────
+
+describe("listMentorships", () => {
+  it("returns relationships where the user is a participant", async () => {
+    const mentorship = {
+      id: "m-1",
+      mentorId,
+      menteeId,
+      status: "ACTIVE",
+      mentor: { id: mentorId, name: "Alice", image: null, profile: null, student: null },
+      mentee: { id: menteeId, name: "Bob", image: null, profile: null, student: null },
+      request: { topic: null, message: null, goals: [], createdAt: new Date() },
+      goals: [],
+      sessions: [],
+      _count: { messages: 0 },
+    };
+    mockPrisma.$transaction.mockResolvedValue([[mentorship], 1] as never);
+
+    const result = await mentorshipService.listMentorships(menteeId, {});
+
+    expect(result.data[0].id).toBe("m-1");
+    expect(result.data[0].role).toBe("mentee");
+    expect(mockPrisma.mentorship.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [{ mentorId: menteeId }, { menteeId: menteeId }],
+        }),
+      }),
+    );
+  });
+});
+
+describe("getMentorship", () => {
+  it("forbids users who are not participants", async () => {
+    mockPrisma.mentorship.findUnique.mockResolvedValue({
+      id: "m-1",
+      mentorId,
+      menteeId,
+    } as never);
+
+    await expect(
+      mentorshipService.getMentorship(outsiderId, "m-1"),
+    ).rejects.toThrow("You are not part of this mentorship.");
+  });
+});
+
+describe("completeMentorship", () => {
+  it("stores the mentor's rating and ends the relationship", async () => {
+    mockPrisma.mentorship.findUnique.mockResolvedValue({
+      id: "m-1",
+      mentorId,
+      menteeId,
+      status: "ACTIVE",
+    } as never);
+    mockPrisma.mentorship.update.mockResolvedValue({
+      id: "m-1",
+      status: "COMPLETED",
+    } as never);
+    mockPrisma.notification.create.mockResolvedValue({} as never);
+
+    const result = await mentorshipService.completeMentorship(mentorId, "m-1", {
+      rating: 5,
+      feedback: "Great guidance!",
+    });
+
+    expect(result.status).toBe("COMPLETED");
+    expect(mockPrisma.mentorship.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "COMPLETED",
+          mentorRating: 5,
+          mentorFeedback: "Great guidance!",
+        }),
+      }),
+    );
+    expect(mockPrisma.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: menteeId,
+          type: "MENTORSHIP_COMPLETED",
+        }),
+      }),
+    );
+  });
+
+  it("forbids the mentee from completing the mentorship", async () => {
+    mockPrisma.mentorship.findUnique.mockResolvedValue({
+      id: "m-1",
+      mentorId,
+      menteeId,
+      status: "ACTIVE",
+    } as never);
+
+    await expect(
+      mentorshipService.completeMentorship(menteeId, "m-1", { rating: 5 }),
+    ).rejects.toThrow(
+      "Only the mentor can manage sessions and close a mentorship.",
+    );
+  });
+});
+
+describe("createSession", () => {
+  it("forbids the mentee from scheduling sessions", async () => {
+    mockPrisma.mentorship.findUnique.mockResolvedValue({
+      id: "m-1",
+      mentorId,
+      menteeId,
+      status: "ACTIVE",
+    } as never);
+
+    await expect(
+      mentorshipService.createSession(menteeId, "m-1", {
+        scheduledAt: new Date().toISOString(),
+      }),
+    ).rejects.toThrow(
+      "Only the mentor can manage sessions and close a mentorship.",
+    );
   });
 });

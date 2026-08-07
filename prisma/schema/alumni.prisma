@@ -82,8 +82,11 @@ model MentorshipRequest {
 
   topic   String?
   message String?
+  goals   String[] @default([])
   status  ApplicationStatus @default(PENDING)
   respondedAt DateTime?
+
+  mentorship Mentorship?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -92,4 +95,98 @@ model MentorshipRequest {
   @@index([menteeId])
   @@index([status])
   @@map("mentorship_requests")
+}
+
+model Mentorship {
+  id        String   @id @default(uuid())
+  requestId String   @unique
+  request   MentorshipRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  mentorId  String
+  mentor    User     @relation("MentorshipActiveMentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  menteeId  String
+  mentee    User     @relation("MentorshipActiveMentee", fields: [menteeId], references: [id], onDelete: Cascade)
+
+  status    MentorshipStatus @default(ACTIVE)
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
+  lastActivityAt DateTime @default(now())
+
+  // Closure feedback (both sides)
+  mentorRating  Int?
+  menteeRating  Int?
+  mentorFeedback String?
+  menteeFeedback String?
+
+  goals    MentorshipGoal[]
+  sessions MentorshipSession[]
+  messages MentorshipMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mentorId])
+  @@index([menteeId])
+  @@index([status])
+  @@map("mentorships")
+}
+
+model MentorshipGoal {
+  id           String @id @default(uuid())
+  mentorshipId String
+  mentorship   Mentorship @relation(fields: [mentorshipId], references: [id], onDelete: Cascade)
+
+  title       String @db.VarChar(200)
+  description String? @db.Text
+  status      MentorshipGoalStatus @default(ACTIVE)
+  dueDate     DateTime?
+  order       Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mentorshipId])
+  @@map("mentorship_goals")
+}
+
+model MentorshipSession {
+  id           String @id @default(uuid())
+  mentorshipId String
+  mentorship   Mentorship @relation(fields: [mentorshipId], references: [id], onDelete: Cascade)
+
+  scheduledAt     DateTime
+  durationMinutes Int?
+  format          MeetingPreference @default(ONLINE)
+  location        String?
+  agenda          String? @db.Text
+  notes           String? @db.Text
+  actionItems     String? @db.Text
+  status          MentorshipSessionStatus @default(SCHEDULED)
+  completedAt     DateTime?
+
+  createdById String
+  createdBy   User @relation("MentorshipSessionCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mentorshipId])
+  @@index([status])
+  @@map("mentorship_sessions")
+}
+
+model MentorshipMessage {
+  id           String @id @default(uuid())
+  mentorshipId String
+  mentorship   Mentorship @relation(fields: [mentorshipId], references: [id], onDelete: Cascade)
+
+  senderId String
+  sender   User @relation("MentorshipMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  body      String @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mentorshipId])
+  @@index([senderId])
+  @@map("mentorship_messages")
 }

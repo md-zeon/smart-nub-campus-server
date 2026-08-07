@@ -2,6 +2,7 @@ import status from "http-status";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
 import { RequestUser } from "./identity.interface";
+import type { Prisma } from "../../../generated/prisma/client";
 import type { ProfileVisibilityLevel } from "../../../generated/prisma/enums";
 import { gamificationService } from "../gamification/gamification.service";
 
@@ -331,6 +332,12 @@ const updateProfile = async (
     showInAlumniDirectory?: boolean;
     isMentor?: boolean;
     mentorshipTopics?: string[];
+    mentorHeadline?: string;
+    mentorBio?: string;
+    mentorAvailability?: string;
+    mentorCadence?: string | null;
+    mentorMeetingFormat?: string | null;
+    mentorMaxMentees?: number;
     image?: string;
   },
 ) => {
@@ -353,10 +360,13 @@ const updateProfile = async (
     gamificationService.awardBadgeByName(userId, "Mentor").catch(() => {});
   }
 
+  // Enum-string fields are validated as zod enums; cast for the Prisma input.
+  const profileInput = profileData as Prisma.UserProfileUncheckedUpdateInput;
+
   if (existingProfile) {
     const updated = await prisma.userProfile.update({
       where: { userId },
-      data: profileData,
+      data: profileInput,
     });
     return updated;
   }
@@ -365,7 +375,7 @@ const updateProfile = async (
     data: {
       userId,
       ...profileData,
-    },
+    } as Prisma.UserProfileUncheckedCreateInput,
   });
   return created;
 };

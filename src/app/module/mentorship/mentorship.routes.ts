@@ -38,4 +38,91 @@ router.patch(
   mentorshipController.updateMentorshipRequest,
 );
 
+// ── Relationships ────────────────────────────────────────────────────────────
+// Both participants of an accepted mentorship can access these routes.
+
+router.get(
+  "/relationships",
+  verifySession,
+  validateRequest(mentorshipValidation.listMentorshipsSchema, "query"),
+  mentorshipController.listMentorships,
+);
+
+router.get(
+  "/relationships/:id",
+  verifySession,
+  validateRequest(mentorshipValidation.paramsIdSchema, "params"),
+  mentorshipController.getMentorship,
+);
+
+router.get(
+  "/relationships/:id/messages",
+  verifySession,
+  validateRequest(mentorshipValidation.paramsIdSchema, "params"),
+  validateRequest(mentorshipValidation.messagesQuerySchema, "query"),
+  mentorshipController.listMessages,
+);
+
+router.post(
+  "/relationships/:id/messages",
+  verifySession,
+  validateRequest(mentorshipValidation.paramsIdSchema, "params"),
+  validateRequest(mentorshipValidation.sendMessageSchema),
+  mentorshipController.sendMessage,
+);
+
+router.post(
+  "/relationships/:id/goals",
+  verifySession,
+  validateRequest(mentorshipValidation.paramsIdSchema, "params"),
+  validateRequest(mentorshipValidation.createMentorshipGoalSchema),
+  mentorshipController.createGoal,
+);
+
+router.patch(
+  "/goals/:goalId",
+  verifySession,
+  validateRequest(mentorshipValidation.goalIdSchema, "params"),
+  validateRequest(mentorshipValidation.updateMentorshipGoalSchema),
+  mentorshipController.updateGoal,
+);
+
+router.delete(
+  "/goals/:goalId",
+  verifySession,
+  validateRequest(mentorshipValidation.goalIdSchema, "params"),
+  mentorshipController.deleteGoal,
+);
+
+router.post(
+  "/relationships/:id/sessions",
+  verifySession,
+  validateRequest(mentorshipValidation.paramsIdSchema, "params"),
+  validateRequest(mentorshipValidation.createMentorshipSessionSchema),
+  mentorshipController.createSession,
+);
+
+router.patch(
+  "/sessions/:sessionId",
+  verifySession,
+  validateRequest(mentorshipValidation.sessionIdSchema, "params"),
+  validateRequest(mentorshipValidation.updateMentorshipSessionSchema),
+  mentorshipController.updateSession,
+);
+
+router.post(
+  "/relationships/:id/complete",
+  verifySession,
+  validateRequest(mentorshipValidation.paramsIdSchema, "params"),
+  validateRequest(mentorshipValidation.completeMentorshipSchema),
+  mentorshipController.completeMentorship,
+);
+
+router.post(
+  "/relationships/:id/end",
+  verifySession,
+  validateRequest(mentorshipValidation.paramsIdSchema, "params"),
+  mentorshipController.endMentorship,
+);
+
 export const mentorshipRoutes = router;

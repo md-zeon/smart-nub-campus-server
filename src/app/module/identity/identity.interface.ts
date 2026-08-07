@@ -74,5 +74,11 @@ export interface RequestUser {
     showInAlumniDirectory: boolean;
     isMentor: boolean;
     mentorshipTopics: string[];
+    mentorHeadline: string | null;
+    mentorBio: string | null;
+    mentorAvailability: string | null;
+    mentorCadence: string | null;
+    mentorMeetingFormat: string | null;
+    mentorMaxMentees: number;
   } | null;
 }

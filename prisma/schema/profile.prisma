@@ -23,6 +23,14 @@ model UserProfile {
   isMentor              Boolean  @default(false)
   mentorshipTopics      String[] @default([])
 
+  // Mentor profile (Mentorship feature)
+  mentorHeadline      String?
+  mentorBio           String?
+  mentorAvailability  String?
+  mentorCadence       MentorshipCadence?
+  mentorMeetingFormat MeetingPreference?
+  mentorMaxMentees    Int @default(3)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
