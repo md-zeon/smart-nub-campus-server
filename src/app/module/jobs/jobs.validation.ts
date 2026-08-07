@@ -46,6 +46,45 @@ const DEPARTMENT_ENUM = [
   "EBTX",
 ] as const;
 
+const APPLICATION_FORM_FIELD_KEYS = [
+  "name",
+  "email",
+  "github",
+  "linkedin",
+  "portfolio",
+  "website",
+  "phone",
+  "location",
+  "studentId",
+  "department",
+  "semester",
+] as const;
+
+const applicationFormSchema = z
+  .object({
+    fields: z
+      .array(
+        z.object({
+          key: z.enum(APPLICATION_FORM_FIELD_KEYS),
+          required: z.boolean().default(false),
+        }),
+      )
+      .max(20, "Cannot configure more than 20 fields")
+      .optional(),
+    questions: z
+      .array(
+        z.object({
+          id: z.string().uuid("Invalid question ID"),
+          label: z.string().trim().min(1, "Question label is required").max(200, "Question label must be at most 200 characters"),
+          type: z.enum(["SHORT_TEXT", "PARAGRAPH"]),
+          required: z.boolean().default(false),
+        }),
+      )
+      .max(20, "Cannot add more than 20 custom questions")
+      .optional(),
+  })
+  .strict();
+
 const createJobSchema = z
   .object({
     title: z.string().trim().min(1, "Title is required").max(200),
@@ -64,6 +103,7 @@ const createJobSchema = z
       .url("Invalid source URL")
       .max(2048)
       .optional(),
+    applicationForm: applicationFormSchema.optional(),
   })
   .strict();
 
@@ -87,6 +127,7 @@ const updateJobSchema = z
       .max(2048)
       .optional()
       .nullable(),
+    applicationForm: applicationFormSchema.optional().nullable(),
   })
   .strict();
 
@@ -113,6 +154,10 @@ const applyJobSchema = z
   .object({
     coverLetter: z.string().trim().max(2000).optional(),
     resumeUrl: z.string().url("Invalid resume URL").optional(),
+    responses: z
+      .record(z.string(), z.string().trim().max(5000))
+      .refine((r) => Object.keys(r).length <= 40, "Too many answers submitted")
+      .optional(),
   })
   .strict();
 

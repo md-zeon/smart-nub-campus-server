@@ -15,7 +15,9 @@ import { gamificationService } from "../gamification/gamification.service";
 import {
   ApplyJobInput,
   CreateJobInput,
+  DEFAULT_JOB_APPLICATION_FORM,
   ImportJobInput,
+  JobApplicationFormConfig,
   ListJobsQuery,
   UpdateApplicationInput,
   UpdateJobInput,
@@ -199,6 +201,9 @@ const createJob = async (data: CreateJobInput, userId: string) => {
       department: data.department ?? null,
       source: data.source ?? undefined,
       sourceUrl: data.sourceUrl ?? null,
+      applicationForm:
+        (data.applicationForm as unknown as Prisma.InputJsonValue) ??
+        Prisma.JsonNull,
       postedById: userId,
     },
     include: JOB_INCLUDE,
@@ -242,6 +247,11 @@ const updateJob = async (
   if (data.status !== undefined) updateData.status = data.status;
   if (data.source !== undefined) updateData.source = data.source;
   if (data.sourceUrl !== undefined) updateData.sourceUrl = data.sourceUrl;
+  if (data.applicationForm !== undefined) {
+    updateData.applicationForm =
+      (data.applicationForm as unknown as Prisma.InputJsonValue) ??
+      Prisma.JsonNull;
+  }
 
   return prisma.jobPost.update({
     where: { id },
@@ -271,7 +281,15 @@ const applyToJob = async (
 ) => {
   const job = await prisma.jobPost.findUnique({
     where: { id: jobId },
-    select: { id: true, title: true, company: true, status: true, postedById: true },
+    select: {
+      id: true,
+      title: true,
+      company: true,
+      status: true,
+      deadline: true,
+      postedById: true,
+      applicationForm: true,
+    },
   });
 
   if (!job) {
@@ -282,6 +300,13 @@ const applyToJob = async (
     throw new AppError(
       status.BAD_REQUEST,
       "This job post is not open for applications.",
+    );
+  }
+
+  if (job.deadline && new Date(job.deadline).getTime() < Date.now()) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "The application deadline for this job has passed.",
     );
   }
 
@@ -306,12 +331,36 @@ const applyToJob = async (
     );
   }
 
+  // Enforce required answers from the job's application form config
+  const formConfig =
+    (job.applicationForm as JobApplicationFormConfig | null) ??
+    DEFAULT_JOB_APPLICATION_FORM;
+  const responses = data.responses ?? {};
+  const missingFields: string[] = [];
+  for (const field of formConfig.fields) {
+    if (field.required && !(responses[field.key] ?? "").trim()) {
+      missingFields.push(field.key);
+    }
+  }
+  for (const question of formConfig.questions) {
+    if (question.required && !(responses[question.id] ?? "").trim()) {
+      missingFields.push(question.label);
+    }
+  }
+  if (missingFields.length > 0) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "Please fill in all required fields before applying.",
+    );
+  }
+
   const application = await prisma.jobApplication.create({
     data: {
       jobPostId: jobId,
       applicantId: userId,
       coverLetter: data.coverLetter ?? null,
       resumeUrl: data.resumeUrl ?? null,
+      responses: (data.responses as unknown as Prisma.InputJsonValue) ?? Prisma.JsonNull,
     },
     include: {
       applicant: { select: { id: true, name: true, image: true } },
@@ -337,7 +386,12 @@ const listApplications = async (
 ) => {
   const job = await prisma.jobPost.findUnique({
     where: { id: jobId },
-    select: { id: true, title: true, postedById: true },
+    select: {
+      id: true,
+      title: true,
+      postedById: true,
+      applicationForm: true,
+    },
   });
 
   if (!job) {
@@ -352,7 +406,15 @@ const listApplications = async (
     include: APPLICATION_INCLUDE,
   });
 
-  return { job: { id: job.id, title: job.title }, data: applications };
+  return {
+    job: {
+      id: job.id,
+      title: job.title,
+      applicationForm:
+        (job.applicationForm as JobApplicationFormConfig | null) ?? null,
+    },
+    data: applications,
+  };
 };
 
 const updateApplicationStatus = async (

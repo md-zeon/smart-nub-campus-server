@@ -32,6 +32,18 @@ export interface ApplicationFormConfig {
   questions: ApplicationFormQuestion[];
 }
 
+/**
+ * Default application form for teams with no stored config (created before
+ * this feature): the "why you're a great fit" message plus name/email.
+ */
+export const DEFAULT_APPLICATION_FORM: ApplicationFormConfig = {
+  fields: [
+    { key: "name", required: true },
+    { key: "email", required: true },
+  ],
+  questions: [],
+};
+
 /** Snapshot of an applicant's answers keyed by field key / question id. */
 export type ApplicationResponses = Record<string, string>;
 

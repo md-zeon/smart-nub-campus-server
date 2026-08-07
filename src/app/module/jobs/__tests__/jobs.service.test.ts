@@ -44,6 +44,7 @@ const aiMocks = vi.hoisted(() => {
 
 vi.mock("../../../../app/lib/ai", () => aiMocks);
 
+import { Prisma } from "../../../../generated/prisma/client";
 import { prisma } from "../../../../app/lib/prisma";
 import { jobsService } from "../jobs.service";
 
@@ -97,6 +98,7 @@ describe("createJob", () => {
         department: null,
         source: undefined,
         sourceUrl: null,
+        applicationForm: Prisma.JsonNull,
         postedById: ownerId,
       },
       include: expect.any(Object),
@@ -123,6 +125,33 @@ describe("createJob", () => {
           source: "LINKEDIN",
           sourceUrl: "https://www.linkedin.com/jobs/view/123",
         }),
+      }),
+    );
+  });
+
+  it("stores the application form config when provided", async () => {
+    mockPrisma.jobPost.create.mockResolvedValue({ id: jobId } as never);
+
+    const applicationForm = {
+      fields: [{ key: "name", required: true }, { key: "linkedin", required: false }],
+      questions: [
+        {
+          id: "6d58a0f9-1c9f-4f5e-b1c2-8a47c9d3f9e1",
+          label: "How many years of experience do you have?",
+          type: "SHORT_TEXT",
+          required: true,
+        },
+      ],
+    };
+
+    await jobsService.createJob(
+      { title: "SDE", company: "Acme", employmentType: "FULL_TIME", applicationForm },
+      ownerId,
+    );
+
+    expect(mockPrisma.jobPost.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ applicationForm }),
       }),
     );
   });
@@ -206,6 +235,39 @@ describe("updateJob ownership", () => {
     );
 
     expect(result.id).toBe(jobId);
+  });
+
+  it("updates the application form config and allows clearing it", async () => {
+    mockPrisma.jobPost.findUnique.mockResolvedValue(ownerJob as never);
+    mockPrisma.jobPost.update.mockResolvedValue({ id: jobId } as never);
+
+    const applicationForm = {
+      fields: [{ key: "name", required: true }],
+      questions: [],
+    };
+
+    await jobsService.updateJob(
+      jobId,
+      { applicationForm },
+      ownerId,
+      "ALUMNI",
+    );
+
+    expect(mockPrisma.jobPost.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ applicationForm }),
+      }),
+    );
+
+    mockPrisma.jobPost.update.mockClear();
+
+    await jobsService.updateJob(jobId, { applicationForm: null }, ownerId, "ALUMNI");
+
+    expect(mockPrisma.jobPost.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ applicationForm: Prisma.JsonNull }),
+      }),
+    );
   });
 
   it("throws NOT_FOUND when the job does not exist", async () => {
@@ -298,6 +360,34 @@ describe("applyToJob", () => {
     ).rejects.toThrow("You have already applied to this job.");
   });
 
+  it("rejects an application missing required form answers", async () => {
+    mockPrisma.jobPost.findUnique.mockResolvedValue({
+      ...openJob,
+      applicationForm: {
+        fields: [
+          { key: "name", required: true },
+          { key: "email", required: true },
+        ],
+        questions: [
+          {
+            id: "6d58a0f9-1c9f-4f5e-b1c2-8a47c9d3f9e1",
+            label: "How many years of experience do you have?",
+            type: "SHORT_TEXT",
+            required: true,
+          },
+        ],
+      },
+    } as never);
+    mockPrisma.jobApplication.findUnique.mockResolvedValue(null);
+
+    await expect(
+      jobsService.applyToJob(jobId, strangerId, {
+        responses: { name: "Bob", email: "bob@test.com" },
+      }),
+    ).rejects.toThrow("Please fill in all required fields before applying.");
+    expect(mockPrisma.jobApplication.create).not.toHaveBeenCalled();
+  });
+
   it("creates an application and notifies the poster", async () => {
     mockPrisma.jobPost.findUnique.mockResolvedValue(openJob as never);
     mockPrisma.jobApplication.findUnique.mockResolvedValue(null);
@@ -310,6 +400,7 @@ describe("applyToJob", () => {
     const result = await jobsService.applyToJob(jobId, strangerId, {
       coverLetter: "Hi",
       resumeUrl: "https://resume.test/bob.pdf",
+      responses: { name: "Bob", email: "bob@test.com" },
     });
 
     expect(result.id).toBe("app-1");
@@ -319,6 +410,7 @@ describe("applyToJob", () => {
         applicantId: strangerId,
         coverLetter: "Hi",
         resumeUrl: "https://resume.test/bob.pdf",
+        responses: { name: "Bob", email: "bob@test.com" },
       },
       include: expect.any(Object),
     });
