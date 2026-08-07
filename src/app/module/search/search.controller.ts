@@ -2,13 +2,17 @@ import status from "http-status";
 import catchAsync from "../../shared/catchAsync";
 import sendResponse from "../../shared/sendResponse";
 import { searchService } from "./search.service";
-import { SearchFilters, SearchTypeFilter } from "./search.interface";
+import {
+  SearchClickInput,
+  SearchEntityFilter,
+  SearchFilters,
+} from "./search.interface";
 
 const search = catchAsync(async (req, res) => {
-  const q = (req.query.q as string) ?? "";
-  const type = (req.query.type as SearchTypeFilter) ?? "all";
-  const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 12;
+  const q = req.query.q as string;
+  const entity = (req.query.entity as SearchEntityFilter | undefined) ?? "all";
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 12;
 
   const filters: SearchFilters = {
     department: req.query.department as string | undefined,
@@ -16,10 +20,7 @@ const search = catchAsync(async (req, res) => {
     courseId: req.query.courseId as string | undefined,
   };
 
-  const result =
-    type === "all"
-      ? await searchService.globalSearch(q, page, limit, filters)
-      : await searchService.searchEntity(type, q, page, limit, filters);
+  const result = await searchService.search(req.user.id, q, entity, page, limit, filters);
 
   sendResponse(res, {
     httpStatusCode: status.OK,
@@ -29,6 +30,18 @@ const search = catchAsync(async (req, res) => {
   });
 });
 
+const recordClick = catchAsync(async (req, res) => {
+  await searchService.recordClick(req.user.id, req.body as SearchClickInput);
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Search click recorded.",
+    data: null,
+  });
+});
+
 export const searchController = {
   search,
+  recordClick,
 };

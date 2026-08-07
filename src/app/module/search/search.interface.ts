@@ -1,15 +1,15 @@
-export type SearchType =
-  | "course"
-  | "resource"
-  | "discussion"
-  | "question"
-  | "team"
-  | "event"
-  | "job"
-  | "mentor"
-  | "user";
+export type SearchEntity =
+  | "people"
+  | "resources"
+  | "discussions"
+  | "questions"
+  | "teams"
+  | "events"
+  | "courses"
+  | "jobs"
+  | "mentorship";
 
-export type SearchTypeFilter = "all" | SearchType;
+export type SearchEntityFilter = "all" | SearchEntity;
 
 export interface SearchFilters {
   department?: string;
@@ -19,34 +19,43 @@ export interface SearchFilters {
 
 export interface SearchQuery {
   q: string;
-  type: SearchTypeFilter;
+  entity: SearchEntityFilter;
   page: number;
   limit: number;
   filters: SearchFilters;
 }
 
-export interface SearchItem {
-  type: SearchType;
+export interface NormalizedSearchResult {
   id: string;
   title: string | null;
-  snippet: string | null;
   subtitle: string | null;
+  snippet: string | null;
+  url: string | null;
   rank: number;
+  type: SearchEntity;
   createdAt: string | null;
   data: Record<string, unknown>;
 }
 
-export interface EntitySearchResult {
-  type: SearchType;
-  items: SearchItem[];
+export interface SearchGroupResponse {
+  items: NormalizedSearchResult[];
   total: number;
-  page: number;
-  limit: number;
 }
 
-export interface GlobalSearchResult {
-  query: string;
+export interface SearchMeta {
   total: number;
-  facetTotals: Partial<Record<SearchType, number>>;
-  items: SearchItem[];
+  bestMatch: NormalizedSearchResult | null;
+}
+
+export interface SearchResponse {
+  query: string;
+  data: Record<SearchEntity, SearchGroupResponse>;
+  meta: SearchMeta;
+}
+
+export interface SearchClickInput {
+  query: string;
+  entity: SearchEntity;
+  resultId?: string;
+  position?: number;
 }

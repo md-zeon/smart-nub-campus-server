@@ -13,4 +13,11 @@ router.get(
   searchController.search,
 );
 
+router.post(
+  "/click",
+  verifySession,
+  validateRequest(searchValidation.clickSchema, "body"),
+  searchController.recordClick,
+);
+
 export const searchRoutes = router;
