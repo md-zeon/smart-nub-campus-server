@@ -22,6 +22,7 @@ import { notificationRoutes } from "../module/notification/notification.routes";
 import { activityRoutes } from "../module/activity/activity.routes";
 import { adminRoutes } from "../module/admin/admin.routes";
 import { settingsRoutes } from "../module/settings/settings.routes";
+import { searchRoutes } from "../module/search/search.routes";
 import { authRoutes } from "../module/auth/auth.routes";
 import { tagRoutes } from "../module/tag/tag.routes";
 import { auth } from "../lib/auth";
@@ -63,5 +64,6 @@ router.use("/jobs", jobsRoutes);
 router.use("/mentorship", mentorshipRoutes);
 router.use("/admin", adminRoutes);
 router.use("/settings", settingsRoutes);
+router.use("/search", searchRoutes);
 
 export const IndexRoutes = router;
