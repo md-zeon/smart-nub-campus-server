@@ -70,7 +70,7 @@ const streamMessage = catchAsync(async (req, res) => {
   });
 
   let aborted = false;
-  req.on("close", () => {
+  res.on("close", () => {
     aborted = true;
   });
 
