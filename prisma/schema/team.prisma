@@ -22,6 +22,7 @@ model TeamRequest {
   teamBookmarks      TeamBookmark[]
   isDeleted          Boolean            @default(false)
   deletedAt          DateTime?
+  searchTsv          Unsupported("tsvector")?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -31,6 +32,8 @@ model TeamRequest {
   @@index([createdAt(sort: Desc)])
   @@index([category])
   @@index([difficulty])
+  @@index([searchTsv], type: Gin)
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin)
   @@map("team_requests")
 }
 

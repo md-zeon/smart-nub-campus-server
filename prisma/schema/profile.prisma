@@ -31,6 +31,11 @@ model UserProfile {
   mentorMeetingFormat MeetingPreference?
   mentorMaxMentees    Int @default(3)
 
+  searchTsv Unsupported("tsvector")?
+
+  @@index([searchTsv], type: Gin)
+  @@index([mentorHeadline(ops: raw("gin_trgm_ops"))], type: Gin)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
