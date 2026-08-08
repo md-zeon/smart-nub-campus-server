@@ -222,6 +222,7 @@ const getDiscussion = async (id: string, userId?: string) => {
 const listDiscussions = async (query: ListDiscussionsQuery, userId?: string) => {
   const {
     category,
+    courseId,
     tag,
     visibility,
     search,
@@ -238,6 +239,11 @@ const listDiscussions = async (query: ListDiscussionsQuery, userId?: string) => 
   // Filter by category slug
   if (category) {
     where.category = { slug: category };
+  }
+
+  // Filter by course
+  if (courseId) {
+    where.courseId = courseId;
   }
 
   // Filter by tag slug(s) — comma-separated, matches discussions having

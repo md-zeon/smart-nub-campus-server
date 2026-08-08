@@ -283,7 +283,7 @@ const ENTITY_CONFIGS: Record<SearchEntity, EntityConfig> = {
     ],
     baseConditions: [],
     filterColumns: [{ key: "department", column: '"department"::text' }],
-    url: () => null,
+    url: (row) => `/courses/${String(row.id)}`,
   },
   jobs: {
     entity: "jobs",
