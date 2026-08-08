@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import z from "zod";
 import globalErrorHandler from "../globalErrorHandler";
-import AppError from "../AppError";
+import AppError from "../../errorHelpers/AppError";
 import { createMockRequest, createMockResponse, createMockNext } from "../../../__tests__/utils/test-helpers";
 
 vi.mock("../../../config/env", () => ({

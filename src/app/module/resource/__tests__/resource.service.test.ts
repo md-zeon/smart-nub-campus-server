@@ -319,6 +319,12 @@ describe("resourceService", () => {
     it("reviews a pending report", async () => {
       (mockedPrisma.resourceReport.findUnique as any).mockResolvedValue({ id: "r1", status: "PENDING" });
       (mockedPrisma.resourceReport.update as any).mockResolvedValue({ id: "r1", status: "RESOLVED" });
+      (mockedPrisma.$transaction as any).mockImplementation(async (fn: any) =>
+        fn({
+          resourceReport: { update: mockedPrisma.resourceReport.update },
+          resource: { update: vi.fn().mockResolvedValue({}) },
+        }),
+      );
 
       const result = await resourceService.reviewReport("r1", "admin-id", "RESOLVED");
       expect(result.status).toBe("RESOLVED");
