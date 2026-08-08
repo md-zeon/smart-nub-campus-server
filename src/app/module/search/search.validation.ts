@@ -19,7 +19,7 @@ const searchQuerySchema = z
       .trim()
       .min(1, "Search query is required")
       .max(120, "Search query must be at most 120 characters"),
-    entity: z.enum(SEARCH_ENTITIES).optional(),
+    entity: z.enum(["all", ...SEARCH_ENTITIES]).optional(),
     page: z.coerce.number().int().min(1).optional(),
     limit: z.coerce.number().int().min(1).max(50).optional(),
     department: z.string().trim().optional(),

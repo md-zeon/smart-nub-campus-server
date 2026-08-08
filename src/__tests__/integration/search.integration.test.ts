@@ -145,6 +145,22 @@ describe("Search API Endpoints", () => {
     }
   });
 
+  it("GET /search?q=&entity=all returns all groups (all is a valid filter)", async () => {
+    const res = await request(app)
+      .get(BASE)
+      .query({ q: "database", entity: "all" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.data.courses.total).toBe(2);
+    for (const entity of [
+      "people", "resources", "discussions", "questions", "teams",
+      "events", "courses", "jobs", "mentorship",
+    ]) {
+      expect(res.body.data.data).toHaveProperty(entity);
+    }
+  });
+
   it("GET /search?q=&entity= only queries that entity", async () => {
     const res = await request(app).get(BASE).query({ q: "database", entity: "courses" });
 
@@ -158,6 +174,38 @@ describe("Search API Endpoints", () => {
       .filter((sql) => !sql.includes("COUNT(*)"));
     expect(selectSqls).toHaveLength(1);
     expect(selectSqls[0]).toContain('FROM "course"');
+  });
+
+  it("applies the department filter to teams (via the creator's department)", async () => {
+    const res = await request(app)
+      .get(BASE)
+      .query({ q: "database", entity: "teams", department: "CSE" });
+
+    expect(res.status).toBe(200);
+
+    const selectSql = vi
+      .mocked(mockPrisma.$queryRawUnsafe)
+      .mock.calls.map(([sql]) => String(sql))
+      .find((sql) => !sql.includes("COUNT(*)"));
+    expect(selectSql).toContain('FROM "team_requests" t');
+    expect(selectSql).toContain('LEFT JOIN "student" tcs');
+    expect(selectSql).toContain('tcs."department"::text = $3');
+  });
+
+  it("applies the department filter to events (via the organizer's department)", async () => {
+    const res = await request(app)
+      .get(BASE)
+      .query({ q: "database", entity: "events", department: "CSE" });
+
+    expect(res.status).toBe(200);
+
+    const selectSql = vi
+      .mocked(mockPrisma.$queryRawUnsafe)
+      .mock.calls.map(([sql]) => String(sql))
+      .find((sql) => !sql.includes("COUNT(*)"));
+    expect(selectSql).toContain('FROM "events" e');
+    expect(selectSql).toContain('LEFT JOIN "student" eos');
+    expect(selectSql).toContain('eos."department"::text = $3');
   });
 
   it("GET /search without q returns 400", async () => {
