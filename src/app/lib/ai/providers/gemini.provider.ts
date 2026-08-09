@@ -12,7 +12,15 @@ import type {
   FlashcardResult,
   SummaryResult,
   CodeExplanationResult,
+  JobDetailsResult,
 } from "./types";
+import {
+  buildJobDetailsPrompt,
+  buildJobDetailsRepairPrompt,
+  EMPTY_JOB_DETAILS,
+  JOB_DETAILS_REPAIR_ERROR,
+  parseJobDetailsJson,
+} from "../job-details";
 
 const SYSTEM_PROMPT = `You are a helpful study assistant of Smart Nub Campus platform of Northern University of Bangladesh developed by Zeanur Rahaman Zeon. You will assist users in generating quizzes, flashcards, summaries, solving doubts, and code explanations based on the content they provide.
 
@@ -188,5 +196,27 @@ ${code}`;
     const text = result.response.text();
     const cleaned = text.replace(/```(?:json)?\s*/gi, "").trim();
     return JSON.parse(cleaned);
+  }
+
+  async extractJobDetails(content: string): Promise<JobDetailsResult> {
+    const result = await this.model.generateContent({
+      contents: [{ role: "user", parts: [{ text: buildJobDetailsPrompt(content) }] }],
+      generationConfig: { temperature: 0 },
+    });
+    const parsed = parseJobDetailsJson(result.response.text());
+    if (parsed) return parsed;
+
+    const repair = await this.model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: buildJobDetailsRepairPrompt(content, JOB_DETAILS_REPAIR_ERROR) },
+          ],
+        },
+      ],
+      generationConfig: { temperature: 0 },
+    });
+    return parseJobDetailsJson(repair.response.text()) ?? EMPTY_JOB_DETAILS;
   }
 }

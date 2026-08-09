@@ -2,7 +2,9 @@ import status from "http-status";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
 import { RequestUser } from "./identity.interface";
+import type { Prisma } from "../../../generated/prisma/client";
 import type { ProfileVisibilityLevel } from "../../../generated/prisma/enums";
+import { gamificationService } from "../gamification/gamification.service";
 
 const me = (user: RequestUser) => {
   return {
@@ -324,6 +326,18 @@ const updateProfile = async (
     phoneNumber?: string;
     currentSemester?: number;
     batchYear?: number;
+    currentEmployer?: string;
+    jobTitle?: string;
+    industry?: string;
+    showInAlumniDirectory?: boolean;
+    isMentor?: boolean;
+    mentorshipTopics?: string[];
+    mentorHeadline?: string;
+    mentorBio?: string;
+    mentorAvailability?: string;
+    mentorCadence?: string | null;
+    mentorMeetingFormat?: string | null;
+    mentorMaxMentees?: number;
     image?: string;
   },
 ) => {
@@ -341,10 +355,18 @@ const updateProfile = async (
     where: { userId },
   });
 
+  // Award the "Mentor" badge when opting in as a mentor (best-effort)
+  if (data.isMentor === true) {
+    gamificationService.awardBadgeByName(userId, "Mentor").catch(() => {});
+  }
+
+  // Enum-string fields are validated as zod enums; cast for the Prisma input.
+  const profileInput = profileData as Prisma.UserProfileUncheckedUpdateInput;
+
   if (existingProfile) {
     const updated = await prisma.userProfile.update({
       where: { userId },
-      data: profileData,
+      data: profileInput,
     });
     return updated;
   }
@@ -353,9 +375,67 @@ const updateProfile = async (
     data: {
       userId,
       ...profileData,
-    },
+    } as Prisma.UserProfileUncheckedCreateInput,
   });
   return created;
+};
+
+const createEmployment = async (
+  userId: string,
+  data: {
+    employer: string;
+    title: string;
+    industry?: string;
+    startDate: Date;
+    endDate?: Date | null;
+    isCurrent?: boolean;
+    description?: string;
+  },
+) => {
+  return prisma.employmentRecord.create({
+    data: { userId, ...data },
+  });
+};
+
+const updateEmployment = async (
+  userId: string,
+  id: string,
+  data: {
+    employer?: string;
+    title?: string;
+    industry?: string;
+    startDate?: Date;
+    endDate?: Date | null;
+    isCurrent?: boolean;
+    description?: string;
+  },
+) => {
+  const record = await prisma.employmentRecord.findFirst({
+    where: { id, userId },
+  });
+
+  if (!record) {
+    throw new AppError(status.NOT_FOUND, "Employment record not found.");
+  }
+
+  return prisma.employmentRecord.update({
+    where: { id },
+    data,
+  });
+};
+
+const deleteEmployment = async (userId: string, id: string) => {
+  const record = await prisma.employmentRecord.findFirst({
+    where: { id, userId },
+  });
+
+  if (!record) {
+    throw new AppError(status.NOT_FOUND, "Employment record not found.");
+  }
+
+  await prisma.employmentRecord.delete({ where: { id } });
+
+  return { message: "Employment record deleted successfully." };
 };
 
 export const identityService = {
@@ -363,4 +443,7 @@ export const identityService = {
   getProfile,
   getPublicProfile,
   updateProfile,
+  createEmployment,
+  updateEmployment,
+  deleteEmployment,
 };

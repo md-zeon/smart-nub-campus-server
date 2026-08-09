@@ -28,6 +28,25 @@ router.patch(
 );
 router.delete("/users/:id", adminController.deleteUser);
 
+// --- Graduation & Alumni Management ---
+router.get(
+  "/alumni",
+  validateRequest(adminValidation.listAlumniSchema, "query"),
+  adminController.listAlumni,
+);
+router.patch(
+  "/users/:id/graduation",
+  validateRequest(adminValidation.markGraduationSchema),
+  adminController.markGraduation,
+);
+router.delete("/users/:id/graduation", adminController.undoGraduation);
+router.post(
+  "/graduation/batch",
+  validateRequest(adminValidation.batchGraduationSchema),
+  adminController.batchGraduation,
+);
+router.post("/users/:id/revert-alumni", adminController.revertAlumni);
+
 // --- Resource Management ---
 router.get("/resources", adminController.listResources);
 router.patch(
@@ -36,6 +55,19 @@ router.patch(
   adminController.verifyResource,
 );
 router.delete("/resources/:id", adminController.deleteResource);
+
+// --- Job Post Management ---
+router.get(
+  "/jobs",
+  validateRequest(adminValidation.listJobsSchema, "query"),
+  adminController.listJobs,
+);
+router.patch(
+  "/jobs/:id/verify",
+  validateRequest(adminValidation.verifyJobSchema),
+  adminController.verifyJob,
+);
+router.delete("/jobs/:id", adminController.deleteJob);
 
 // --- Course Management ---
 router.get("/courses", adminController.listCourses);

@@ -49,6 +49,7 @@ For new students to gain access to the platform:
 1. **User submits verification request** (`POST /api/v1/onboarding`)
    - Provides: name, email, date of birth, student ID, id card image
    - Creates an onboarding session with cookie
+   - **Student vs Alumni:** the form includes a `requestType` toggle. Current students use `STUDENT` (default). Graduates who predate the platform use `ALUMNI` and must also provide `graduationYear` + `degreeTitle` (legacy alumni claim, P1).
 
 2. **Admin reviews request** (`GET/POST /api/v1/verification`)
    - Admin approves or rejects the verification
@@ -57,6 +58,7 @@ For new students to gain access to the platform:
 3. **User creates account** (`POST /api/v1/account/create`)
    - User provides password
    - Better Auth user created
+   - **Role branching:** `ALUMNI` verification requests create the user with `role=ALUMNI` and a Student record already marked `GRADUATED` (`academicStatus=GRADUATED` + `graduationYear`/`degreeTitle` + `transitionConfirmedAt`); `STUDENT` requests create a normal enrolled student.
    - Verification OTP automatically sent to email
    - Returns success with `userId` and `role`
 

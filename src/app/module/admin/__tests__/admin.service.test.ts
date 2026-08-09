@@ -57,6 +57,7 @@ vi.mock("../../../../app/lib/prisma", () => ({
     },
     discussion: { count: vi.fn() },
     question: { count: vi.fn() },
+    jobPost: { count: vi.fn() },
     verificationRequest: { count: vi.fn() },
     auditLog: {
       findUnique: vi.fn(),
@@ -83,11 +84,14 @@ beforeEach(() => {
 
 describe("getDashboardStats", () => {
   it("returns platform-wide statistics", async () => {
-    vi.mocked(mockPrisma.user.count).mockResolvedValue(100);
+    vi.mocked(mockPrisma.user.count)
+      .mockResolvedValueOnce(100)
+      .mockResolvedValueOnce(25);
     vi.mocked(mockPrisma.resource.count).mockResolvedValue(50);
     vi.mocked(mockPrisma.discussion.count).mockResolvedValue(30);
     vi.mocked(mockPrisma.question.count).mockResolvedValue(20);
     vi.mocked(mockPrisma.event.count).mockResolvedValue(10);
+    vi.mocked(mockPrisma.jobPost.count).mockResolvedValue(15);
     vi.mocked(mockPrisma.verificationRequest.count).mockResolvedValue(5);
     vi.mocked(mockPrisma.resource.groupBy).mockResolvedValue([
       { isVerified: true, _count: 40 },
@@ -104,6 +108,8 @@ describe("getDashboardStats", () => {
       totalDiscussions: 30,
       totalQuestions: 20,
       totalEvents: 10,
+      totalJobs: 15,
+      totalAlumni: 25,
       pendingVerifications: 5,
     });
   });
@@ -114,6 +120,7 @@ describe("getDashboardStats", () => {
     vi.mocked(mockPrisma.discussion.count).mockResolvedValue(0);
     vi.mocked(mockPrisma.question.count).mockResolvedValue(0);
     vi.mocked(mockPrisma.event.count).mockResolvedValue(0);
+    vi.mocked(mockPrisma.jobPost.count).mockResolvedValue(0);
     vi.mocked(mockPrisma.verificationRequest.count).mockResolvedValue(0);
     vi.mocked(mockPrisma.resource.groupBy).mockResolvedValue([]);
 
@@ -122,14 +129,19 @@ describe("getDashboardStats", () => {
     expect(result.totalUsers).toBe(0);
     expect(result.verifiedResources).toBe(0);
     expect(result.unverifiedResources).toBe(0);
+    expect(result.totalJobs).toBe(0);
+    expect(result.totalAlumni).toBe(0);
   });
 
   it("handles groupBy returning only verified resources", async () => {
-    vi.mocked(mockPrisma.user.count).mockResolvedValue(10);
+    vi.mocked(mockPrisma.user.count)
+      .mockResolvedValueOnce(10)
+      .mockResolvedValueOnce(3);
     vi.mocked(mockPrisma.resource.count).mockResolvedValue(5);
     vi.mocked(mockPrisma.discussion.count).mockResolvedValue(0);
     vi.mocked(mockPrisma.question.count).mockResolvedValue(0);
     vi.mocked(mockPrisma.event.count).mockResolvedValue(0);
+    vi.mocked(mockPrisma.jobPost.count).mockResolvedValue(0);
     vi.mocked(mockPrisma.verificationRequest.count).mockResolvedValue(0);
     vi.mocked(mockPrisma.resource.groupBy).mockResolvedValue([
       { isVerified: true, _count: 5 },
@@ -139,6 +151,7 @@ describe("getDashboardStats", () => {
 
     expect(result.verifiedResources).toBe(5);
     expect(result.unverifiedResources).toBe(0);
+    expect(result.totalAlumni).toBe(3);
   });
 });
 

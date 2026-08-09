@@ -1,4 +1,4 @@
-import { EventStatus } from "../../../generated/prisma/enums";
+import { EventAudience, EventStatus } from "../../../generated/prisma/enums";
 
 export interface CreateEventInput {
   title: string;
@@ -9,6 +9,8 @@ export interface CreateEventInput {
   organizerId?: string;
   status?: EventStatus;
   isFeatured?: boolean;
+  audience?: EventAudience;
+  reunionBatchYear?: number;
 }
 
 export interface UpdateEventInput {
@@ -19,6 +21,8 @@ export interface UpdateEventInput {
   imageUrl?: string;
   status?: EventStatus;
   isFeatured?: boolean;
+  audience?: EventAudience;
+  reunionBatchYear?: number | null;
 }
 
 export interface ListEventsQuery {
@@ -26,6 +30,7 @@ export interface ListEventsQuery {
   search?: string;
   upcoming?: boolean;
   featured?: boolean;
+  type?: string;
   page?: number;
   limit?: number;
 }

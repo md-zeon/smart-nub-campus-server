@@ -15,6 +15,22 @@ model UserProfile {
   currentSemester Int?
   batchYear       Int?
 
+  // Career profile (Alumni role feature)
+  currentEmployer       String?
+  jobTitle              String?
+  industry              String?
+  showInAlumniDirectory Boolean  @default(true)
+  isMentor              Boolean  @default(false)
+  mentorshipTopics      String[] @default([])
+
+  // Mentor profile (Mentorship feature)
+  mentorHeadline      String?
+  mentorBio           String?
+  mentorAvailability  String?
+  mentorCadence       MentorshipCadence?
+  mentorMeetingFormat MeetingPreference?
+  mentorMaxMentees    Int @default(3)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

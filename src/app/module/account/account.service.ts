@@ -1,7 +1,9 @@
 import status from "http-status";
 import {
+  AcademicStatus,
   OnboardingStepValue,
   UserRole,
+  VerificationRequestType,
   VerificationStatus,
   Gender,
 } from "../../../generated/prisma/enums";
@@ -50,6 +52,9 @@ const createAccount = async (
     );
   }
 
+  const isLegacyAlumniClaim =
+    verificationRequest.requestType === VerificationRequestType.ALUMNI;
+
   // 2. Check that a Student with this studentId doesn't already exist
   const existingStudent = await prisma.student.findUnique({
     where: { studentId: verificationRequest.studentId },
@@ -67,13 +72,17 @@ const createAccount = async (
     verificationRequest.studentId,
   );
 
+  const accountRole = isLegacyAlumniClaim
+    ? UserRole.ALUMNI
+    : UserRole.STUDENT;
+
   // 4. Create the Better Auth user
   const signUpResult = await auth.api.signUpEmail({
     body: {
       name: verificationRequest.name,
       email: verificationRequest.email,
       password,
-      role: UserRole.STUDENT,
+      role: accountRole,
       gender,
       image,
       imagePublicId,
@@ -100,6 +109,14 @@ const createAccount = async (
           admissionYear,
           admissionSemester,
           dateOfBirth: verificationRequest.dateOfBirth,
+          ...(isLegacyAlumniClaim
+            ? {
+                academicStatus: AcademicStatus.GRADUATED,
+                graduationYear: verificationRequest.graduationYear ?? null,
+                degreeTitle: verificationRequest.degreeTitle ?? null,
+                transitionConfirmedAt: new Date(),
+              }
+            : {}),
         },
       });
 
@@ -140,7 +157,7 @@ const createAccount = async (
       userId: authUser.id,
       name: authUser.name,
       email: authUser.email,
-      role: UserRole.STUDENT,
+      role: accountRole,
     },
   };
 };

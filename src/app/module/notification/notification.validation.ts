@@ -23,8 +23,8 @@ const notificationTypeEnum = z.enum([
 
 const createNotificationSchema = z
   .object({
-    userId: z.string().uuid("Invalid user ID"),
-    senderId: z.string().uuid("Invalid sender ID").optional(),
+    userId: z.string().trim().min(1, "Invalid user ID"),
+    senderId: z.string().trim().min(1, "Invalid sender ID").optional(),
     type: notificationTypeEnum,
     title: z
       .string()
