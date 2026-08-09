@@ -9,6 +9,7 @@ import {
   UserRole,
 } from "../../../generated/prisma/enums";
 import { prisma } from "../../lib/prisma";
+import { sanitizeRichText } from "../../lib/sanitize";
 import { getSocketServer } from "../../lib/socket/socket-server";
 import { softDelete } from "../../shared/softDelete";
 import { notificationService } from "../notification/notification.service";
@@ -842,7 +843,7 @@ const createCourse = async (data: {
       name: data.name,
       department: data.department as never,
       semester: data.semester ?? null,
-      description: data.description ?? null,
+      description: data.description ? sanitizeRichText(data.description) : null,
     },
   });
 
@@ -866,6 +867,10 @@ const updateCourse = async (
     if (duplicate) {
       throw new AppError(status.CONFLICT, "Course with this code already exists.");
     }
+  }
+
+  if (typeof data.description === "string") {
+    data.description = sanitizeRichText(data.description);
   }
 
   const updated = await prisma.course.update({

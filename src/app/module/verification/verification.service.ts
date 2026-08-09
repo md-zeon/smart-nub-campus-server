@@ -6,6 +6,7 @@ import {
 import AppError from "../../errorHelpers/AppError";
 import { mailService } from "../../lib/mail";
 import { prisma } from "../../lib/prisma";
+import { sanitizeRichText } from "../../lib/sanitize";
 import { getSocketServer } from "../../lib/socket/socket-server";
 import { uploadService } from "../upload/upload.service";
 import {
@@ -364,7 +365,7 @@ const rejectVerificationRequest = async (
       where: { id },
       data: {
         status: VerificationStatus.REJECTED,
-        note,
+        note: sanitizeRichText(note),
         reviewedById: adminId,
         reviewedAt: new Date(),
       },

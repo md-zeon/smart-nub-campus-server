@@ -410,22 +410,35 @@ npm run dev
 
 ## Environment Variables
 
+Validated at boot by `src/config/env.ts` — the server throws if any required variable is missing. See `.env.example` for a complete template.
+
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `NODE_ENV` | Yes | `development` or `production` |
+| `NODE_ENV` | Yes | `development`, `test`, or `production` |
 | `PORT` | Yes | Server port (default: 5000) |
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `BETTER_AUTH_SECRET` | Yes | Secret for Better Auth session tokens |
+| `BETTER_AUTH_SECRET` | Yes | Secret for Better Auth session tokens (32+ chars in production) |
 | `BETTER_AUTH_URL` | Yes | Base URL for Better Auth |
-| `CORS_ORIGINS` | No | Comma-separated allowed origins |
+| `CORS_ORIGINS` | No* | Comma-separated allowed origins. **Required in production** — falls back to `[]` (no cross-origin allowed) if unset. |
 | `CLOUDINARY_CLOUD_NAME` | Yes | Cloudinary cloud name |
 | `CLOUDINARY_API_KEY` | Yes | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Yes | Cloudinary API secret |
+| `CLOUDINARY_FOLDER` | No | Cloudinary folder (default: `smart-nub-campus`) |
+| `AI_PROVIDER` | No | `gemini` (default), `groq`, `openai`, or `anthropic` |
+| `AI_PROVIDER_API_KEY` | Yes | API key for the selected AI provider |
+| `AI_PROVIDER_MODEL` | No | Model name (default: `gemini-1.5-flash`) |
 | `MAIL_PROVIDER` | No | `resend` (default) or `gmail` |
 | `RESEND_API_KEY` | Conditional | Required if using Resend |
 | `MAIL_FROM` | Conditional | Required if using Resend |
 | `GMAIL_USER` | Conditional | Required if using Gmail |
 | `GMAIL_APP_PASSWORD` | Conditional | Required if using Gmail |
+| `DISABLE_RATE_LIMIT` | No | `true` disables rate limiting (dev/test only) |
+| `RATE_LIMIT_LOGIN_WINDOW_MS` / `RATE_LIMIT_LOGIN_MAX` | No | Login window/limit (defaults 900000 / 5) |
+| `RATE_LIMIT_OTP_WINDOW_MS` / `RATE_LIMIT_OTP_MAX` | No | OTP window/limit (defaults 600000 / 3) |
+| `RATE_LIMIT_VERIFICATION_WINDOW_MS` / `RATE_LIMIT_VERIFICATION_MAX` | No | Verification window/limit (defaults 86400000 / 5) |
+| `RATE_LIMIT_ONBOARDING_WINDOW_MS` / `RATE_LIMIT_ONBOARDING_MAX` | No | Onboarding window/limit (defaults 900000 / 20) |
+| `MAX_UPLOAD_SIZE_MB` | No | Upload size cap (default 5) |
+| `SEED_ADMIN_*` | No | Admin credentials used by `npm run seed:admin` only |
 
 ## Scripts
 
@@ -444,6 +457,24 @@ npm run dev
 | `npm run test` | Run tests |
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run test:coverage` | Run tests with coverage |
+
+## Deployment
+
+Production checklist and best-practice gaps are tracked in [`Review/05-DEPLOYMENT-READINESS.md`](../Review/05-DEPLOYMENT-READINESS.md) at the repository root. Minimum steps:
+
+1. Set `NODE_ENV=production`, `BETTER_AUTH_SECRET` (32+ chars), `CORS_ORIGINS` (explicit allow-list), and production Cloudinary/AI/mail credentials.
+2. Run migrations as an explicit pre-deploy step (never in app startup):
+   ```bash
+   npx prisma migrate deploy
+   ```
+3. Build and start:
+   ```bash
+   npm run build && npm start
+   ```
+4. Run behind exactly one reverse proxy (TLS termination, WebSocket upgrade headers) and add a `/health` check.
+5. Configure the Socket.IO Redis adapter in multi-instance deployments.
+
+> **Note:** the final pre-deployment security review (2026-08-10) found Critical/High issues that must be resolved before going live. See [`Review/00-EXECUTIVE-SUMMARY.md`](../Review/00-EXECUTIVE-SUMMARY.md).
 
 ## Contributing
 

@@ -5,6 +5,7 @@ import { socketAuthMiddleware } from "./middleware/auth.middleware";
 import { connectionManager } from "./connection-manager";
 import { presenceManager } from "./presence-manager";
 import { roomManager } from "./room-manager";
+import { DiscussionVisibility, UserRole } from "../../../generated/prisma/enums";
 
 const SOCKET_PATH = "/socket.io/";
 const HEARTBEAT_INTERVAL_MS = 30_000;
@@ -184,8 +185,51 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
     });
 
     // ── Team room join/leave ──────────────────────────────────────────────
-    socket.on("team:join", (data) => {
-      roomManager.joinRoom(socket, `team:${data.teamRequestId}`);
+    socket.on("team:join", async (data) => {
+      try {
+        const { prisma } = await import("../prisma");
+
+        const teamRequest = await prisma.teamRequest.findUnique({
+          where: { id: data.teamRequestId },
+          include: {
+            teamMembers: { select: { userId: true } },
+            creator: { select: { id: true } },
+          },
+        });
+
+        if (!teamRequest) {
+          console.warn(
+            `[Socket] User ${userId} rejected from joining team ${data.teamRequestId} (team request not found)`,
+          );
+          socket.emit("error:message", {
+            message: "Team request not found.",
+          });
+          return;
+        }
+
+        const viewer = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { role: true },
+        });
+
+        const isCreator = teamRequest.creatorId === userId;
+        const isMember = teamRequest.teamMembers.some((m) => m.userId === userId);
+        const isAdmin = viewer?.role === UserRole.ADMIN;
+
+        if (!isCreator && !isMember && !isAdmin) {
+          console.warn(
+            `[Socket] User ${userId} rejected from joining team ${data.teamRequestId} (not a member or creator)`,
+          );
+          socket.emit("error:message", {
+            message: "You are not authorized to join this team room.",
+          });
+          return;
+        }
+
+        roomManager.joinRoom(socket, `team:${data.teamRequestId}`);
+      } catch {
+        socket.emit("error:message", { message: "Failed to join team room." });
+      }
     });
 
     socket.on("team:leave", (data) => {
@@ -193,8 +237,62 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
     });
 
     // ── Discussion room join/leave ─────────────────────────────────────────
-    socket.on("discussion:join", (data) => {
-      roomManager.joinRoom(socket, `discussion:${data.discussionId}`);
+    socket.on("discussion:join", async (data) => {
+      try {
+        const { prisma } = await import("../prisma");
+
+        const discussion = await prisma.discussion.findUnique({
+          where: { id: data.discussionId },
+          include: { author: { include: { student: true, profile: true } } },
+        });
+
+        if (!discussion) {
+          console.warn(
+            `[Socket] User ${userId} rejected from joining discussion ${data.discussionId} (discussion not found)`,
+          );
+          socket.emit("error:message", {
+            message: "Discussion not found.",
+          });
+          return;
+        }
+
+        const viewer = await prisma.user.findUnique({
+          where: { id: userId },
+          include: { student: true, profile: true },
+        });
+
+        if (discussion.visibility === DiscussionVisibility.DEPARTMENT) {
+          if (
+            !viewer?.student?.department ||
+            viewer.student.department !== discussion.author.student?.department
+          ) {
+            console.warn(
+              `[Socket] User ${userId} rejected from joining discussion ${data.discussionId} (not in author's department)`,
+            );
+            socket.emit("error:message", {
+              message: "This discussion is only visible to your department.",
+            });
+            return;
+          }
+        } else if (discussion.visibility === DiscussionVisibility.BATCH) {
+          if (
+            !viewer?.profile?.batchYear ||
+            viewer.profile.batchYear !== discussion.author.profile?.batchYear
+          ) {
+            console.warn(
+              `[Socket] User ${userId} rejected from joining discussion ${data.discussionId} (not in author's batch)`,
+            );
+            socket.emit("error:message", {
+              message: "This discussion is only visible to your batch.",
+            });
+            return;
+          }
+        }
+
+        roomManager.joinRoom(socket, `discussion:${data.discussionId}`);
+      } catch {
+        socket.emit("error:message", { message: "Failed to join discussion room." });
+      }
     });
 
     socket.on("discussion:leave", (data) => {
