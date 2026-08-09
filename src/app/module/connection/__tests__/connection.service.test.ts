@@ -17,6 +17,9 @@ vi.mock("../../../../app/lib/prisma", () => ({
       findMany: vi.fn(),
       count: vi.fn(),
     },
+    userSettings: {
+      findUnique: vi.fn(),
+    },
     blockedUser: {
       create: vi.fn(),
       findUnique: vi.fn(),

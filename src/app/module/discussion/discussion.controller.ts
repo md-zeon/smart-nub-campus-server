@@ -29,6 +29,7 @@ const listDiscussions = catchAsync(async (req, res) => {
   const query: ListDiscussionsQuery = {
     category: req.query.category as string | undefined,
     tag: req.query.tag as string | undefined,
+    courseId: req.query.courseId as string | undefined,
     visibility: req.query.visibility as ListDiscussionsQuery["visibility"],
     search: req.query.search as string | undefined,
     sort: (req.query.sort as ListDiscussionsQuery["sort"]) || "latest",

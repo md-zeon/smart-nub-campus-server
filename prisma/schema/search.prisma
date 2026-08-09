@@ -1,0 +1,31 @@
+// Global search analytics (Phase 3)
+
+model SearchAnalytics {
+  id           String   @id @default(uuid())
+  userId       String?
+  query        String   @db.VarChar(120)
+  entityTotals Json?
+  resultCount  Int      @default(0)
+  zeroResult   Boolean  @default(false)
+  tookMs       Int?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+  @@index([zeroResult])
+  @@map("search_analytics")
+}
+
+model SearchClick {
+  id        String   @id @default(uuid())
+  userId    String?
+  query     String   @db.VarChar(120)
+  entity    String   @db.VarChar(32)
+  resultId  String?
+  position  Int?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+  @@map("search_clicks")
+}

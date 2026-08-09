@@ -181,6 +181,7 @@ const listAnswers = async (questionId: string, userId?: string) => {
 const listQuestions = async (query: ListQuestionsQuery, userId?: string) => {
   const {
     category,
+    courseId,
     tag,
     search,
     answered,
@@ -196,6 +197,10 @@ const listQuestions = async (query: ListQuestionsQuery, userId?: string) => {
 
   if (category) {
     where.category = { slug: category };
+  }
+
+  if (courseId) {
+    where.courseId = courseId;
   }
 
   if (tag) {

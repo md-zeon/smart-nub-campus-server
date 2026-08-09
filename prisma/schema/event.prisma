@@ -15,12 +15,15 @@ model Event {
   reunionBatchYear Int?
 
   rsvps       EventRSVP[]
+  searchTsv   Unsupported("tsvector")?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
   @@index([eventDate(sort: Desc)])
   @@index([status])
   @@index([status, eventDate])
+  @@index([searchTsv], type: Gin)
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin)
   @@map("events")
 }
 

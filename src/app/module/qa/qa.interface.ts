@@ -28,6 +28,7 @@ export interface VoteInput {
 
 export interface ListQuestionsQuery {
   category?: string;
+  courseId?: string;
   tag?: string;
   search?: string;
   answered?: string;
