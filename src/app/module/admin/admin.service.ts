@@ -125,7 +125,7 @@ const getDashboardCharts = async (query: DashboardChartsQuery) => {
         SELECT
           TO_CHAR(DATE_TRUNC('week', "createdAt"), 'YYYY-MM-DD') AS date,
           COUNT(*)::int AS count
-        FROM "verification_request"
+        FROM "verification_requests"
         WHERE "createdAt" >= ${new Date(now.getTime() - 4 * 7 * 24 * 60 * 60 * 1000)}
         GROUP BY DATE_TRUNC('week', "createdAt")
         ORDER BY DATE_TRUNC('week', "createdAt") ASC
