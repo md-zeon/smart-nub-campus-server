@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const awardPointsSchema = z
   .object({
-    userId: z.string().uuid("Invalid user ID"),
+    userId: z.string().trim().min(1, "Invalid user ID"),
     event: z.enum([
       "RESOURCE_UPLOADED",
       "RESOURCE_UPVOTED_RECEIVED",
@@ -33,7 +33,7 @@ const awardPointsSchema = z
 
 const adminAdjustPointsSchema = z
   .object({
-    userId: z.string().uuid("Invalid user ID"),
+    userId: z.string().trim().min(1, "Invalid user ID"),
     points: z
       .number()
       .int()
@@ -48,7 +48,7 @@ const adminAdjustPointsSchema = z
 
 const handleVoteSchema = z
   .object({
-    recipientId: z.string().uuid("Invalid recipient ID"),
+    recipientId: z.string().trim().min(1, "Invalid recipient ID"),
     contentType: z.enum(["RESOURCE", "DISCUSSION", "QUESTION", "ANSWER"]),
     contentId: z.string().uuid("Invalid content ID"),
     voteType: z.enum(["UP", "DOWN"]),

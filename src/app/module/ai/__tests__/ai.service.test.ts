@@ -26,6 +26,34 @@ vi.mock("../../../../app/lib/prisma", () => ({
   },
 }));
 
+const aiMocks = vi.hoisted(() => {
+  const chat = vi.fn().mockResolvedValue("Mock AI response");
+  return {
+    chat,
+    createProvider: vi.fn(() => ({ chat })),
+  };
+});
+
+vi.mock("../../../../app/lib/ai", () => aiMocks);
+
+vi.mock("@google/generative-ai", () => ({
+  GoogleGenerativeAI: class {
+    getGenerativeModel() {
+      return {
+        startChat: vi.fn(() => ({
+          sendMessage: vi.fn().mockResolvedValue({
+            response: { text: vi.fn(() => "Mock AI response") },
+          }),
+          sendMessageStream: vi.fn(),
+        })),
+        generateContent: vi.fn().mockResolvedValue({
+          response: { text: vi.fn(() => "Mock AI response") },
+        }),
+      };
+    }
+  },
+}));
+
 import aiService from "../ai.service";
 import { prisma } from "../../../../app/lib/prisma";
 
@@ -212,6 +240,7 @@ describe("AIService", () => {
             create: vi.fn()
               .mockResolvedValueOnce(mockUserMessage)
               .mockResolvedValueOnce(mockAiMessage),
+            findMany: vi.fn().mockResolvedValue([]),
           },
           aIStudyStats: {
             upsert: vi.fn().mockResolvedValue({}),

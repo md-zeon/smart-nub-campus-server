@@ -15,5 +15,7 @@ export default defineConfig({
     testTimeout: 15000,
     hookTimeout: 15000,
     pool: "forks",
+    maxWorkers: 4,
+    execArgv: ["--max-old-space-size=8192"],
   },
 });

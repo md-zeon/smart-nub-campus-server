@@ -41,6 +41,9 @@ const createVerificationRequest = catchAsync(async (req, res) => {
       studentId: verificationRequest.studentId,
       status: verificationRequest.status,
       note: verificationRequest.note,
+      requestType: verificationRequest.requestType,
+      graduationYear: verificationRequest.graduationYear,
+      degreeTitle: verificationRequest.degreeTitle,
     };
 
     if (verificationRequest.status === "REJECTED") {

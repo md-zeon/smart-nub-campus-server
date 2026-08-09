@@ -37,6 +37,8 @@ const userId = "user-001";
 const otherUserId = "user-002";
 const eventId = "event-001";
 
+const studentViewer = { id: userId, role: "STUDENT" as const };
+
 afterEach(() => {
   vi.clearAllMocks();
 });
@@ -163,7 +165,7 @@ describe("getEventById", () => {
     });
     (mockedPrisma.eventRSVP.findUnique as any).mockResolvedValue({ id: "rsvp-1" });
 
-    const result = await eventService.getEventById(eventId, userId);
+    const result = await eventService.getEventById(eventId, studentViewer);
 
     expect(result.id).toBe(eventId);
     expect(result.isRsvpd).toBe(true);
@@ -178,7 +180,7 @@ describe("getEventById", () => {
     });
     (mockedPrisma.eventRSVP.findUnique as any).mockResolvedValue(null);
 
-    const result = await eventService.getEventById(eventId, userId);
+    const result = await eventService.getEventById(eventId, studentViewer);
 
     expect(result.isRsvpd).toBe(false);
   });
@@ -212,7 +214,7 @@ describe("getEventById", () => {
     });
     (mockedPrisma.eventRSVP.findUnique as any).mockResolvedValue(null);
 
-    await eventService.getEventById(eventId, userId);
+    await eventService.getEventById(eventId, studentViewer);
 
     expect(mockedPrisma.eventRSVP.findUnique).toHaveBeenCalledWith({
       where: { eventId_userId: { eventId, userId } },
@@ -252,7 +254,7 @@ describe("listEvents", () => {
     (mockedPrisma.$transaction as any).mockResolvedValue([mockEvents, 2]);
     (mockedPrisma.eventRSVP.findMany as any).mockResolvedValue([{ eventId }]);
 
-    const result = await eventService.listEvents({}, userId);
+    const result = await eventService.listEvents({}, studentViewer);
 
     expect(result.data[0].isRsvpd).toBe(true);
     expect(result.data[1].isRsvpd).toBe(false);
@@ -588,5 +590,134 @@ describe("toggleRsvp", () => {
 
     expect(mockedPrisma.eventRSVP.create).not.toHaveBeenCalled();
     expect(mockedPrisma.eventRSVP.delete).not.toHaveBeenCalled();
+  });
+});
+
+// ─── listEvents audience filtering (P3) ───────────────────────────────
+
+describe("listEvents audience filtering", () => {
+  const alumniViewer = { id: userId, role: "ALUMNI" as const };
+  const adminViewer = { id: userId, role: "ADMIN" as const };
+
+  beforeEach(() => {
+    (mockedPrisma.$transaction as any).mockResolvedValue([[], 0]);
+  });
+
+  it("shows alumni ONLY every+alumni events", async () => {
+    await eventService.listEvents({}, alumniViewer);
+
+    expect(mockedPrisma.event.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          audience: { in: ["EVERYONE", "ALUMNI_ONLY"] },
+        }),
+      }),
+    );
+  });
+
+  it("shows students ONLY every+students events", async () => {
+    await eventService.listEvents({}, studentViewer);
+
+    expect(mockedPrisma.event.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          audience: { in: ["EVERYONE", "STUDENTS_ONLY"] },
+        }),
+      }),
+    );
+  });
+
+  it("does not restrict the audience for admins", async () => {
+    await eventService.listEvents({}, adminViewer);
+
+    expect(mockedPrisma.event.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.not.objectContaining({
+          audience: expect.anything(),
+        }),
+      }),
+    );
+  });
+
+  it("does not restrict the audience when no viewer is provided", async () => {
+    await eventService.listEvents({});
+
+    expect(mockedPrisma.event.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.not.objectContaining({
+          audience: expect.anything(),
+        }),
+      }),
+    );
+  });
+
+  it("filters reunion events by non-null reunionBatchYear", async () => {
+    await eventService.listEvents({ type: "reunion" }, alumniViewer);
+
+    expect(mockedPrisma.event.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          reunionBatchYear: { not: null },
+        }),
+      }),
+    );
+  });
+});
+
+// ─── getEventById audience protection (P3) ────────────────────────────
+
+describe("getEventById audience protection", () => {
+  const alumniViewer = { id: userId, role: "ALUMNI" as const };
+  const baseEvent = {
+    id: eventId,
+    title: "Talk",
+    organizer: { id: otherUserId, name: "Bob", email: "bob@test.com", image: null },
+    _count: { rsvps: 0 },
+  };
+
+  it("hides alumni-only events from students", async () => {
+    (mockedPrisma.event.findUnique as any).mockResolvedValue({
+      ...baseEvent,
+      audience: "ALUMNI_ONLY",
+    });
+
+    await expect(
+      eventService.getEventById(eventId, studentViewer),
+    ).rejects.toThrow("Event not found.");
+  });
+
+  it("hides students-only events from alumni", async () => {
+    (mockedPrisma.event.findUnique as any).mockResolvedValue({
+      ...baseEvent,
+      audience: "STUDENTS_ONLY",
+    });
+
+    await expect(
+      eventService.getEventById(eventId, alumniViewer),
+    ).rejects.toThrow("Event not found.");
+  });
+
+  it("allows alumni to view alumni-only events", async () => {
+    (mockedPrisma.event.findUnique as any).mockResolvedValue({
+      ...baseEvent,
+      audience: "ALUMNI_ONLY",
+    });
+    (mockedPrisma.eventRSVP.findUnique as any).mockResolvedValue(null);
+
+    const result = await eventService.getEventById(eventId, alumniViewer);
+
+    expect(result.id).toBe(eventId);
+  });
+
+  it("allows students to view students-only events", async () => {
+    (mockedPrisma.event.findUnique as any).mockResolvedValue({
+      ...baseEvent,
+      audience: "STUDENTS_ONLY",
+    });
+    (mockedPrisma.eventRSVP.findUnique as any).mockResolvedValue(null);
+
+    const result = await eventService.getEventById(eventId, studentViewer);
+
+    expect(result.id).toBe(eventId);
   });
 });

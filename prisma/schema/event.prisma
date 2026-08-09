@@ -9,13 +9,21 @@ model Event {
   organizer   User?       @relation(fields: [organizerId], references: [id], onDelete: SetNull)
   status      EventStatus @default(UPCOMING)
   isFeatured  Boolean     @default(false)
+
+  // Audience (Alumni role feature)
+  audience         EventAudience @default(EVERYONE)
+  reunionBatchYear Int?
+
   rsvps       EventRSVP[]
+  searchTsv   Unsupported("tsvector")?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
   @@index([eventDate(sort: Desc)])
   @@index([status])
   @@index([status, eventDate])
+  @@index([searchTsv], type: Gin)
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin)
   @@map("events")
 }
 

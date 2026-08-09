@@ -518,6 +518,29 @@ const getUserBadges = async (userId: string) => {
 };
 
 /**
+ * Award a specific badge by name to a user (best-effort, idempotent).
+ * Used by feature flows to unlock milestone badges deterministically
+ * (e.g. "Alumnus" on transition, "Mentor" on opting in, "Job Pioneer" on first post).
+ * Silently returns null if the badge is not seeded yet.
+ */
+const awardBadgeByName = async (userId: string, badgeName: string) => {
+  const badge = await prisma.badge.findUnique({
+    where: { name: badgeName },
+    select: { id: true },
+  });
+  if (!badge) return null;
+
+  const existing = await prisma.userBadge.findUnique({
+    where: { userId_badgeId: { userId, badgeId: badge.id } },
+  });
+  if (existing) return existing;
+
+  return prisma.userBadge.create({
+    data: { userId, badgeId: badge.id },
+  });
+};
+
+/**
  * Get public profile stats for a user (resources, discussions, questions, answers, points, connections).
  */
 const getProfileStats = async (userId: string) => {
@@ -561,5 +584,6 @@ export const gamificationService = {
   adminAdjustPoints,
   getReputationHistory,
   getUserBadges,
+  awardBadgeByName,
   getProfileStats,
 };

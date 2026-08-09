@@ -39,6 +39,7 @@ model Resource {
   resourceBookmarks ResourceBookmark[]
   resourceDownloads ResourceDownload[]
   comments          Comment[]
+  searchTsv         Unsupported("tsvector")?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
@@ -49,6 +50,8 @@ model Resource {
   @@index([isDeleted, isVerified])
   @@index([createdAt(sort: Desc)])
   @@index([upvoteCount(sort: Desc)])
+  @@index([searchTsv], type: Gin)
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin)
   @@map("resource")
 }
 

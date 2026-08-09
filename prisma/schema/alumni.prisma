@@ -1,0 +1,197 @@
+// Alumni role feature models (AlumniProfile data, jobs, mentorship)
+
+model EmploymentRecord {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  employer    String
+  title       String
+  industry    String?
+  startDate   DateTime
+  endDate     DateTime?
+  isCurrent   Boolean  @default(false)
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("employment_records")
+}
+
+model JobPost {
+  id          String        @id @default(uuid())
+  title       String        @db.VarChar(200)
+  company     String        @db.VarChar(200)
+  description String?       @db.Text
+  employmentType JobType
+  location    String?
+  salaryRange String?
+  applicationUrl String?
+  deadline    DateTime?
+  department  Department?
+  status      JobPostStatus @default(OPEN)
+  isVerified  Boolean       @default(false)
+  source      JobSource     @default(PLATFORM)
+  sourceUrl   String?       @db.VarChar(2048)
+  applicationForm Json?
+
+  postedById String
+  postedBy   User           @relation(fields: [postedById], references: [id], onDelete: Cascade)
+
+  applications JobApplication[]
+
+  searchTsv Unsupported("tsvector")?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([postedById])
+  @@index([status])
+  @@index([employmentType])
+  @@index([department])
+  @@index([createdAt(sort: Desc)])
+  @@index([searchTsv], type: Gin)
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([company(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@map("job_posts")
+}
+
+model JobApplication {
+  id        String   @id @default(uuid())
+  jobPostId String
+  jobPost   JobPost  @relation(fields: [jobPostId], references: [id], onDelete: Cascade)
+  applicantId String
+  applicant User     @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+
+  coverLetter String?
+  resumeUrl   String?
+  responses   Json?
+  status      ApplicationStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([jobPostId, applicantId])
+  @@index([applicantId])
+  @@map("job_applications")
+}
+
+model MentorshipRequest {
+  id        String   @id @default(uuid())
+  mentorId  String
+  mentor    User     @relation("MentorshipMentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  menteeId  String
+  mentee    User     @relation("MentorshipMentee", fields: [menteeId], references: [id], onDelete: Cascade)
+
+  topic   String?
+  message String?
+  goals   String[] @default([])
+  status  ApplicationStatus @default(PENDING)
+  respondedAt DateTime?
+
+  mentorship Mentorship?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mentorId])
+  @@index([menteeId])
+  @@index([status])
+  @@map("mentorship_requests")
+}
+
+model Mentorship {
+  id        String   @id @default(uuid())
+  requestId String   @unique
+  request   MentorshipRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  mentorId  String
+  mentor    User     @relation("MentorshipActiveMentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  menteeId  String
+  mentee    User     @relation("MentorshipActiveMentee", fields: [menteeId], references: [id], onDelete: Cascade)
+
+  status    MentorshipStatus @default(ACTIVE)
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
+  lastActivityAt DateTime @default(now())
+
+  // Closure feedback (both sides)
+  mentorRating  Int?
+  menteeRating  Int?
+  mentorFeedback String?
+  menteeFeedback String?
+
+  goals    MentorshipGoal[]
+  sessions MentorshipSession[]
+  messages MentorshipMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mentorId])
+  @@index([menteeId])
+  @@index([status])
+  @@map("mentorships")
+}
+
+model MentorshipGoal {
+  id           String @id @default(uuid())
+  mentorshipId String
+  mentorship   Mentorship @relation(fields: [mentorshipId], references: [id], onDelete: Cascade)
+
+  title       String @db.VarChar(200)
+  description String? @db.Text
+  status      MentorshipGoalStatus @default(ACTIVE)
+  dueDate     DateTime?
+  order       Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mentorshipId])
+  @@map("mentorship_goals")
+}
+
+model MentorshipSession {
+  id           String @id @default(uuid())
+  mentorshipId String
+  mentorship   Mentorship @relation(fields: [mentorshipId], references: [id], onDelete: Cascade)
+
+  scheduledAt     DateTime
+  durationMinutes Int?
+  format          MeetingPreference @default(ONLINE)
+  location        String?
+  agenda          String? @db.Text
+  notes           String? @db.Text
+  actionItems     String? @db.Text
+  status          MentorshipSessionStatus @default(SCHEDULED)
+  completedAt     DateTime?
+
+  createdById String
+  createdBy   User @relation("MentorshipSessionCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mentorshipId])
+  @@index([status])
+  @@map("mentorship_sessions")
+}
+
+model MentorshipMessage {
+  id           String @id @default(uuid())
+  mentorshipId String
+  mentorship   Mentorship @relation(fields: [mentorshipId], references: [id], onDelete: Cascade)
+
+  senderId String
+  sender   User @relation("MentorshipMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  body      String @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mentorshipId])
+  @@index([senderId])
+  @@map("mentorship_messages")
+}

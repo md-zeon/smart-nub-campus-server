@@ -1,11 +1,22 @@
 import status from "http-status";
 import AppError from "../../errorHelpers/AppError";
+import { Prisma } from "../../../generated/prisma/client";
+import {
+  AcademicStatus,
+  AdmissionSemester,
+  Department,
+  NotificationType,
+  UserRole,
+} from "../../../generated/prisma/enums";
 import { prisma } from "../../lib/prisma";
 import { getSocketServer } from "../../lib/socket/socket-server";
 import { softDelete } from "../../shared/softDelete";
+import { notificationService } from "../notification/notification.service";
 import {
   ListUsersQuery,
+  ListAlumniQuery,
   ListResourcesQuery,
+  ListJobsQuery,
   ListAuditLogsQuery,
   ListDiscussionsQuery,
   CreateAuditLogInput,
@@ -36,6 +47,8 @@ const getDashboardStats = async () => {
     totalDiscussions,
     totalQuestions,
     totalEvents,
+    totalJobs,
+    totalAlumni,
     pendingVerifications,
     totalResourcesByVerification,
   ] = await Promise.all([
@@ -44,6 +57,8 @@ const getDashboardStats = async () => {
     prisma.discussion.count({ where: { isDeleted: false } }),
     prisma.question.count({ where: { isDeleted: false } }),
     prisma.event.count(),
+    prisma.jobPost.count(),
+    prisma.user.count({ where: { role: "ALUMNI", isDeleted: false } }),
     prisma.verificationRequest.count({ where: { status: "PENDING" } }),
     prisma.resource.groupBy({
       by: ["isVerified"],
@@ -65,6 +80,8 @@ const getDashboardStats = async () => {
     totalDiscussions,
     totalQuestions,
     totalEvents,
+    totalJobs,
+    totalAlumni,
     pendingVerifications,
   };
 };
@@ -108,7 +125,7 @@ const getDashboardCharts = async (query: DashboardChartsQuery) => {
         SELECT
           TO_CHAR(DATE_TRUNC('week', "createdAt"), 'YYYY-MM-DD') AS date,
           COUNT(*)::int AS count
-        FROM "verification_request"
+        FROM "verification_requests"
         WHERE "createdAt" >= ${new Date(now.getTime() - 4 * 7 * 24 * 60 * 60 * 1000)}
         GROUP BY DATE_TRUNC('week', "createdAt")
         ORDER BY DATE_TRUNC('week', "createdAt") ASC
@@ -289,6 +306,317 @@ const deleteUser = async (id: string) => {
   return { message: "User deleted successfully." };
 };
 
+// --- Graduation & Alumni Management ---
+const markGraduation = async (
+  id: string,
+  adminId: string,
+  data: {
+    graduationYear: number;
+    graduationSemester: AdmissionSemester;
+    degreeTitle?: string;
+    cgpa?: number;
+    graduationDate?: Date;
+  },
+) => {
+  const user = await prisma.user.findUnique({
+    where: { id },
+    include: { student: true },
+  });
+
+  if (!user || user.isDeleted) {
+    throw new AppError(status.NOT_FOUND, "User not found.");
+  }
+
+  if (user.role !== UserRole.STUDENT) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "Only students can be marked as graduated.",
+    );
+  }
+
+  if (!user.student) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "User does not have a student record.",
+    );
+  }
+
+  if (user.student.academicStatus === AcademicStatus.GRADUATED) {
+    throw new AppError(
+      status.CONFLICT,
+      "This student is already marked as graduated.",
+    );
+  }
+
+  const student = await prisma.student.update({
+    where: { id: user.student.id },
+    data: {
+      academicStatus: AcademicStatus.GRADUATED,
+      graduationYear: data.graduationYear,
+      graduationSemester: data.graduationSemester,
+      degreeTitle: data.degreeTitle ?? null,
+      cgpa: data.cgpa ?? null,
+      graduationDate: data.graduationDate ?? null,
+      graduatedById: adminId,
+      graduatedAt: new Date(),
+    },
+    include: { graduatedBy: { select: { id: true, name: true } } },
+  });
+
+  await notificationService.createNotification({
+    userId: id,
+    type: NotificationType.GRADUATION_MARKED,
+    title: "Graduation Recorded",
+    message:
+      "Your graduation has been recorded. Complete the transition to join the alumni community.",
+    link: "/home",
+  });
+
+  return student;
+};
+
+const undoGraduation = async (id: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id },
+    include: { student: true },
+  });
+
+  if (!user || user.isDeleted) {
+    throw new AppError(status.NOT_FOUND, "User not found.");
+  }
+
+  if (user.role !== UserRole.STUDENT) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "Only active student graduations can be undone.",
+    );
+  }
+
+  if (!user.student) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "User does not have a student record.",
+    );
+  }
+
+  if (user.student.academicStatus !== AcademicStatus.GRADUATED) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "This student is not marked as graduated.",
+    );
+  }
+
+  const student = await prisma.student.update({
+    where: { id: user.student.id },
+    data: {
+      academicStatus: AcademicStatus.ENROLLED,
+      graduationYear: null,
+      graduationSemester: null,
+      graduationDate: null,
+      degreeTitle: null,
+      cgpa: null,
+      graduatedById: null,
+      graduatedAt: null,
+    },
+  });
+
+  return student;
+};
+
+const batchGraduation = async (
+  adminId: string,
+  data: {
+    department?: Department;
+    admissionYear?: number;
+    admissionSemester?: AdmissionSemester;
+    graduationYear: number;
+    graduationSemester: AdmissionSemester;
+  },
+) => {
+  const where: Prisma.StudentWhereInput = {
+    academicStatus: AcademicStatus.ENROLLED,
+    user: { role: UserRole.STUDENT, isDeleted: false },
+  };
+
+  if (data.department) where.department = data.department;
+  if (data.admissionYear) where.admissionYear = data.admissionYear;
+  if (data.admissionSemester) where.admissionSemester = data.admissionSemester;
+
+  const matched = await prisma.student.findMany({
+    where,
+    select: { id: true, userId: true },
+  });
+
+  if (matched.length === 0) {
+    throw new AppError(status.NOT_FOUND, "No matching students found.");
+  }
+
+  await prisma.student.updateMany({
+    where: { id: { in: matched.map((s) => s.id) } },
+    data: {
+      academicStatus: AcademicStatus.GRADUATED,
+      graduationYear: data.graduationYear,
+      graduationSemester: data.graduationSemester,
+      graduatedById: adminId,
+      graduatedAt: new Date(),
+    },
+  });
+
+  for (const s of matched) {
+    await notificationService.createNotification({
+      userId: s.userId,
+      type: NotificationType.GRADUATION_MARKED,
+      title: "Graduation Recorded",
+      message: `Your graduation (${data.graduationYear} ${data.graduationSemester}) has been recorded. Complete the transition to join the alumni community.`,
+      link: "/home",
+    });
+  }
+
+  return { count: matched.length };
+};
+
+const revertAlumni = async (id: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id },
+    include: { student: true },
+  });
+
+  if (!user || user.isDeleted) {
+    throw new AppError(status.NOT_FOUND, "User not found.");
+  }
+
+  if (user.role !== UserRole.ALUMNI) {
+    throw new AppError(status.BAD_REQUEST, "This user is not an alumnus.");
+  }
+
+  if (!user.student) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "Alumni user does not have a student record.",
+    );
+  }
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id },
+      data: { role: UserRole.STUDENT },
+    }),
+    prisma.student.update({
+      where: { id: user.student.id },
+      data: {
+        academicStatus: AcademicStatus.ENROLLED,
+        graduationYear: null,
+        graduationSemester: null,
+        graduationDate: null,
+        degreeTitle: null,
+        cgpa: null,
+        graduatedById: null,
+        graduatedAt: null,
+        transitionConfirmedAt: null,
+      },
+    }),
+  ]);
+
+  return { message: "Alumni status reverted to student successfully." };
+};
+
+const listAlumni = async (query: ListAlumniQuery) => {
+  const {
+    department,
+    graduationYear,
+    industry,
+    currentEmployer,
+    q,
+    page = 1,
+    limit = 20,
+  } = query;
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.UserWhereInput = {
+    role: UserRole.ALUMNI,
+    isDeleted: false,
+    student: {
+      is: {
+        ...(department ? { department: department as Department } : {}),
+        ...(graduationYear ? { graduationYear } : {}),
+      },
+    },
+    profile: {
+      is: {
+        ...(industry
+          ? { industry: { contains: industry, mode: "insensitive" } }
+          : {}),
+        ...(currentEmployer
+          ? {
+              currentEmployer: {
+                contains: currentEmployer,
+                mode: "insensitive",
+              },
+            }
+          : {}),
+      },
+    },
+  };
+
+  if (q) {
+    where.OR = [
+      { name: { contains: q, mode: "insensitive" } },
+      { email: { contains: q, mode: "insensitive" } },
+      {
+        student: {
+          is: { studentId: { contains: q, mode: "insensitive" } },
+        },
+      },
+    ];
+  }
+
+  const [alumni, total] = await prisma.$transaction([
+    prisma.user.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        createdAt: true,
+        student: {
+          select: {
+            department: true,
+            admissionYear: true,
+            admissionSemester: true,
+            academicStatus: true,
+            graduationYear: true,
+            graduationSemester: true,
+            degreeTitle: true,
+            cgpa: true,
+            transitionConfirmedAt: true,
+          },
+        },
+        profile: {
+          select: {
+            currentEmployer: true,
+            jobTitle: true,
+            industry: true,
+            location: true,
+            showInAlumniDirectory: true,
+            isMentor: true,
+            mentorshipTopics: true,
+          },
+        },
+      },
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return {
+    data: alumni,
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  };
+};
+
 // --- Resource Management ---
 const listResources = async (query: ListResourcesQuery) => {
   const { search, courseId, categoryId, isVerified, page = 1, limit = 20 } = query;
@@ -373,6 +701,91 @@ const deleteResource = async (id: string) => {
   await softDelete(prisma.resource, id);
 
   return { message: "Resource removed successfully." };
+};
+
+// --- Job Post Management ---
+const listJobs = async (query: ListJobsQuery) => {
+  const { search, status: jobStatus, isVerified, page = 1, limit = 20 } = query;
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.JobPostWhereInput = {};
+
+  if (search) {
+    where.OR = [
+      { title: { contains: search, mode: "insensitive" } },
+      { company: { contains: search, mode: "insensitive" } },
+      { description: { contains: search, mode: "insensitive" } },
+    ];
+  }
+  if (jobStatus) where.status = jobStatus as "OPEN" | "FILLED" | "CLOSED";
+  if (isVerified !== undefined) where.isVerified = isVerified;
+
+  const [jobs, total] = await prisma.$transaction([
+    prisma.jobPost.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        postedBy: {
+          select: { id: true, name: true, email: true, image: true },
+        },
+        _count: { select: { applications: true } },
+      },
+    }),
+    prisma.jobPost.count({ where }),
+  ]);
+
+  return {
+    data: jobs,
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  };
+};
+
+const verifyJob = async (id: string, isVerified: boolean) => {
+  const job = await prisma.jobPost.findUnique({
+    where: { id },
+  });
+
+  if (!job) {
+    throw new AppError(status.NOT_FOUND, "Job post not found.");
+  }
+
+  const updated = await prisma.jobPost.update({
+    where: { id },
+    data: { isVerified },
+    include: {
+      postedBy: { select: { id: true, name: true, email: true, image: true } },
+      _count: { select: { applications: true } },
+    },
+  });
+
+  try {
+    const io = getSocketServer();
+    io.emit("admin:review-update", {
+      type: "job",
+      entityId: id,
+      status: isVerified ? "VERIFIED" : "UNVERIFIED",
+    });
+  } catch {
+    // Socket.IO may not be initialized in test environments
+  }
+
+  return updated;
+};
+
+const deleteJob = async (id: string) => {
+  const job = await prisma.jobPost.findUnique({
+    where: { id },
+  });
+
+  if (!job) {
+    throw new AppError(status.NOT_FOUND, "Job post not found.");
+  }
+
+  await prisma.jobPost.delete({ where: { id } });
+
+  return { message: "Job post removed successfully." };
 };
 
 // --- Course Management ---
@@ -792,9 +1205,17 @@ export const adminService = {
   getUserById,
   updateUserStatus,
   deleteUser,
+  markGraduation,
+  undoGraduation,
+  batchGraduation,
+  revertAlumni,
+  listAlumni,
   listResources,
   verifyResource,
   deleteResource,
+  listJobs,
+  verifyJob,
+  deleteJob,
   listCourses,
   getCourseById,
   createCourse,

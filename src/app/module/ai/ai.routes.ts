@@ -12,8 +12,25 @@ import {
   generateFlashcardsSchema,
   explainCodeSchema,
 } from "./ai.validation";
+import multer from "multer";
+import { UPLOAD_CONFIG } from "../../lib/upload/config";
 
 const router = Router();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: UPLOAD_CONFIG.maxFileSize,
+  },
+  fileFilter: (_req, file, cb) => {
+    const allAllowedMimes = Object.values(UPLOAD_CONFIG.allowedMimeTypes).flat();
+    if (allAllowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`File type ${file.mimetype} is not allowed`));
+    }
+  },
+});
 
 // --- Chat Session Routes ---
 
@@ -99,6 +116,15 @@ router.post(
   aiToolRateLimiter,
   validateRequest(explainCodeSchema),
   aiController.explainCode,
+);
+
+// --- Attachment Routes ---
+
+router.post(
+  "/sessions/:sessionId/attachments",
+  verifySession,
+  upload.single("file"),
+  aiController.uploadAttachment,
 );
 
 export default router;

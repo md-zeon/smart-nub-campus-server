@@ -65,6 +65,9 @@ vi.mock("../../config/env", () => ({
     CLOUDINARY_API_KEY: "test",
     CLOUDINARY_API_SECRET: "test",
     MAIL_PROVIDER: "resend",
+    AI_PROVIDER: "gemini",
+    AI_PROVIDER_API_KEY: "test-key",
+    AI_PROVIDER_MODEL: "gemini-1.5-flash",
   },
 }));
 

@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockPrisma } = vi.hoisted(() => ({
+const { mockPrisma, mockNotificationService } = vi.hoisted(() => ({
+  mockNotificationService: {
+    createNotification: vi.fn(),
+  },
   mockPrisma: {
     reputationPoint: {
       create: vi.fn(),
@@ -15,13 +18,17 @@ const { mockPrisma } = vi.hoisted(() => ({
     userBadge: {
       findFirst: vi.fn(),
       findMany: vi.fn(),
+      findUnique: vi.fn(),
       create: vi.fn(),
     },
     badge: {
       findMany: vi.fn(),
+      findUnique: vi.fn(),
     },
     user: {
       findMany: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
     },
     resource: {
       count: vi.fn(),
@@ -35,6 +42,9 @@ const { mockPrisma } = vi.hoisted(() => ({
     answer: {
       count: vi.fn(),
     },
+    connection: {
+      count: vi.fn(),
+    },
     auditLog: {
       create: vi.fn(),
     },
@@ -44,6 +54,10 @@ const { mockPrisma } = vi.hoisted(() => ({
 
 vi.mock("../../../../app/lib/prisma", () => ({
   prisma: mockPrisma,
+}));
+
+vi.mock("../notification/notification.service", () => ({
+  notificationService: mockNotificationService,
 }));
 
 import { gamificationService } from "../gamification.service";
@@ -64,7 +78,8 @@ const mockReputationRecord = {
 };
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  mockNotificationService.createNotification.mockResolvedValue({});
   mockPrisma.$transaction.mockImplementation(async (fns: any) => {
     if (Array.isArray(fns)) {
       return Promise.all(fns);
@@ -390,7 +405,7 @@ describe("handleDownvote", () => {
     const voterCall = vi.mocked(mockPrisma.reputationPoint.create).mock
       .calls[1][0];
     expect(voterCall.data.userId).toBe(OTHER_USER_ID);
-    expect(voterCall.data.event).toBe("RESOURCE_DOWNVOTED_given");
+    expect(voterCall.data.event).toBe("RESOURCE_DOWNVOTED_GIVEN");
     expect(voterCall.data.reason).toBe("Downvote given on resource");
   });
 
@@ -897,7 +912,9 @@ describe("evaluateBadges (via awardPoints)", () => {
       points: 5,
     };
     vi.mocked(mockPrisma.badge.findMany).mockResolvedValue([mockBadge] as any);
-    vi.mocked(mockPrisma.userBadge.findMany).mockResolvedValue([]);
+    vi.mocked(mockPrisma.userBadge.findMany)
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([{ badgeId: "badge-1" }] as any);
     vi.mocked(mockPrisma.resource.count).mockResolvedValue(1);
     vi.mocked(mockPrisma.discussion.count).mockResolvedValue(0);
     vi.mocked(mockPrisma.question.count).mockResolvedValue(0);

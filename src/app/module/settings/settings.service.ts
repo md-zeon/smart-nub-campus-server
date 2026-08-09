@@ -1,4 +1,5 @@
 import { StatusCodes } from "http-status-codes";
+import bcrypt from "bcryptjs";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
 import { auth } from "../../lib/auth";
@@ -266,8 +267,27 @@ const downloadExport = async (userId: string, jobId: string) => {
   return { downloadUrl: job.fileUrl };
 };
 
-const requestArchive = async (userId: string) => {
-  // Verify password via better-auth (simplified — in production verify against auth)
+const verifyPassword = async (userId: string, password: string): Promise<void> => {
+  const account = await prisma.account.findFirst({
+    where: { userId, providerId: "credential" },
+    select: { password: true },
+  });
+
+  if (!account?.password) {
+    throw new AppError(
+      StatusCodes.BAD_REQUEST,
+      "No password-based account found.",
+    );
+  }
+
+  const valid = await bcrypt.compare(password, account.password);
+  if (!valid) {
+    throw new AppError(StatusCodes.BAD_REQUEST, "Invalid password.");
+  }
+};
+
+const requestArchive = async (userId: string, password: string) => {
+  await verifyPassword(userId, password);
   const job = await prisma.dataExport.create({
     data: {
       userId,
@@ -285,7 +305,9 @@ const requestArchive = async (userId: string) => {
   return { jobId: job.id };
 };
 
-const deactivateAccount = async (userId: string) => {
+const deactivateAccount = async (userId: string, password: string) => {
+  await verifyPassword(userId, password);
+
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
     throw new AppError(StatusCodes.NOT_FOUND, "User not found.");
@@ -310,7 +332,9 @@ const deactivateAccount = async (userId: string) => {
   await prisma.session.deleteMany({ where: { userId } });
 };
 
-const reactivateAccount = async (userId: string) => {
+const reactivateAccount = async (userId: string, password: string) => {
+  await verifyPassword(userId, password);
+
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
     throw new AppError(StatusCodes.NOT_FOUND, "User not found.");
@@ -334,9 +358,11 @@ const reactivateAccount = async (userId: string) => {
 
 const requestDeletion = async (
   userId: string,
-  _password: string,
+  password: string,
   reason?: string,
 ) => {
+  await verifyPassword(userId, password);
+
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
     throw new AppError(StatusCodes.NOT_FOUND, "User not found.");
@@ -407,6 +433,19 @@ const cancelDeletion = async (userId: string) => {
   });
 };
 
+const getDeletionStatus = async (userId: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { scheduledDeletionAt: true },
+  });
+
+  if (!user) {
+    throw new AppError(StatusCodes.NOT_FOUND, "User not found.");
+  }
+
+  return { scheduledDeletionAt: user.scheduledDeletionAt?.toISOString() ?? null };
+};
+
 const recordLoginHistory = async (
   userId: string,
   ipAddress?: string,
@@ -443,5 +482,6 @@ export const settingsService = {
   reactivateAccount,
   requestDeletion,
   cancelDeletion,
+  getDeletionStatus,
   recordLoginHistory,
 };

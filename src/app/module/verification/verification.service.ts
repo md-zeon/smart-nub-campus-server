@@ -64,12 +64,15 @@ const createVerificationRequest = async (
             id: existingEmail.id,
           },
           data: {
+            requestType: payload.requestType,
             name: payload.name,
             email: payload.email,
             dateOfBirth: payload.dateOfBirth,
             studentId: payload.studentId,
             idCardImage: payload.idCardImage,
             idCardImagePublicId: payload.idCardImagePublicId ?? null,
+            graduationYear: payload.graduationYear ?? null,
+            degreeTitle: payload.degreeTitle ?? null,
             status: VerificationStatus.PENDING,
             note: null,
           },
@@ -124,12 +127,15 @@ const createVerificationRequest = async (
               id: existingRequest.id,
             },
             data: {
+              requestType: payload.requestType,
               name: payload.name,
               email: payload.email,
               dateOfBirth: payload.dateOfBirth,
               studentId: payload.studentId,
               idCardImage: payload.idCardImage,
               idCardImagePublicId: payload.idCardImagePublicId ?? null,
+              graduationYear: payload.graduationYear ?? null,
+              degreeTitle: payload.degreeTitle ?? null,
               status: VerificationStatus.PENDING,
               note: null,
             },
@@ -164,12 +170,15 @@ const createVerificationRequest = async (
   const result = await prisma.$transaction(async (tx) => {
     const verificationRequest = await tx.verificationRequest.create({
       data: {
+        requestType: payload.requestType,
         name: payload.name,
         email: payload.email,
         dateOfBirth: payload.dateOfBirth,
         studentId: payload.studentId,
         idCardImage: payload.idCardImage,
         idCardImagePublicId: payload.idCardImagePublicId ?? null,
+        graduationYear: payload.graduationYear ?? null,
+        degreeTitle: payload.degreeTitle ?? null,
       },
     });
 

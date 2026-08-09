@@ -15,6 +15,17 @@ enum OnboardingStepValue {
 enum UserRole {
   STUDENT
   ADMIN
+  ALUMNI
+}
+
+enum AcademicStatus {
+  ENROLLED
+  GRADUATED
+}
+
+enum VerificationRequestType {
+  STUDENT
+  ALUMNI
 }
 
 enum UserStatus {
@@ -83,6 +94,31 @@ enum ApplicationStatus {
   WITHDRAWN
 }
 
+enum MentorshipCadence {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  FLEXIBLE
+}
+
+enum MentorshipStatus {
+  ACTIVE
+  COMPLETED
+  ENDED
+}
+
+enum MentorshipGoalStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum MentorshipSessionStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
 enum TeamMemberRole {
   LEADER
   MEMBER
@@ -142,6 +178,20 @@ enum NotificationType {
   EVENT_REMINDER
   BADGE_UNLOCKED
   SYSTEM
+  GRADUATION_MARKED
+  ALUMNI_TRANSITION_COMPLETE
+  JOB_APPLICATION_RECEIVED
+  JOB_APPLICATION_UPDATED
+  MENTORSHIP_REQUEST_RECEIVED
+  MENTORSHIP_REQUEST_UPDATED
+  MENTORSHIP_ACCEPTED
+  MENTORSHIP_SESSION_SCHEDULED
+  MENTORSHIP_SESSION_UPDATED
+  MENTORSHIP_GOAL_UPDATED
+  MENTORSHIP_MESSAGE
+  MENTORSHIP_COMPLETED
+  MENTORSHIP_ENDED
+  MENTORSHIP_REMINDER
 }
 
 enum DiscussionVisibility {
@@ -231,4 +281,40 @@ enum MessagingPolicy {
   CONNECTIONS
   DEPARTMENT
   NOBODY
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+  REMOTE
+}
+
+enum JobPostStatus {
+  OPEN
+  FILLED
+  CLOSED
+}
+
+enum JobSource {
+  PLATFORM
+  LINKEDIN
+  FACEBOOK
+  BDJOBS
+  INDEED
+  GLASSDOOR
+  GOOGLE_JOBS
+  BIKROY
+  CHAKRI
+  JOBSBD
+  COMPANY_WEBSITE
+  NEWSPAPER
+  OTHER
+}
+
+enum EventAudience {
+  EVERYONE
+  STUDENTS_ONLY
+  ALUMNI_ONLY
 }

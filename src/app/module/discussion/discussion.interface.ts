@@ -40,6 +40,7 @@ export interface ListDiscussionsQuery {
   category?: string;
   /** Comma-separated tag slugs (matches discussions having ANY of the tags). */
   tag?: string;
+  courseId?: string;
   visibility?: DiscussionVisibility;
   search?: string;
   sort?: "latest" | "popular" | "unanswered";

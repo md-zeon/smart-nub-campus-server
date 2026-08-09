@@ -1,15 +1,19 @@
 import {
   OnboardingStepValue,
+  VerificationRequestType,
   VerificationStatus,
 } from "../../../generated/prisma/enums";
 
 export interface CreateVerificationRequestPayload {
+  requestType: VerificationRequestType;
   name: string;
   email: string;
   dateOfBirth: Date;
   studentId: string;
   idCardImage: string;
   idCardImagePublicId?: string;
+  graduationYear?: number;
+  degreeTitle?: string;
 }
 
 export interface ListVerificationParams {
@@ -33,6 +37,9 @@ export interface CreateVerificationRequestResponse {
     studentId: string;
     status: VerificationStatus;
     note: string | null;
+    requestType: VerificationRequestType;
+    graduationYear: number | null;
+    degreeTitle: string | null;
     idCardImage?: string;
     idCardImagePublicId?: string | null;
   } | null;

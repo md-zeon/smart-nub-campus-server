@@ -1,5 +1,44 @@
 import { z } from "zod";
 
+const APPLICATION_FORM_FIELD_KEYS = [
+  "name",
+  "email",
+  "github",
+  "linkedin",
+  "portfolio",
+  "website",
+  "phone",
+  "location",
+  "studentId",
+  "department",
+  "semester",
+] as const;
+
+const applicationFormSchema = z
+  .object({
+    fields: z
+      .array(
+        z.object({
+          key: z.enum(APPLICATION_FORM_FIELD_KEYS),
+          required: z.boolean().default(false),
+        }),
+      )
+      .max(20, "Cannot configure more than 20 fields")
+      .optional(),
+    questions: z
+      .array(
+        z.object({
+          id: z.string().uuid("Invalid question ID"),
+          label: z.string().trim().min(1, "Question label is required").max(200, "Question label must be at most 200 characters"),
+          type: z.enum(["SHORT_TEXT", "PARAGRAPH"]),
+          required: z.boolean().default(false),
+        }),
+      )
+      .max(20, "Cannot add more than 20 custom questions")
+      .optional(),
+  })
+  .strict();
+
 const createTeamRequestSchema = z
   .object({
     title: z
@@ -22,6 +61,7 @@ const createTeamRequestSchema = z
     difficulty: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"]).optional(),
     meetingPreference: z.enum(["ONLINE", "IN_PERSON", "HYBRID", "FLEXIBLE"]).optional(),
     contactInfo: z.string().trim().max(500, "Contact info must be at most 500 characters").optional(),
+    applicationForm: applicationFormSchema.optional(),
     skillTagIds: z
       .array(z.string().uuid("Invalid skill tag ID"))
       .min(1, "At least one skill tag is required")
@@ -55,6 +95,7 @@ const updateTeamRequestSchema = z
     difficulty: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"]).optional(),
     meetingPreference: z.enum(["ONLINE", "IN_PERSON", "HYBRID", "FLEXIBLE"]).optional(),
     contactInfo: z.string().trim().max(500, "Contact info must be at most 500 characters").optional(),
+    applicationForm: applicationFormSchema.optional(),
     skillTagIds: z
       .array(z.string().uuid("Invalid skill tag ID"))
       .min(1, "At least one skill tag is required")
@@ -66,6 +107,9 @@ const updateTeamRequestSchema = z
 const applyToTeamSchema = z
   .object({
     message: z.string().trim().max(1000, "Message must be at most 1000 characters").optional(),
+    responses: z
+      .record(z.string(), z.string().trim().max(5000, "Response must be at most 5000 characters"))
+      .optional(),
   })
   .strict();
 

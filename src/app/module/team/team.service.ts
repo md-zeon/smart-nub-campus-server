@@ -1,12 +1,15 @@
 import status from "http-status";
 import AppError from "../../errorHelpers/AppError";
+import { Prisma } from "../../../generated/prisma/client";
 import { prisma } from "../../lib/prisma";
 import { getSocketServer } from "../../lib/socket/socket-server";
 import { softDelete } from "../../shared/softDelete";
 import { notificationService } from "../notification/notification.service";
 import {
+  ApplicationFormConfig,
   ApplyToTeamInput,
   CreateTeamRequestInput,
+  DEFAULT_APPLICATION_FORM,
   ListTeamRequestsQuery,
   ReviewApplicationInput,
   TeamCategoryCount,
@@ -31,6 +34,7 @@ const createTeamRequest = async (data: CreateTeamRequestInput, userId: string) =
         difficulty: data.difficulty ?? null,
         meetingPreference: data.meetingPreference ?? "FLEXIBLE",
         contactInfo: data.contactInfo ?? null,
+        applicationForm: (data.applicationForm as unknown as Prisma.InputJsonValue) ?? Prisma.JsonNull,
         creatorId: userId,
         teamRequestSkills: {
           create: data.skillTagIds.map((tagId) => ({ tagId })),
@@ -74,7 +78,35 @@ const getTeamRequest = async (id: string, userId?: string) => {
       },
       teamApplications: {
         include: {
-          applicant: { select: { id: true, name: true, email: true, image: true } },
+          applicant: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+              profile: {
+                select: {
+                  bio: true,
+                  githubUrl: true,
+                  linkedinUrl: true,
+                  portfolioUrl: true,
+                  websiteUrl: true,
+                  phoneNumber: true,
+                  location: true,
+                  currentSemester: true,
+                  batchYear: true,
+                },
+              },
+              student: {
+                select: {
+                  studentId: true,
+                  department: true,
+                  admissionYear: true,
+                  admissionSemester: true,
+                },
+              },
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
       },
@@ -264,6 +296,7 @@ const updateTeamRequest = async (
   if (data.difficulty !== undefined) updateData.difficulty = data.difficulty;
   if (data.meetingPreference !== undefined) updateData.meetingPreference = data.meetingPreference;
   if (data.contactInfo !== undefined) updateData.contactInfo = data.contactInfo;
+  if (data.applicationForm !== undefined) updateData.applicationForm = data.applicationForm;
 
   return prisma.$transaction(async (tx) => {
     // Update the team request
@@ -350,11 +383,35 @@ const applyToTeam = async (
     throw new AppError(status.CONFLICT, "You have already applied to this team request.");
   }
 
+  // Enforce required fields from the team's application form config
+  const formConfig =
+    (teamRequest.applicationForm as ApplicationFormConfig | null) ??
+    DEFAULT_APPLICATION_FORM;
+  const responses = data.responses ?? {};
+  const missingFields: string[] = [];
+  for (const field of formConfig.fields) {
+    if (field.required && !(responses[field.key] ?? "").trim()) {
+      missingFields.push(field.key);
+    }
+  }
+  for (const question of formConfig.questions) {
+    if (question.required && !(responses[question.id] ?? "").trim()) {
+      missingFields.push(question.label);
+    }
+  }
+  if (missingFields.length > 0) {
+    throw new AppError(
+      status.BAD_REQUEST,
+      "Please fill in all required fields before applying.",
+    );
+  }
+
   const application = await prisma.teamApplication.create({
     data: {
       teamRequestId,
       applicantId: userId,
       message: data.message ?? null,
+      responses: (data.responses as Prisma.InputJsonValue) ?? Prisma.JsonNull,
     },
     include: {
       applicant: { select: { id: true, name: true, email: true, image: true } },
@@ -777,7 +834,35 @@ const getTeamApplications = async (teamRequestId: string, userId: string) => {
   const applications = await prisma.teamApplication.findMany({
     where: { teamRequestId },
     include: {
-      applicant: { select: { id: true, name: true, email: true, image: true } },
+      applicant: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          profile: {
+            select: {
+              bio: true,
+              githubUrl: true,
+              linkedinUrl: true,
+              portfolioUrl: true,
+              websiteUrl: true,
+              phoneNumber: true,
+              location: true,
+              currentSemester: true,
+              batchYear: true,
+            },
+          },
+          student: {
+            select: {
+              studentId: true,
+              department: true,
+              admissionYear: true,
+              admissionSemester: true,
+            },
+          },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });

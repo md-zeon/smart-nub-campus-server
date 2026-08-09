@@ -55,9 +55,55 @@ const updateProfile = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const createEmployment = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as RequestUser;
+  const result = await identityService.createEmployment(user.id, req.body);
+
+  sendResponse(res, {
+    httpStatusCode: status.CREATED,
+    success: true,
+    message: "Employment record created successfully.",
+    data: result,
+  });
+});
+
+const updateEmployment = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as RequestUser;
+  const result = await identityService.updateEmployment(
+    user.id,
+    req.params.id as string,
+    req.body,
+  );
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Employment record updated successfully.",
+    data: result,
+  });
+});
+
+const deleteEmployment = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user as RequestUser;
+  const result = await identityService.deleteEmployment(
+    user.id,
+    req.params.id as string,
+  );
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: result.message,
+    data: null,
+  });
+});
+
 export const identityController = {
   me,
   getMyProfile,
   getPublicProfile,
   updateProfile,
+  createEmployment,
+  updateEmployment,
+  deleteEmployment,
 };
