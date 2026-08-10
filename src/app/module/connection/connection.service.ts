@@ -2,6 +2,7 @@ import status from "http-status";
 import { Prisma } from "../../../generated/prisma/client";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { sanitizeRichText } from "../../lib/sanitize";
 import { getSocketServer } from "../../lib/socket/socket-server";
 import { notificationService } from "../notification/notification.service";
 import {
@@ -318,7 +319,7 @@ const sendConnectionRequest = async (
         receiverId: data.receiverId,
         status: "PENDING",
         isFavorite: false,
-        note: data.note ?? null,
+        note: data.note ? sanitizeRichText(data.note) : null,
       },
     });
     notificationService
@@ -351,7 +352,7 @@ const sendConnectionRequest = async (
       requesterId: userId,
       receiverId: data.receiverId,
       status: "PENDING",
-      note: data.note ?? null,
+      note: data.note ? sanitizeRichText(data.note) : null,
     },
   });
 

@@ -6,6 +6,7 @@ import { createProvider } from "../../lib/ai";
 import type { AIProvider, ChatMessage } from "../../lib/ai";
 import ENVVARS from "../../../config/env";
 import { UploadService } from "../../module/upload/upload.service";
+import { fetchSafe } from "../../lib/ssrf";
 
 function detectToolUsage(content: string): { quizzes: boolean; flashcards: boolean } {
   try {
@@ -446,9 +447,13 @@ const getStudyStatsHistory = async (userId: string, weeks: number = 4) => {
   return stats;
 };
 
+const MAX_PDF_BYTES = 2 * 1024 * 1024; // 2 MB
 const summarizePdf = async (userId: string, fileUrl: string) => {
-  const response = await fetch(fileUrl);
+  const response = await fetchSafe(fileUrl, MAX_PDF_BYTES);
   const text = await response.text();
+  if (text.length > MAX_PDF_BYTES) {
+    throw new AppError(status.UNPROCESSABLE_ENTITY, "The PDF is too large to summarize.");
+  }
 
   const result = await provider.summarizeContent(text);
 

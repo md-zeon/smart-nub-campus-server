@@ -2,6 +2,7 @@ import status from "http-status";
 import { VoteType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { sanitizeRichText } from "../../lib/sanitize";
 import { softDelete } from "../../shared/softDelete";
 import { notificationService } from "../notification/notification.service";
 import { gamificationService } from "../gamification/gamification.service";
@@ -124,8 +125,8 @@ const createDiscussion = async (data: CreateDiscussionInput, userId: string) => 
 
   const discussion = await prisma.discussion.create({
     data: {
-      title: data.title,
-      content: data.content,
+      title: sanitizeRichText(data.title),
+      content: sanitizeRichText(data.content),
       categoryId: data.categoryId,
       courseId: data.courseId ?? null,
       authorId: userId,
@@ -269,10 +270,11 @@ const listDiscussions = async (query: ListDiscussionsQuery, userId?: string) => 
 
   // Search in title and content
   if (search) {
-    where.OR = [
+    const searchConditions = [
       { title: { contains: search, mode: "insensitive" } },
       { content: { contains: search, mode: "insensitive" } },
     ];
+    where.OR = [...(Array.isArray(where.OR) ? where.OR : []), ...searchConditions];
   }
 
   // Sort options
@@ -371,8 +373,8 @@ const updateDiscussion = async (
   }
 
   const updateData: Record<string, unknown> = {};
-  if (data.title !== undefined) updateData.title = data.title;
-  if (data.content !== undefined) updateData.content = data.content;
+  if (data.title !== undefined) updateData.title = sanitizeRichText(data.title);
+  if (data.content !== undefined) updateData.content = sanitizeRichText(data.content);
   if (data.categoryId !== undefined) updateData.categoryId = data.categoryId;
   if (data.courseId !== undefined) updateData.courseId = data.courseId;
   if (data.visibility !== undefined) updateData.visibility = data.visibility;
@@ -460,7 +462,7 @@ const createReply = async (
   const reply = await prisma.$transaction(async (tx) => {
     const created = await tx.discussionReply.create({
       data: {
-        content: data.content,
+        content: sanitizeRichText(data.content),
         discussionId,
         authorId: userId,
         parentId: data.parentId ?? null,
@@ -1041,7 +1043,7 @@ const updateReply = async (
   const updated = await prisma.discussionReply.update({
     where: { id: replyId },
     data: {
-      content: data.content,
+      content: sanitizeRichText(data.content),
       isEdited: true,
     },
     include: {

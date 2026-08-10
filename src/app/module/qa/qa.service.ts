@@ -2,6 +2,7 @@ import status from "http-status";
 import { VoteType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { sanitizeRichText } from "../../lib/sanitize";
 import { getSocketServer } from "../../lib/socket/socket-server";
 import { softDelete } from "../../shared/softDelete";
 import { gamificationService } from "../gamification/gamification.service";
@@ -48,8 +49,8 @@ const createQuestion = async (data: CreateQuestionInput, userId: string) => {
 
   const question = await prisma.question.create({
     data: {
-      title: data.title,
-      content: data.content,
+      title: sanitizeRichText(data.title),
+      content: sanitizeRichText(data.content),
       categoryId: data.categoryId,
       courseId: data.courseId ?? null,
       authorId: userId,
@@ -306,8 +307,8 @@ const updateQuestion = async (
   }
 
   const updateData: Record<string, unknown> = {};
-  if (data.title !== undefined) updateData.title = data.title;
-  if (data.content !== undefined) updateData.content = data.content;
+  if (data.title !== undefined) updateData.title = sanitizeRichText(data.title);
+  if (data.content !== undefined) updateData.content = sanitizeRichText(data.content);
 
   await prisma.$transaction(async (tx) => {
     await tx.question.update({ where: { id }, data: updateData });
@@ -376,7 +377,7 @@ const createAnswer = async (
   const answer = await prisma.$transaction(async (tx) => {
     const created = await tx.answer.create({
       data: {
-        content: data.content,
+        content: sanitizeRichText(data.content),
         questionId,
         authorId: userId,
       },
@@ -443,7 +444,7 @@ const updateAnswer = async (
 
   const updated = await prisma.answer.update({
     where: { id: answerId },
-    data: { content: data.content },
+    data: { content: sanitizeRichText(data.content) },
     include: {
       author: { select: { id: true, name: true, email: true, image: true, reputation: true } },
     },

@@ -1,8 +1,8 @@
 import status from "http-status";
-import sanitizeHtml from "sanitize-html";
 import { VoteType } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { sanitizeRichText } from "../../lib/sanitize";
 import { getSocketServer } from "../../lib/socket/socket-server";
 import { softDelete } from "../../shared/softDelete";
 import { gamificationService } from "../gamification/gamification.service";
@@ -20,19 +20,11 @@ import {
   UpdateResourceInput,
 } from "./resource.interface";
 
-const sanitizeOptions: sanitizeHtml.IOptions = {
-  allowedTags: ["p", "br", "strong", "em", "u", "s", "code", "pre", "blockquote", "ul", "ol", "li", "a", "h1", "h2", "h3", "hr"],
-  allowedAttributes: {
-    a: ["href", "target", "rel"],
-  },
-  allowedSchemes: ["http", "https", "mailto"],
-};
-
 const createResource = async (data: CreateResourceInput, userId: string) => {
   const resource = await prisma.resource.create({
     data: {
       title: data.title,
-      description: data.description ? sanitizeHtml(data.description, sanitizeOptions) : null,
+      description: data.description ? sanitizeRichText(data.description) : null,
       fileUrl: data.fileUrl,
       filePublicId: data.filePublicId ?? null,
       fileType: data.fileType,
@@ -278,7 +270,7 @@ const updateResource = async (
 
   const updateData: Record<string, unknown> = {};
   if (data.title !== undefined) updateData.title = data.title;
-  if (data.description !== undefined) updateData.description = data.description ? sanitizeHtml(data.description, sanitizeOptions) : null;
+  if (data.description !== undefined) updateData.description = data.description ? sanitizeRichText(data.description) : null;
   if (data.categoryId !== undefined) updateData.categoryId = data.categoryId;
 
   return prisma.$transaction(async (tx) => {
@@ -572,7 +564,7 @@ const addComment = async (
 
   const comment = await prisma.comment.create({
     data: {
-      content: sanitizeHtml(data.content, sanitizeOptions),
+      content: sanitizeRichText(data.content),
       resourceId,
       userId,
       parentId: data.parentId ?? null,
@@ -854,7 +846,7 @@ const editComment = async (id: string, userId: string, data: EditCommentInput) =
 
   const updated = await prisma.comment.update({
     where: { id },
-    data: { content: sanitizeHtml(data.content, sanitizeOptions) },
+    data: { content: sanitizeRichText(data.content) },
     include: {
       user: {
         select: { id: true, name: true, image: true },

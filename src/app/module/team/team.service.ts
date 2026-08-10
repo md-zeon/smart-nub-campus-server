@@ -1,7 +1,9 @@
 import status from "http-status";
 import AppError from "../../errorHelpers/AppError";
 import { Prisma } from "../../../generated/prisma/client";
+import { UserRole } from "../../../generated/prisma/enums";
 import { prisma } from "../../lib/prisma";
+import { sanitizeRichText } from "../../lib/sanitize";
 import { getSocketServer } from "../../lib/socket/socket-server";
 import { softDelete } from "../../shared/softDelete";
 import { notificationService } from "../notification/notification.service";
@@ -26,7 +28,7 @@ const createTeamRequest = async (data: CreateTeamRequestInput, userId: string) =
     const created = await tx.teamRequest.create({
       data: {
         title: data.title,
-        description: data.description,
+        description: sanitizeRichText(data.description),
         lookingForCount: data.lookingForCount,
         projectName: data.projectName ?? null,
         deadline: data.deadline ? new Date(data.deadline) : null,
@@ -69,6 +71,28 @@ const createTeamRequest = async (data: CreateTeamRequestInput, userId: string) =
 const getTeamRequest = async (id: string, userId?: string) => {
   const teamRequest = await prisma.teamRequest.findUnique({
     where: { id, isDeleted: false },
+    select: { creatorId: true },
+  });
+
+  if (!teamRequest) {
+    throw new AppError(status.NOT_FOUND, "Team request not found.");
+  }
+
+  let canViewFullApplications = false;
+  if (userId) {
+    if (teamRequest.creatorId === userId) {
+      canViewFullApplications = true;
+    } else {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+      canViewFullApplications = user?.role === UserRole.ADMIN;
+    }
+  }
+
+  const result = await prisma.teamRequest.findUnique({
+    where: { id, isDeleted: false },
     include: {
       teamRequestSkills: { include: { tag: true } },
       teamMembers: {
@@ -77,37 +101,48 @@ const getTeamRequest = async (id: string, userId?: string) => {
         },
       },
       teamApplications: {
-        include: {
-          applicant: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              image: true,
-              profile: {
+        include: canViewFullApplications
+          ? {
+              applicant: {
                 select: {
-                  bio: true,
-                  githubUrl: true,
-                  linkedinUrl: true,
-                  portfolioUrl: true,
-                  websiteUrl: true,
-                  phoneNumber: true,
-                  location: true,
-                  currentSemester: true,
-                  batchYear: true,
+                  id: true,
+                  name: true,
+                  email: true,
+                  image: true,
+                  profile: {
+                    select: {
+                      bio: true,
+                      githubUrl: true,
+                      linkedinUrl: true,
+                      portfolioUrl: true,
+                      websiteUrl: true,
+                      phoneNumber: true,
+                      location: true,
+                      currentSemester: true,
+                      batchYear: true,
+                    },
+                  },
+                  student: {
+                    select: {
+                      studentId: true,
+                      department: true,
+                      admissionYear: true,
+                      admissionSemester: true,
+                    },
+                  },
                 },
               },
-              student: {
+            }
+          : {
+              applicant: {
                 select: {
-                  studentId: true,
-                  department: true,
-                  admissionYear: true,
-                  admissionSemester: true,
+                  id: true,
+                  name: true,
+                  image: true,
+                  reputation: true,
                 },
               },
             },
-          },
-        },
         orderBy: { createdAt: "desc" },
       },
       creator: { select: { id: true, name: true, email: true, image: true } },
@@ -115,7 +150,7 @@ const getTeamRequest = async (id: string, userId?: string) => {
     },
   });
 
-  if (!teamRequest) {
+  if (!result) {
     throw new AppError(status.NOT_FOUND, "Team request not found.");
   }
 
@@ -134,7 +169,7 @@ const getTeamRequest = async (id: string, userId?: string) => {
     isBookmarked = !!bookmark;
   }
 
-  return { ...teamRequest, isBookmarked };
+  return { ...result, isBookmarked };
 };
 
 /**
@@ -287,7 +322,7 @@ const updateTeamRequest = async (
   // Build update data
   const updateData: Record<string, unknown> = {};
   if (data.title !== undefined) updateData.title = data.title;
-  if (data.description !== undefined) updateData.description = data.description;
+  if (data.description !== undefined) updateData.description = data.description ? sanitizeRichText(data.description) : null;
   if (data.lookingForCount !== undefined) updateData.lookingForCount = data.lookingForCount;
   if (data.status !== undefined) updateData.status = data.status;
   if (data.projectName !== undefined) updateData.projectName = data.projectName;
@@ -828,7 +863,14 @@ const getTeamApplications = async (teamRequestId: string, userId: string) => {
   }
 
   if (teamRequest.creatorId !== userId) {
-    throw new AppError(status.FORBIDDEN, "Only the team creator can view applications.");
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    if (user?.role !== UserRole.ADMIN) {
+      throw new AppError(status.FORBIDDEN, "Only the team creator can view applications.");
+    }
   }
 
   const applications = await prisma.teamApplication.findMany({

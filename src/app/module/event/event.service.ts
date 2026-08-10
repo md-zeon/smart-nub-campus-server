@@ -3,6 +3,7 @@ import AppError from "../../errorHelpers/AppError";
 import { Prisma } from "../../../generated/prisma/client";
 import { EventAudience, UserRole } from "../../../generated/prisma/enums";
 import { prisma } from "../../lib/prisma";
+import { sanitizeRichText } from "../../lib/sanitize";
 import { getSocketServer } from "../../lib/socket/socket-server";
 import { notificationService } from "../notification/notification.service";
 import {
@@ -36,7 +37,7 @@ const createEvent = async (data: CreateEventInput, userId: string) => {
   const event = await prisma.event.create({
     data: {
       title: data.title,
-      description: data.description ?? null,
+      description: data.description ? sanitizeRichText(data.description) : null,
       eventDate: new Date(data.eventDate),
       location: data.location ?? null,
       imageUrl: data.imageUrl ?? null,
@@ -266,7 +267,7 @@ const updateEvent = async (
 
   const updateData: Record<string, unknown> = {};
   if (data.title !== undefined) updateData.title = data.title;
-  if (data.description !== undefined) updateData.description = data.description;
+  if (data.description !== undefined) updateData.description = data.description ? sanitizeRichText(data.description) : null;
   if (data.eventDate !== undefined) updateData.eventDate = new Date(data.eventDate);
   if (data.location !== undefined) updateData.location = data.location;
   if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl;

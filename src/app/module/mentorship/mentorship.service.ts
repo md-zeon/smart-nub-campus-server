@@ -13,6 +13,7 @@ import {
 } from "../../../generated/prisma/enums";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { sanitizeRichText } from "../../lib/sanitize";
 import { getSocketServer } from "../../lib/socket/socket-server";
 import { notificationService } from "../notification/notification.service";
 import {
@@ -419,7 +420,7 @@ const createMentorshipRequest = async (
       mentorId: data.mentorId,
       menteeId,
       topic: data.topic ?? null,
-      message: data.message ?? null,
+      message: data.message ? sanitizeRichText(data.message) : null,
       goals: data.goals,
     },
     include: REQUEST_INCLUDE,
@@ -795,7 +796,7 @@ const createGoal = async (
     data: {
       mentorshipId,
       title: data.title,
-      description: data.description ?? null,
+      description: data.description ? sanitizeRichText(data.description) : null,
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
       order: (maxOrder._max.order ?? -1) + 1,
     },
@@ -825,7 +826,7 @@ const updateGoal = async (
     where: { id: goalId },
     data: {
       title: data.title,
-      description: data.description === undefined ? undefined : data.description,
+      description: data.description === undefined ? undefined : data.description ? sanitizeRichText(data.description) : null,
       dueDate: data.dueDate === undefined ? undefined : data.dueDate ? new Date(data.dueDate) : null,
       status: data.status as MentorshipGoalStatus | undefined,
     },
@@ -1012,7 +1013,7 @@ const sendMessage = async (
     data: {
       mentorshipId,
       senderId: userId,
-      body: data.body,
+      body: sanitizeRichText(data.body),
     },
     include: { sender: { select: { id: true, name: true, image: true } } },
   });

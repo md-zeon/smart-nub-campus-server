@@ -2,6 +2,7 @@ import status from "http-status";
 import { Prisma } from "../../../generated/prisma/client";
 import AppError from "../../errorHelpers/AppError";
 import { prisma } from "../../lib/prisma";
+import { sanitizeRichText } from "../../lib/sanitize";
 import { notificationService } from "../notification/notification.service";
 import {
   SendMessageInput,
@@ -399,7 +400,7 @@ const sendMessage = async (
       data: {
         conversationId,
         senderId: userId,
-        content: data.content,
+        content: sanitizeRichText(data.content),
         type: data.type || "TEXT",
         replyToId: data.replyToId,
         fileUrl: data.fileUrl,
@@ -663,7 +664,7 @@ const createGroup = async (
     data: {
       type: "GROUP",
       name: data.name,
-      description: data.description,
+      description: sanitizeRichText(data.description),
       creatorId: userId,
       conversationParticipants: {
         create: [
@@ -743,7 +744,7 @@ const updateGroup = async (
     where: { id: conversationId },
     data: {
       ...(data.name !== undefined && { name: data.name }),
-      ...(data.description !== undefined && { description: data.description }),
+      ...(data.description !== undefined && { description: sanitizeRichText(data.description) }),
       ...(data.groupImage !== undefined && { groupImage: data.groupImage }),
     },
     include: {
@@ -1076,7 +1077,7 @@ const editMessage = async (
   const updated = await prisma.message.update({
     where: { id: messageId },
     data: {
-      content,
+      content: sanitizeRichText(content),
       isEdited: true,
       editedAt: new Date(),
     },
@@ -1272,7 +1273,7 @@ const forwardMessage = async (
       data: {
         conversationId: targetConversationId,
         senderId: userId,
-        content: originalMessage.content,
+        content: sanitizeRichText(originalMessage.content),
         type: originalMessage.type,
         fileUrl: originalMessage.fileUrl,
         filePublicId: originalMessage.filePublicId,
