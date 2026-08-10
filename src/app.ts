@@ -2,6 +2,7 @@ import express, { Application, NextFunction, Request, Response } from "express";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { IndexRoutes } from "./app/routes";
+import { healthRoutes } from "./app/module/health/health.routes";
 import globalErrorHandler from "./app/middleware/globalErrorHandler";
 import notFound from "./app/middleware/notFound";
 import {
@@ -60,6 +61,9 @@ app.use(
 
 // routes
 app.use("/api/v1", IndexRoutes);
+
+// Health check (bypasses rate limiters; used by load balancers and Render)
+app.use("/health", healthRoutes);
 
 // Basic route
 app.get("/", async (req: Request, res: Response) => {

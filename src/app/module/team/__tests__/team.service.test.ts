@@ -9,6 +9,9 @@ const { mockPrisma, mockNotificationService, mockSocketServer } = vi.hoisted(() 
   },
   mockPrisma: {
     $transaction: vi.fn(),
+    user: {
+      findUnique: vi.fn(),
+    },
     teamRequest: {
       create: vi.fn(),
       findUnique: vi.fn(),
@@ -1308,10 +1311,24 @@ describe("getTeamApplications", () => {
       id: TEAM_ID,
       creatorId: OTHER_USER_ID,
     } as any);
+    mockPrisma.user.findUnique.mockResolvedValue({ role: "STUDENT" } as any);
 
     await expect(
       teamService.getTeamApplications(TEAM_ID, USER_ID),
     ).rejects.toThrow("Only the team creator can view applications.");
+  });
+
+  it("allows an admin to view applications for a team they do not own", async () => {
+    mockPrisma.teamRequest.findUnique.mockResolvedValue({
+      id: TEAM_ID,
+      creatorId: OTHER_USER_ID,
+    } as any);
+    mockPrisma.user.findUnique.mockResolvedValue({ role: "ADMIN" } as any);
+    mockPrisma.teamApplication.findMany.mockResolvedValue([]);
+
+    const result = await teamService.getTeamApplications(TEAM_ID, USER_ID);
+
+    expect(result).toEqual([]);
   });
 });
 

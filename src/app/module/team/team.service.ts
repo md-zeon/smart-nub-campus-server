@@ -28,7 +28,7 @@ const createTeamRequest = async (data: CreateTeamRequestInput, userId: string) =
     const created = await tx.teamRequest.create({
       data: {
         title: data.title,
-        description: data.description ? sanitizeRichText(data.description) : null,
+        description: sanitizeRichText(data.description),
         lookingForCount: data.lookingForCount,
         projectName: data.projectName ?? null,
         deadline: data.deadline ? new Date(data.deadline) : null,

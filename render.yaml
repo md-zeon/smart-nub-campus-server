@@ -1,0 +1,47 @@
+# Render Blueprint — Smart NUB Campus API
+# Deploy: render.com → New → Blueprint → this repo (render.yaml auto-detected)
+# Requires: Neon Postgres (DATABASE_URL + DIRECT_URL) and the secret env vars below.
+services:
+  - type: web
+    name: smart-nub-campus-api
+    runtime: node
+    repo: https://github.com/md-zeon/smart-nub-campus-server
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    buildCommand: npm install && npm run build
+    preDeployCommand: npx prisma migrate deploy
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: BETTER_AUTH_SECRET
+        sync: false
+      - key: BETTER_AUTH_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: AI_PROVIDER
+        sync: false
+      - key: AI_PROVIDER_API_KEY
+        sync: false
+      - key: AI_PROVIDER_MODEL
+        sync: false
+      - key: MAIL_PROVIDER
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
