@@ -1176,6 +1176,63 @@ const deleteMessage = async (
 };
 
 /**
+ * Soft-delete every non-deleted message in a conversation. Any participant may
+ * clear the thread; files already cleaned up are skipped.
+ */
+const clearMessages = async (
+  conversationId: string,
+  userId: string,
+): Promise<{ message: string; count: number }> => {
+  const participant = await prisma.conversationParticipant.findUnique({
+    where: {
+      conversationId_userId: { conversationId, userId },
+    },
+  });
+
+  if (!participant) {
+    throw new AppError(status.FORBIDDEN, "You are not a participant in this conversation.");
+  }
+
+  const messages = await prisma.message.findMany({
+    where: { conversationId, isDeleted: false },
+    select: { id: true, filePublicId: true },
+  });
+
+  const result = await prisma.message.updateMany({
+    where: {
+      conversationId,
+      isDeleted: false,
+    },
+    data: {
+      isDeleted: true,
+      deletedAt: new Date(),
+      content: "This message was deleted.",
+    },
+  });
+
+  // Clean up Cloudinary files for cleared messages.
+  const publicIds = messages
+    .map((m) => m.filePublicId)
+    .filter((id): id is string => Boolean(id));
+  if (publicIds.length > 0) {
+    try {
+      const { cloudinaryProvider } = await import("../../lib/upload/cloudinary");
+      await Promise.all(
+        publicIds.map((publicId) =>
+          cloudinaryProvider.delete(publicId).catch((err) => {
+            console.error("Failed to delete Cloudinary file:", err);
+          }),
+        ),
+      );
+    } catch (err) {
+      console.error("Failed to delete Cloudinary files:", err);
+    }
+  }
+
+  return { message: "Conversation messages cleared.", count: result.count };
+};
+
+/**
  * Add or toggle a reaction on a message.
  */
 const addReaction = async (
@@ -1371,6 +1428,7 @@ export const messageService = {
   getConversationUnread,
   editMessage,
   deleteMessage,
+  clearMessages,
   addReaction,
   forwardMessage,
   updateConversationSettings,
