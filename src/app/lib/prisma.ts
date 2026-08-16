@@ -9,7 +9,8 @@ const adapter = new PrismaPg({
   connectionString,
   max: 10,
   idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
+  connectionTimeoutMillis:
+    Number(process.env.DATABASE_CONNECT_TIMEOUT_MS) || 5_000,
 });
 
 const prisma = new PrismaClient({

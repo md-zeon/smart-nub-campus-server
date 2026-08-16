@@ -829,12 +829,18 @@ const createCourse = async (data: {
   semester?: number;
   description?: string;
 }) => {
-  const existing = await prisma.course.findUnique({
-    where: { code: data.code },
+  const existing = await prisma.course.findFirst({
+    where: {
+      code: data.code,
+      department: data.department as never,
+    },
   });
 
   if (existing) {
-    throw new AppError(status.CONFLICT, "Course with this code already exists.");
+    throw new AppError(
+      status.CONFLICT,
+      "Course with this code already exists in this department.",
+    );
   }
 
   const course = await prisma.course.create({
@@ -860,12 +866,23 @@ const updateCourse = async (
     throw new AppError(status.NOT_FOUND, "Course not found.");
   }
 
-  if (data.code && data.code !== course.code) {
-    const duplicate = await prisma.course.findUnique({
-      where: { code: data.code as string },
+  const newCode = (data.code as string | undefined) ?? course.code;
+  const newDepartment =
+    (data.department as string | undefined) ?? course.department;
+
+  if (newCode !== course.code || newDepartment !== course.department) {
+    const duplicate = await prisma.course.findFirst({
+      where: {
+        code: newCode,
+        department: newDepartment as never,
+        NOT: { id },
+      },
     });
     if (duplicate) {
-      throw new AppError(status.CONFLICT, "Course with this code already exists.");
+      throw new AppError(
+        status.CONFLICT,
+        "Course with this code already exists in this department.",
+      );
     }
   }
 

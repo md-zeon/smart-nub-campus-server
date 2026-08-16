@@ -408,7 +408,7 @@ const EEE: ICourse[] = [
     semester: 2,
   },
   {
-    code: "CHM-1201",
+    code: "CHM-1202",
     name: "Chemistry LAB",
     department: Department.EEE,
     semester: 2,
@@ -714,26 +714,8 @@ const EEE: ICourse[] = [
     semester: 10,
   },
   {
-    code: "EEE-2325",
-    name: "Electrical Properties of Materials",
-    department: Department.EEE,
-    semester: 11,
-  },
-  {
     code: "EEE-4328",
     name: "Measurement and Instrumentation Laboratory",
-    department: Department.EEE,
-    semester: 11,
-  },
-  {
-    code: "ME-1301",
-    name: "Mechanical Engineering Fundamentals",
-    department: Department.EEE,
-    semester: 11,
-  },
-  {
-    code: "EEE-4000",
-    name: "Project",
     department: Department.EEE,
     semester: 11,
   },
@@ -742,12 +724,6 @@ const EEE: ICourse[] = [
     name: "Financial and Managerial Accounting",
     department: Department.EEE,
     semester: 11,
-  },
-  {
-    code: "EEE-4000",
-    name: "Project",
-    department: Department.EEE,
-    semester: 12,
   },
   {
     code: "EEE-4258",

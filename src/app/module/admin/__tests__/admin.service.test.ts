@@ -17,6 +17,7 @@ vi.mock("../../../../app/lib/prisma", () => ({
     },
     course: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       findMany: vi.fn(),
       count: vi.fn(),
       create: vi.fn(),
@@ -461,7 +462,7 @@ describe("createCourse", () => {
   const courseData = { code: "CS101", name: "Intro to CS", department: "CS", semester: 1, description: "A course" };
 
   it("creates a course successfully", async () => {
-    vi.mocked(mockPrisma.course.findUnique).mockResolvedValue(null);
+    vi.mocked(mockPrisma.course.findFirst).mockResolvedValue(null);
     vi.mocked(mockPrisma.course.create).mockResolvedValue({ id: "c1", ...courseData, department: "CS" } as never);
 
     const result = await adminService.createCourse(courseData);
@@ -470,14 +471,16 @@ describe("createCourse", () => {
     expect(mockPrisma.course.create).toHaveBeenCalled();
   });
 
-  it("throws CONFLICT when course code already exists", async () => {
-    vi.mocked(mockPrisma.course.findUnique).mockResolvedValue({ id: "existing", code: "CS101" } as never);
+  it("throws CONFLICT when course code already exists in the department", async () => {
+    vi.mocked(mockPrisma.course.findFirst).mockResolvedValue({ id: "existing", code: "CS101", department: "CS" } as never);
 
-    await expect(adminService.createCourse(courseData)).rejects.toThrow("Course with this code already exists.");
+    await expect(adminService.createCourse(courseData)).rejects.toThrow(
+      "Course with this code already exists in this department.",
+    );
   });
 
   it("creates course with optional fields omitted", async () => {
-    vi.mocked(mockPrisma.course.findUnique).mockResolvedValue(null);
+    vi.mocked(mockPrisma.course.findFirst).mockResolvedValue(null);
     vi.mocked(mockPrisma.course.create).mockResolvedValue({ id: "c2", code: "MATH101", name: "Math I", department: "MATH", semester: null, description: null } as never);
 
     const result = await adminService.createCourse({ code: "MATH101", name: "Math I", department: "MATH" });
@@ -505,11 +508,12 @@ describe("updateCourse", () => {
   });
 
   it("throws CONFLICT when updated code conflicts with another course", async () => {
-    vi.mocked(mockPrisma.course.findUnique)
-      .mockResolvedValueOnce({ id: "c1", code: "CS101" } as never)
-      .mockResolvedValueOnce({ id: "c2", code: "CS201" } as never);
+    vi.mocked(mockPrisma.course.findUnique).mockResolvedValue({ id: "c1", code: "CS101", department: "CS" } as never);
+    vi.mocked(mockPrisma.course.findFirst).mockResolvedValue({ id: "c2", code: "CS201", department: "CS" } as never);
 
-    await expect(adminService.updateCourse("c1", { code: "CS201" })).rejects.toThrow("Course with this code already exists.");
+    await expect(adminService.updateCourse("c1", { code: "CS201" })).rejects.toThrow(
+      "Course with this code already exists in this department.",
+    );
   });
 
   it("allows keeping the same code", async () => {
