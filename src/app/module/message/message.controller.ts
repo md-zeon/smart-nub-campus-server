@@ -270,6 +270,20 @@ const deleteMessage = catchAsync(async (req, res) => {
 });
 
 /**
+ * Clear all messages in a conversation (soft delete).
+ */
+const clearMessages = catchAsync(async (req, res) => {
+  const conversationId = req.params.id as string;
+  const result = await messageService.clearMessages(conversationId, req.user.id);
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: result.message,
+    data: { count: result.count },
+  });
+});
+
+/**
  * Add or toggle a reaction on a message.
  */
 const addReaction = catchAsync(async (req, res) => {
@@ -342,6 +356,7 @@ export const messageController = {
   getConversationUnread,
   editMessage,
   deleteMessage,
+  clearMessages,
   addReaction,
   forwardMessage,
   updateConversationSettings,

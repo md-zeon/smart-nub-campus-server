@@ -14,6 +14,7 @@
     "push": "prisma db push",
     "pull": "prisma db pull",
     "seed:admin": "tsx prisma/seed.ts",
+    "cleanup:conversations": "tsx prisma/cleanup-duplicate-conversations.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
