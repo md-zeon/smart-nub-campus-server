@@ -12,19 +12,10 @@ const categories = [
 ];
 
 export async function seedQA() {
-  const existingCount = await prisma.questionCategory.count();
-  if (existingCount > 0) {
-    console.log("Question categories already exist. Skipping Q&A seed.");
-    return;
-  }
+  const result = await prisma.questionCategory.createMany({
+    data: categories,
+    skipDuplicates: true,
+  });
 
-  for (const category of categories) {
-    await prisma.questionCategory.upsert({
-      where: { slug: category.slug },
-      update: {},
-      create: category,
-    });
-  }
-
-  console.log(`Seeded ${categories.length} question categories.`);
+  console.log(`Seeded ${result.count} question categories.`);
 }

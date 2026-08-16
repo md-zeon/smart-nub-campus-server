@@ -1069,19 +1069,10 @@ const ME: ICourse[] = [
 const courses: ICourse[] = [...CSE, ...EEE,...ME];
 
 export async function seedAcademic() {
-  const existingCount = await prisma.course.count();
-  if (existingCount > 0) {
-    console.log("Courses already exist. Skipping academic seed.");
-    return;
-  }
+  const result = await prisma.course.createMany({
+    data: courses,
+    skipDuplicates: true,
+  });
 
-  for (const course of courses) {
-    await prisma.course.upsert({
-      where: { code: course.code },
-      update: {},
-      create: course,
-    });
-  }
-
-  console.log(`Seeded ${courses.length} courses.`);
+  console.log(`Seeded ${result.count} courses.`);
 }

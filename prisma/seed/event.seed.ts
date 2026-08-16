@@ -68,20 +68,18 @@ export async function seedEvents() {
     return;
   }
 
-  for (const event of sampleEvents) {
-    await prisma.event.create({
-      data: {
-        title: event.title,
-        description: event.description,
-        eventDate: event.eventDate,
-        location: event.location ?? null,
-        imageUrl: event.imageUrl ?? null,
-        organizerId: adminUser.id,
-        status: event.status,
-        isFeatured: event.isFeatured,
-      },
-    });
-  }
+  const result = await prisma.event.createMany({
+    data: sampleEvents.map((event) => ({
+      title: event.title,
+      description: event.description,
+      eventDate: event.eventDate,
+      location: event.location ?? null,
+      imageUrl: event.imageUrl ?? null,
+      organizerId: adminUser.id,
+      status: event.status,
+      isFeatured: event.isFeatured,
+    })),
+  });
 
-  console.log(`Seeded ${sampleEvents.length} events.`);
+  console.log(`Seeded ${result.count} events.`);
 }

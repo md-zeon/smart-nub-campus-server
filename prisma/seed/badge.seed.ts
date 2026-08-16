@@ -206,44 +206,18 @@ const badgeDefinitions = [
 ];
 
 export async function seedBadges() {
-  const existingNames = new Set(
-    (await prisma.badge.findMany({ select: { name: true } })).map(
-      (b) => b.name,
-    ),
-  );
+  const result = await prisma.badge.createMany({
+    data: badgeDefinitions.map((badge) => ({
+      name: badge.name,
+      description: badge.description,
+      icon: badge.icon,
+      category: badge.category as never,
+      tier: badge.tier as never,
+      points: badge.points,
+      condition: badge.condition,
+    })),
+    skipDuplicates: true,
+  });
 
-  let created = 0;
-  let updated = 0;
-
-  for (const badge of badgeDefinitions) {
-    const exists = existingNames.has(badge.name);
-    await prisma.badge.upsert({
-      where: { name: badge.name },
-      update: {
-        description: badge.description,
-        icon: badge.icon,
-        category: badge.category as never,
-        tier: badge.tier as never,
-        points: badge.points,
-        condition: badge.condition,
-      },
-      create: {
-        name: badge.name,
-        description: badge.description,
-        icon: badge.icon,
-        category: badge.category as never,
-        tier: badge.tier as never,
-        points: badge.points,
-        condition: badge.condition,
-      },
-    });
-
-    if (exists) {
-      updated++;
-    } else {
-      created++;
-    }
-  }
-
-  console.log(`Badges seeded — created: ${created}, updated: ${updated}.`);
+  console.log(`Seeded ${result.count} badges.`);
 }

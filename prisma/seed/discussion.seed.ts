@@ -12,19 +12,10 @@ const categories = [
 ];
 
 export async function seedDiscussions() {
-  const existingCount = await prisma.discussionCategory.count();
-  if (existingCount > 0) {
-    console.log("Discussion categories already exist. Skipping discussion seed.");
-    return;
-  }
+  const result = await prisma.discussionCategory.createMany({
+    data: categories,
+    skipDuplicates: true,
+  });
 
-  for (const category of categories) {
-    await prisma.discussionCategory.upsert({
-      where: { slug: category.slug },
-      update: {},
-      create: category,
-    });
-  }
-
-  console.log(`Seeded ${categories.length} discussion categories.`);
+  console.log(`Seeded ${result.count} discussion categories.`);
 }
