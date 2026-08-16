@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP } from "better-auth/plugins/email-otp";
+import { bearer } from "better-auth/plugins/bearer";
 import { prisma } from "./prisma";
 import { UserStatus } from "../../generated/prisma/enums";
 import { mailService } from "./mail";
@@ -14,6 +15,13 @@ export const auth = betterAuth({
   }),
   basePath: "/api/v1/auth",
   trustedOrigins: ENVVARS.CORS_ORIGINS,
+  // Cross-site cookies (Vercel frontend -> Render backend). `partitioned`
+  // (CHIPS) keeps the session cookie usable under Chrome's third-party
+  // cookie blocking, scoped to the frontend's top-level site.
+  advanced: {
+    useSecureCookies: true,
+    defaultCookieAttributes: { sameSite: "none", partitioned: true },
+  },
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
@@ -101,6 +109,9 @@ export const auth = betterAuth({
       sendVerificationOnSignUp: true,
       overrideDefaultEmailVerification: true,
     }),
+    // Validates the `Authorization: Bearer <session-token>` header used by
+    // the Socket.IO handshake (see socket middleware auth.middleware.ts).
+    bearer(),
   ],
   user: {
     additionalFields: {

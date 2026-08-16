@@ -65,6 +65,12 @@ router.delete(
   messageController.deleteMessage,
 );
 
+// Clear all messages in a conversation (soft delete)
+router.delete(
+  "/conversations/:id/messages",
+  messageController.clearMessages,
+);
+
 // Add/toggle reaction on a message
 router.post(
   "/conversations/:id/messages/:messageId/reactions",

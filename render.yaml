@@ -40,6 +40,14 @@ services:
         sync: false
       - key: MAIL_PROVIDER
         sync: false
+      - key: GMAIL_USER
+        sync: false
+      - key: GMAIL_API_CLIENT_ID
+        sync: false
+      - key: GMAIL_API_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_API_REFRESH_TOKEN
+        sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: MAIL_FROM

@@ -36,10 +36,14 @@ interface EnvConfig {
   AI_PROVIDER_API_KEY: string;
   AI_PROVIDER_MODEL: string;
   // Mail provider selection
-  MAIL_PROVIDER: "gmail" | "resend";
+  MAIL_PROVIDER: "gmail" | "resend" | "gmail-api";
   // Gmail provider credentials (optional - validated in GmailProvider)
   GMAIL_USER?: string;
   GMAIL_APP_PASSWORD?: string;
+  // Gmail API provider credentials (optional - validated in GmailApiProvider)
+  GMAIL_API_CLIENT_ID?: string;
+  GMAIL_API_CLIENT_SECRET?: string;
+  GMAIL_API_REFRESH_TOKEN?: string;
 }
 
 const loadEnvVariables = (): EnvConfig => {
@@ -97,9 +101,15 @@ const loadEnvVariables = (): EnvConfig => {
     RESEND_API_KEY: process.env.RESEND_API_KEY as string | undefined,
     MAIL_FROM: process.env.MAIL_FROM as string | undefined,
     MAIL_PROVIDER:
-      (process.env.MAIL_PROVIDER as "gmail" | "resend") || "resend",
+      (process.env.MAIL_PROVIDER as "gmail" | "resend" | "gmail-api") ||
+      "resend",
     GMAIL_USER: process.env.GMAIL_USER as string | undefined,
     GMAIL_APP_PASSWORD: process.env.GMAIL_APP_PASSWORD as string | undefined,
+    GMAIL_API_CLIENT_ID: process.env.GMAIL_API_CLIENT_ID as string | undefined,
+    GMAIL_API_CLIENT_SECRET:
+      process.env.GMAIL_API_CLIENT_SECRET as string | undefined,
+    GMAIL_API_REFRESH_TOKEN:
+      process.env.GMAIL_API_REFRESH_TOKEN as string | undefined,
   };
 };
 
