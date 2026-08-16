@@ -2,6 +2,7 @@ import ENVVARS from "../../../config/env";
 import { MailProvider } from "./mail.interface";
 import { ResendProvider } from "./resend.provider";
 import { GmailProvider } from "./gmail.provider";
+import { GmailApiProvider } from "./gmailApi.provider";
 
 /**
  * Mail Provider Factory
@@ -13,6 +14,9 @@ export function createMailProvider(): MailProvider {
   switch (providerType) {
     case "gmail":
       return new GmailProvider();
+
+    case "gmail-api":
+      return new GmailApiProvider();
 
     case "resend":
       return new ResendProvider();
